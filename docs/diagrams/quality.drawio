@@ -1,0 +1,166 @@
+<mxfile host="app.diagrams.net" modified="2026-09-12T00:00:00.000Z" agent="claude-code" version="24.0.0">
+  <diagram id="quality" name="quality">
+    <mxGraphModel dx="1600" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="こだわり図: Mock と E2E テスト・安全設計・並列開発" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=24;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1000" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="実機ゼロでも開発・テストできる 3 段のモック / 91 件の自動テストと Gemini 実キー E2E / 安全上限は 3 層で強制、開発は worktree 並列" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontColor=#64748B;" vertex="1" parent="1">
+          <mxGeometry x="40" y="56" width="1200" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="colL" value="モックの 3 段構え" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=14;fontStyle=1;fontColor=#334155;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="96" width="480" height="684" as="geometry" />
+        </mxCell>
+        <mxCell id="colM" value="テストピラミッド" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=14;fontStyle=1;fontColor=#334155;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="96" width="490" height="684" as="geometry" />
+        </mxCell>
+        <mxCell id="colR" value="安全設計 × 開発プロセス" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=14;fontStyle=1;fontColor=#334155;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="96" width="510" height="684" as="geometry" />
+        </mxCell>
+
+        <mxCell id="l1" value="&lt;b&gt;① プロセス内モック（依存ゼロ）&lt;/b&gt;&lt;br&gt;DEVICE_MODE=mock（既定）/ ROBOT_MODE 未設定&lt;br&gt;createDevices() が createMockRailClient 等を返す&lt;br&gt;mock/{rail,desktop,stackchan}.ts, robot/src/mock.ts&lt;br&gt;サーバーも Docker も実機も無しで UI を開発できる" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;dashed=1;fillColor=#FEFCE8;strokeColor=#CA8A04;fontFamily=Helvetica;fontSize=12;fontColor=#713F12;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="440" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="&lt;b&gt;② モックサーバー（実機と同じワイヤ形式）&lt;/b&gt;&lt;br&gt;8791 ESP32 レール / 8792 Electron デスクトップ（HTTP・/api/v1）&lt;br&gt;8793 スタックちゃん（WebSocket・/ws/v1/robot）&lt;br&gt;8787 ロボット本体モック（robot/src/mock-server.ts）&lt;br&gt;snake_case のまま・request_id で ack を相関・全受信を 1 行ログ&lt;br&gt;duration_ms が上限 3000ms を超えると &lt;b&gt;サーバー側でも 400&lt;/b&gt;&lt;br&gt;curl / WebSocket で直接叩ける（docs/runbooks/devices.md）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;dashed=1;fillColor=#FEFCE8;strokeColor=#CA8A04;fontFamily=Helvetica;fontSize=12;fontColor=#713F12;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="266" width="440" height="146" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="&lt;b&gt;③ 実機（DEVICE_MODE=real）&lt;/b&gt;&lt;br&gt;RAIL_BASE_URL / DESKTOP_BASE_URL / STACKCHAN_WS_URL&lt;br&gt;URL 未設定の機器だけモックのまま＝1 台ずつ実機化できる" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFF7ED;strokeColor=#EA580C;fontFamily=Helvetica;fontSize=12;fontColor=#7C2D12;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="438" width="440" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" value="切替は .env.local の 1 行だけ&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;DEVICE_MODE=mock ⇄ real（コード変更ゼロ・再ビルド不要）&lt;/font&gt;" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFBEB;strokeColor=#CA8A04;fontFamily=Helvetica;fontSize=15;fontStyle=1;fontColor=#713F12;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="552" width="440" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" value="&lt;b&gt;壊れていても止まらない 2 つのフォールバック&lt;/b&gt;&lt;br&gt;Mastra Storage: DATABASE_URL があれば Postgres（mastra スキーマ）、&lt;br&gt;無ければ LibSQL :memory:（agent/src/mastra/storage.ts）&lt;br&gt;DB ログ: SUPABASE_SECRET_KEY 未設定なら createServiceClient が null&lt;br&gt;→ logRobotCommand はスキップし insert 失敗も warn だけ（db/src）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#ECFDF5;strokeColor=#059669;fontFamily=Helvetica;fontSize=12;fontColor=#064E3B;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="640" width="440" height="124" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m4" value="&lt;b&gt;手動 E2E — 開発者ダッシュボード /dev&lt;/b&gt;&lt;br&gt;16 エンドポイントを認証なしで実行・プリセット&lt;br&gt;履歴 50 件（localStorage）・curl コマンドをコピー&lt;br&gt;守るもの: 実機投入前に人の目で全 API を 1 本ずつ確認" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#EEF2FF;strokeColor=#4338CA;fontFamily=Helvetica;fontSize=12;fontColor=#1E1B4B;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="620" y="140" width="330" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="&lt;b&gt;E2E — Gemini 実キーで通し確認（curl）&lt;/b&gt;&lt;br&gt;/api/chat に送信 → 実応答が返り、同 thread で名前を記憶&lt;br&gt;「嬉しいときのポーズをして」→ robotCommand{type:emote} 発火&lt;br&gt;→ ロボットモックのログに到達 → DB に行が増える&lt;br&gt;mastra.mastra_threads 1 行・mastra_messages 8 行&lt;br&gt;public.robot_commands +4 行&lt;br&gt;守るもの: LLM → tool → 機器 → 永続化の一本の線" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F5F3FF;strokeColor=#7C3AED;fontFamily=Helvetica;fontSize=12;fontColor=#3B0764;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="620" y="266" width="330" height="146" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="&lt;b&gt;統合テスト — 本物の HTTP / WebSocket を通す&lt;/b&gt;&lt;br&gt;テスト内で startMockRailServer(0) 等を &lt;b&gt;ポート 0&lt;/b&gt; で起動し、&lt;br&gt;実 fetch / 実 WebSocket をそのまま流す（差し替えなし）&lt;br&gt;守るもの: タイムアウト・再接続・request_id 相関・&lt;br&gt;rail/move は非再送 / stop だけ 1 回再試行&lt;br&gt;devices/src/{http,ws}/*.test.ts, robot/src/mock-server.test.ts" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F0F9FF;strokeColor=#0284C7;fontFamily=Helvetica;fontSize=12;fontColor=#0C4A6E;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="585" y="438" width="400" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" value="&lt;b&gt;単体テスト — vitest（2026-09-12 実測）&lt;/b&gt;&lt;br&gt;devices &lt;b&gt;50 件&lt;/b&gt; / 8 ファイル（1.68s）　robot &lt;b&gt;19 件&lt;/b&gt; / 3 ファイル（0.46s）&lt;br&gt;agent &lt;b&gt;16 件&lt;/b&gt; ※（0.70s）　db &lt;b&gt;6 件&lt;/b&gt; / 1 ファイル（0.11s）　合計 &lt;b&gt;91 件&lt;/b&gt;&lt;br&gt;守るもの: zod の境界値（durationMs 1〜3000）・camelCase ⇄ snake_case&lt;br&gt;変換・URL 制限・tool の引数とエラー整形&lt;br&gt;※ agent は feat/devices-agent-tools の tools/devices.test.ts 9 件を含む&lt;br&gt;　（develop 単体では 7 件。合計 82 件）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F0F9FF;strokeColor=#0284C7;fontFamily=Helvetica;fontSize=12;fontColor=#0C4A6E;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="558" y="594" width="454" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mnote" value="下ほど速く安く多い。上ほど「本物」を通す" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;" vertex="1" parent="1">
+          <mxGeometry x="558" y="740" width="454" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rs" value="安全設計（5 点）" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#B91C1C;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="128" width="470" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" value="&lt;b&gt;駆動時間の上限 3000ms を 3 層で強制&lt;/b&gt;&lt;br&gt;① zod: railMoveSchema.max(RAIL_MAX_DURATION_MS)&lt;br&gt;② SDK: 送信前に parse し、失敗は fetch せず DeviceResult へ&lt;br&gt;③ モックサーバー（＝実機の代役）が 400 を返す&lt;br&gt;env DEVICE_RAIL_MAX_DURATION_MS で変更可（既定 3000）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;fontFamily=Helvetica;fontSize=12;fontColor=#7F1D1D;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="150" width="470" height="98" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="&lt;b&gt;移動命令は絶対に再送しない&lt;/b&gt;&lt;br&gt;rail/move は retryOnNetworkError:false。冪等な stop だけ 1 回再試行" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;fontFamily=Helvetica;fontSize=12;fontColor=#7F1D1D;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="256" width="470" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="&lt;b&gt;開ける URL は http / https のみ&lt;/b&gt;&lt;br&gt;openUrlSchema の refine で file: や javascript: を拒否" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;fontFamily=Helvetica;fontSize=12;fontColor=#7F1D1D;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="318" width="470" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="&lt;b&gt;緊急停止は常時表示&lt;/b&gt;&lt;br&gt;/dev の上部固定バーに rail/stop と audio/stop（dev-header.tsx）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;fontFamily=Helvetica;fontSize=12;fontColor=#7F1D1D;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="380" width="470" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" value="&lt;b&gt;LAN へ到達するのはサーバーだけ&lt;/b&gt;&lt;br&gt;ブラウザ → Route Handler（/api/devices/* 12 本）→ SDK → 機器&lt;br&gt;Chrome の Local Network Access 制限と混在コンテンツを回避" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;fontFamily=Helvetica;fontSize=12;fontColor=#7F1D1D;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="442" width="470" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rp" value="開発プロセス（4 点）" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="520" width="470" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="r6" value="&lt;b&gt;worktree で 5〜6 レーン並列&lt;/b&gt;&lt;br&gt;1 タスク = 1 ブランチ = 1 worktree（scripts/wt-setup.sh が生成）&lt;br&gt;web / Studio / ロボットモックのポートをレーンごとに固定" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F1F5F9;strokeColor=#64748B;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="542" width="470" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="r7" value="&lt;b&gt;ファイル所有権表で衝突ゼロ&lt;/b&gt;&lt;br&gt;docs/development.md のレーン表。所有外は編集せず報告する" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F1F5F9;strokeColor=#64748B;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="616" width="470" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="r8" value="&lt;b&gt;契約先行スタブで依存レーンを止めない&lt;/b&gt;&lt;br&gt;P3-0 で型・zod・モッククライアントだけ先に確定 → A〜E を同時起動" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#F1F5F9;strokeColor=#64748B;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="676" width="470" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="r9" value="&lt;b&gt;pnpm verify ゲート&lt;/b&gt;&lt;br&gt;turbo run lint typecheck test build が green になってからコミットする" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#ECFDF5;strokeColor=#059669;fontFamily=Helvetica;fontSize=12;fontColor=#064E3B;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="732" width="470" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="l1" target="l2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="l2" target="l3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="m1" target="m2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="m2" target="m3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="m3" target="m4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend" value="凡例" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#334155;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="796" width="700" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#F0F9FF;strokeColor=#0284C7;" vertex="1" parent="1">
+          <mxGeometry x="60" y="828" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1t" value="共有パッケージ / テストコード" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="80" y="827" width="170" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;dashed=1;fillColor=#FEFCE8;strokeColor=#CA8A04;" vertex="1" parent="1">
+          <mxGeometry x="260" y="828" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2t" value="モック（破線）" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="280" y="827" width="120" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#ECFDF5;strokeColor=#059669;" vertex="1" parent="1">
+          <mxGeometry x="410" y="828" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3t" value="データ / 品質ゲート" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="430" y="827" width="140" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFF7ED;strokeColor=#EA580C;" vertex="1" parent="1">
+          <mxGeometry x="580" y="828" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4t" value="物理機器" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="600" y="827" width="120" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#EEF2FF;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="60" y="854" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5t" value="Web / クライアント" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="80" y="853" width="170" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg6" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#F5F3FF;strokeColor=#7C3AED;" vertex="1" parent="1">
+          <mxGeometry x="260" y="854" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg6t" value="AI / エージェント" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="280" y="853" width="120" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg7" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#FEF2F2;strokeColor=#DC2626;" vertex="1" parent="1">
+          <mxGeometry x="410" y="854" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg7t" value="安全機構（赤枠）" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="430" y="853" width="140" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="lg8" value="" style="rounded=0;html=1;shadow=0;strokeWidth=1.5;fillColor=#F1F5F9;strokeColor=#64748B;" vertex="1" parent="1">
+          <mxGeometry x="580" y="854" width="14" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg8t" value="開発プロセス" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="600" y="853" width="120" height="16" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src" value="&lt;b&gt;出典（読んだファイル・実行したコマンド）&lt;/b&gt;&lt;br&gt;packages/devices/src/{constants,schemas,wire,index,mock-servers}.ts, http/rail.ts, mock/*.ts, {http,ws}/*.test.ts ／ packages/robot/src/{mock,mock-server,index}.ts&lt;br&gt;packages/agent/src/mastra/storage.ts ・ tools/devices.ts と devices.test.ts（feat/devices-agent-tools）／ packages/db/src/{index,server}.ts&lt;br&gt;client/web/app/api/devices/**（feat/devices-web・12 ルート）／ client/web/{app/dev,components/dev,lib/dev}/**（feat/dev-dashboard・16 エンドポイント）&lt;br&gt;docs/runbooks/devices.md（docs/devices-runbook）, docs/runbooks/mastra.md, docs/development.md, turbo.json, package.json, scripts/wt-setup.sh&lt;br&gt;テスト件数は各パッケージで pnpm vitest run を実行した実測値（2026-09-12・develop @ eb86ea1）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=11;fontColor=#475569;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="760" y="796" width="800" height="84" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
