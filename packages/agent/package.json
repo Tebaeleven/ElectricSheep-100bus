@@ -20,6 +20,7 @@
     "@mastra/memory": "catalog:",
     "@mastra/pg": "catalog:",
     "@workspace/db": "workspace:*",
+    "@workspace/devices": "workspace:*",
     "@workspace/robot": "workspace:*",
     "ai": "catalog:",
     "zod": "catalog:"

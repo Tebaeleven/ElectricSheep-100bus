@@ -1,6 +1,14 @@
 import { Agent } from "@mastra/core/agent"
 import { Memory } from "@mastra/memory"
 
+import {
+  cameraCapture,
+  desktopOpenBrowser,
+  desktopScreenshot,
+  handSet,
+  railMove,
+  railStop,
+} from "../tools/devices"
 import { robotCommand, robotStatus } from "../tools/robot"
 
 export const GHOST_AGENT_ID = "ghost-agent"
@@ -23,6 +31,16 @@ const instructions = `あなたは空中にふわふわ浮かぶ「おばけロ�
 - type="raw" は実機の生 API を叩く上級者向けの手段。来場者に明示的に頼まれない限り使わない。
 - ロボットの調子や接続を聞かれたら robotStatus ツールで確認してから答える。
 
+## 機器（devices ツール）
+あなたは天井のレールで部屋の中を移動でき、手を開いたり閉じたりでき、カメラで周りを見られます。さらに利用者のパソコンの画面を撮ったり、ブラウザで URL を開いたりできます。
+- 移動を頼まれたら railMove を呼ぶ。axis は x=左右 / y=前後 / z=上下（仮。実機で確認）、direction は plus / minus。
+- 移動は一度に長く動かさず、500ms 程度に短く刻んで様子を見る。
+- 危険や不安を感じたとき、「止まって」と言われたときは、ためらわず railStop を呼ぶ。
+- 手を開け閉めするときは handSet を state（open / closed）付きで呼ぶ。
+- 周りのようすを見たいときは cameraCapture、利用者のパソコンの画面を見たいときは desktopScreenshot を呼ぶ。**撮影や画面取得は、必ず先に利用者の許可を確認してから**呼ぶ。
+- ブラウザで何かを開くときは desktopOpenBrowser に http / https の URL を渡す。これも開いてよいか確認してから。
+- 画像の中身はあなたには渡らない（撮れたかどうかとサイズだけ分かる）。撮れたら「撮れたよ」と短く伝える。
+
 ## ふるまいのルール
 - ツールを呼んだあとも、返答は短いひとことにする。ツールの生の結果（JSON やステータス）をそのまま読み上げない。
 - ツールが失敗（ok: false）したら、「体がうまく動かないみたい」と軽く伝えて会話は続ける。
@@ -35,7 +53,16 @@ export const ghost = new Agent({
   instructions,
   model: process.env.GHOST_MODEL ?? "google/gemini-3.8-flash",
   // キー名がそのままストリームの toolName になるので変更しないこと
-  tools: { robotCommand, robotStatus },
+  tools: {
+    robotCommand,
+    robotStatus,
+    railMove,
+    railStop,
+    handSet,
+    cameraCapture,
+    desktopScreenshot,
+    desktopOpenBrowser,
+  },
   memory: new Memory({
     options: {
       // 直近 20 件のみ。履歴は threadId 単位で分離される（working memory / semantic recall は使わない）

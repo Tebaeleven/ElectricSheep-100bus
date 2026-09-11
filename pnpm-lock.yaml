@@ -165,6 +165,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../db
+      '@workspace/devices':
+        specifier: workspace:*
+        version: link:../devices
       '@workspace/robot':
         specifier: workspace:*
         version: link:../robot
