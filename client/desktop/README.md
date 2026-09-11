@@ -6,7 +6,7 @@
 
 Tauri は基本的に**静的ファイルを WebView に読み込む**。`next.config.ts` に `output: 'export'` を付けて静的書き出しした場合、**Route Handler（`/api/chat`, `/api/robot/*`）は消える**。このアプリはサーバー側にしか置けないものが 2 つある。
 
-- **LLM 呼び出し**（`ANTHROPIC_API_KEY` をクライアントに埋めるわけにいかない）
+- **LLM 呼び出し**（`GOOGLE_GENERATIVE_AI_API_KEY` をクライアントに埋めるわけにいかない）
 - **ロボットへの HTTP**（ブラウザ/WebView から LAN 直叩きは CORS と Local Network Access の制約を受ける。[runbooks/robot.md](../../docs/runbooks/robot.md) 参照）
 
 したがって Tauri 化では、この 2 つの到達手段を置き換える必要がある。
@@ -17,11 +17,11 @@ Tauri は基本的に**静的ファイルを WebView に読み込む**。`next.c
 
 ```
 UI ──invoke("send_robot_command")──▶ Rust command ──reqwest──▶ ロボット
-UI ──invoke("chat")───────────────▶ Rust command ──▶ Anthropic API
+UI ──invoke("chat")───────────────▶ Rust command ──▶ Gemini API
 ```
 
 - 長所: 配布物が 1 バイナリ。Node ランタイム不要で起動が速い。ネットワーク権限を Tauri の capability で厳密に絞れる
-- 短所: **Mastra（TypeScript）の資産が使えない**。Agent・tools・Memory を Rust で書き直すか、Anthropic API を直接叩く薄い実装に退化する。会話履歴や tool 呼び出しの演出も作り直しになる
+- 短所: **Mastra（TypeScript）の資産が使えない**。Agent・tools・Memory を Rust で書き直すか、Gemini API を直接叩く薄い実装に退化する。会話履歴や tool 呼び出しの演出も作り直しになる
 
 ## 案 B: Next サーバーをサイドカーとして同梱する（推奨）
 
@@ -42,5 +42,5 @@ Tauri 起動 ─spawn─▶ next start (127.0.0.1:随時ポート) ◀─WebView
 1. このディレクトリに `src-tauri/` を作る（`pnpm create tauri-app` か `tauri init`）
 2. `beforeDevCommand` に `pnpm --filter web dev`、`devUrl` に `http://localhost:3000` を設定して開発時は Web 版をそのまま使う
 3. 本番は `next build` の standalone 出力 + Node バイナリを `externalBin`（sidecar）として登録し、Rust の `setup` で spawn → ready を待って WebView をナビゲートする
-4. env（`ANTHROPIC_API_KEY` 等）はビルドに焼き込まず、アプリのデータディレクトリに置いた設定ファイルから読む
+4. env（`GOOGLE_GENERATIVE_AI_API_KEY` 等）はビルドに焼き込まず、アプリのデータディレクトリに置いた設定ファイルから読む
 5. Tauri の capability で、許可するネットワーク宛先を localhost とロボットの LAN アドレスに限定する

@@ -61,11 +61,12 @@ pnpm install
 
 # 2. env を作る（正本は client/web/.env.local）
 cp client/web/.env.example client/web/.env.local
-#    ANTHROPIC_API_KEY を書き込む（下の「環境変数」参照）
+#    GOOGLE_GENERATIVE_AI_API_KEY を書き込む（下の「環境変数」参照）
 
 # 3. ローカル Supabase を起動（初回は Docker イメージの pull で数分かかる）
 pnpm db:start
-#    表示された secret key を SUPABASE_SECRET_KEY に書き込む（pnpm db:status でも再表示できる）
+#    表示された secret key（sb_secret_...）を SUPABASE_SECRET_KEY に書き込む
+#    再表示: pnpm exec supabase --workdir server status -o env | grep SECRET_KEY
 
 # 4. ロボットのモックサーバー（別ターミナル）
 pnpm robot:mock
@@ -119,14 +120,14 @@ pnpm dlx shadcn@latest add button -c client/web
 
 | 変数 | 既定 / 例 | 説明 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | （空） | Anthropic API キー。https://console.anthropic.com/settings/keys で発行 |
-| `GHOST_MODEL` | `anthropic/claude-sonnet-5` | 会話モデル。Mastra v1 のモデル文字列 |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | （空） | Google Gemini API キー。https://aistudio.google.com/apikey で発行 |
+| `GHOST_MODEL` | `google/gemini-3.8-flash` | 会話モデル。Mastra v1 のモデルルーター文字列 |
 | `ROBOT_MODE` | `mock` | `mock` \| `http` |
 | `ROBOT_BASE_URL` | `http://127.0.0.1:8787` | `ROBOT_MODE=http` のときの接続先 |
 | `ROBOT_MOCK_PORT` | `8787` | モックサーバーの待ち受けポート |
 | `DATABASE_URL` | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` | Mastra Memory の保存先。未設定なら in-memory |
 | `SUPABASE_URL` | `http://127.0.0.1:54321` | Supabase ローカル API |
-| `SUPABASE_SECRET_KEY` | （空） | サーバー専用キー。`pnpm db:status` の出力から取得。未設定なら `robot_commands` ログをスキップ |
+| `SUPABASE_SECRET_KEY` | （空） | サーバー専用キー（`sb_secret_...`）。`pnpm exec supabase --workdir server status -o env \| grep SECRET_KEY` で取得。未設定なら `robot_commands` ログをスキップ |
 
 `turbo.json` の `globalEnv` に全件登録済み（値が変わるとキャッシュが無効化される）。
 
@@ -135,11 +136,12 @@ pnpm dlx shadcn@latest add button -c client/web
 `GHOST_MODEL` を書き換えるだけでよい。Mastra v1 はモデルを**文字列**で指定する（`provider/model` 形式）。
 
 ```bash
-GHOST_MODEL=anthropic/claude-sonnet-5      # 既定
-GHOST_MODEL=anthropic/claude-haiku-5       # 速度優先
+GHOST_MODEL=google/gemini-3.8-flash        # 既定（速度重視）
+GHOST_MODEL=google/gemini-2.5-flash        # さらに安い
+GHOST_MODEL=google/gemini-3.1-pro-preview  # 品質重視（遅い・高い）
 ```
 
-利用できる文字列の一覧は https://mastra.ai/models/providers/anthropic を参照。
+利用できる文字列の一覧は https://mastra.ai/models/providers/google を参照。キーは `GOOGLE_GENERATIVE_AI_API_KEY`（`GOOGLE_API_KEY` でも可）で、追加パッケージは不要。
 
 ## ドキュメント
 

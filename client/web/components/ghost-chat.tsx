@@ -223,7 +223,7 @@ export function GhostChat() {
                 >
                   <span>{error.message}</span>
                   <span className="text-muted-foreground">
-                    ANTHROPIC_API_KEY を client/web/.env.local
+                    GOOGLE_GENERATIVE_AI_API_KEY を client/web/.env.local
                     に設定して開発サーバーを再起動してください。
                   </span>
                 </div>

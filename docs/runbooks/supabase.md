@@ -64,7 +64,18 @@ alter table public.robot_commands enable row level security;
 -- policy は作らない
 ```
 
-理由: このアプリに認証は無く、DB へのアクセスは**サーバー側の secret key 経由のみ**（`packages/db/src/server.ts` は `server-only` を import している）。secret key は RLS をバイパスするのでサーバーからは書ける一方、万一 anon key が漏れてもブラウザからは一切読めない。
+理由: このアプリに認証は無く、DB へのアクセスは**サーバー側の secret key 経由のみ**。secret key は RLS をバイパスするのでサーバーからは書ける一方、万一 anon key が漏れてもブラウザからは一切読めない。
+
+`packages/db/src/server.ts` は `server-only` パッケージを使わず、`createServiceClient` の中の実行時ガード（`typeof window !== "undefined"` なら throw）でブラウザ実行を止めている。`server-only` は `mastra dev`（素の Node）で import した瞬間に例外になり Studio が起動できなくなるため。
+
+## secret key を取り出す
+
+```bash
+pnpm exec supabase --workdir server status -o env | grep SECRET_KEY
+# SECRET_KEY="sb_secret_..."
+```
+
+値は新形式（`sb_secret_...`）。これを `client/web/.env.local` の `SUPABASE_SECRET_KEY` に貼る。旧形式の JWT（`SERVICE_ROLE_KEY` の `eyJ...`）ではない点に注意。ローカルの値は固定なので、`db:reset` しても変わらない。
 
 新しいテーブルを足したときも同じ扱いにする（RLS 有効 + ポリシー無し）。
 
@@ -87,5 +98,5 @@ alter table public.robot_commands enable row level security;
 | `db:start` が Docker エラー | Docker Desktop を起動する。[setup.md](../setup.md) 参照 |
 | ポート 54321-54323 が埋まっている | 別プロジェクトの Supabase を `supabase stop` する |
 | `db:types` の出力が空 | 起動していない状態で実行した。`pnpm db:start` 後に再実行 |
-| `robot_commands` に行が入らない | `SUPABASE_SECRET_KEY` が未設定（`createServiceClient` が `null` を返しログがスキップされる）。`pnpm db:status` で取得して `.env.local` へ |
+| `robot_commands` に行が入らない | `SUPABASE_SECRET_KEY` が未設定（`createServiceClient` が `null` を返しログがスキップされる）。`pnpm exec supabase --workdir server status -o env \| grep SECRET_KEY` で取得して `.env.local` へ |
 | 会話履歴が残らない | `DATABASE_URL` 未設定で in-memory になっている |

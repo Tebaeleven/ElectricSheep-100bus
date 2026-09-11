@@ -7,7 +7,7 @@ import { z } from "zod"
 /**
  * LLM に見せる入力スキーマ。
  * 正本の `robotCommandSchema` は discriminatedUnion（= JSON Schema では anyOf）で、
- * Anthropic の tool input_schema はトップレベルが object であることを要求するため、
+ * LLM の tool 入力スキーマ（Gemini の function declaration 等）はトップレベルが object であることを要求するため、
  * LLM 向けには「type + 任意フィールド」のフラットな object に落とし、
  * 内部で `robotCommandSchema.parse` に変換して正本の検証を通す。
  */

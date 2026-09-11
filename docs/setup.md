@@ -34,18 +34,22 @@ cp client/web/.env.example client/web/.env.local
 
 `client/web/.env.local` が**唯一の正本**。
 
-### ANTHROPIC_API_KEY
+### GOOGLE_GENERATIVE_AI_API_KEY
 
-https://console.anthropic.com/settings/keys で発行して貼る。未設定だと `/api/chat` が LLM 呼び出しで失敗する（ロボット操作 API `/api/robot/*` はキー無しでも動く）。
+https://aistudio.google.com/apikey で発行して貼る（Google AI Studio）。未設定だと `/api/chat` が 500 とキー未設定の案内文を返す（ロボット操作 API `/api/robot/*` はキー無しでも動く）。
+
+Mastra のモデルルーターは `GOOGLE_GENERATIVE_AI_API_KEY` と `GOOGLE_API_KEY` のどちらでも読む。追加の npm パッケージは要らない。
 
 ### SUPABASE_SECRET_KEY
 
-`pnpm db:start` の出力、または起動後の `pnpm db:status` に表示される。
+`pnpm db:start` の出力に含まれる。起動後に取り出すには:
 
 ```bash
-pnpm db:status
-# API URL / DB URL / secret key などが表示される
+pnpm exec supabase --workdir server status -o env | grep SECRET_KEY
+# SECRET_KEY="sb_secret_..."
 ```
+
+新形式のキー（`sb_secret_...`）を使う。旧形式の JWT（`SERVICE_ROLE_KEY` の `eyJ...`）ではない。
 
 未設定でもアプリは動く（`robot_commands` へのログだけスキップされる。`packages/db/src/server.ts` の `createServiceClient` が `null` を返す）。
 
@@ -160,13 +164,45 @@ execute: async (input, context) => {
 execute: async ({ context }) => { /* ... */ }
 ```
 
-モデル指定も v1 では**文字列**（`'anthropic/claude-sonnet-5'`）。`@ai-sdk/anthropic` の `anthropic(...)` を渡す旧形式は使わない。
+モデル指定も v1 では**文字列**（`'google/gemini-3.8-flash'`）。`@ai-sdk/google` の `google(...)` を渡す旧形式は使わない。
+
+なお `robotCommand` の `inputSchema` は、正本の `robotCommandSchema`（discriminated union）ではなく**フラット化した object**（`robotCommandInputSchema`）にしている。tool の入力スキーマはトップレベルが object である必要があるため。詳細は [runbooks/mastra.md](runbooks/mastra.md)。
 
 ### Memory の履歴が混ざる / 残らない
 
-`Memory` は `threadId`（会話単位）と `resourceId`（来場者単位）で分離する。`scope` の指定を誤ると別の来場者の記憶を引いてしまう。`/api/chat` へは最新 1 メッセージ + `memory: { thread, resource }` を送る設計。詳細は [runbooks/mastra.md](runbooks/mastra.md)。
+`Memory` は `threadId`（会話単位）と `resourceId`（来場者単位）で分離する。`MemoryConfig` にトップレベルの `scope` は無く、`lastMessages` は常にそのスレッド内だけを見る。
+
+`/api/chat` に送るボディはこの形（履歴は Mastra Memory が復元するので**最新 1 メッセージだけ**送る）:
+
+```jsonc
+{
+  "messages": [
+    { "id": "...", "role": "user", "parts": [{ "type": "text", "text": "こんにちは" }] }
+  ],
+  "memory": { "thread": "<localStorage の UUID>", "resource": "<来場者 ID>" }
+}
+```
+
+これがそのまま `handleChatStream({ mastra, agentId, version: "v7", params })` の `params` になる。詳細は [runbooks/mastra.md](runbooks/mastra.md)。
 
 履歴が再起動で消える場合は `DATABASE_URL` が設定されているか確認する（未設定だと in-memory）。
+
+### `packages/*` の相対 import に `.js` を付けない
+
+`packages/{agent,robot,db}` は**ビルドせず TS ソースのまま** `client/web` から読まれる（`transpilePackages`）。`tsconfig` は `moduleResolution: "Bundler"` なので、相対 import は**拡張子なし**で書く。
+
+```ts
+import { createStorage } from "./storage"     // 正
+import { createStorage } from "./storage.js"  // 誤: Turbopack が .ts に解決できずビルドが落ちる
+```
+
+`tsc` / `vitest` / `mastra dev` はいずれも拡張子なしで解決できる（`mastra dev` の起動も確認済み）。将来 `packages/*` を `dist` にビルドして配る形へ変えるときは、この前提から見直すこと。
+
+### `packages/db` で `server-only` を import しない
+
+`packages/db/src/server.ts` は `server-only` を使わず、`createServiceClient` の中の実行時ガード（`typeof window !== "undefined"` なら throw）でブラウザ実行を止めている。
+
+`server-only` は Next のバンドラ外（`mastra dev` = 素の Node、vitest）で import した瞬間に例外になるため、Studio が起動できず、テストでも `vi.mock("server-only")` が要るようになる。効果（ブラウザに漏らさない）は実行時ガードで十分に得られる。
 
 ### pnpm のバージョン不一致
 

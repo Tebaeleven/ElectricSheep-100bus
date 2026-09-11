@@ -40,7 +40,22 @@ UI からは `POST /api/robot/command` / `GET /api/robot/status` を叩く。
 
 ### 1. 実機の仕様をコマンド語彙にマッピングする
 
-`packages/robot/src/http.ts` の `endpointMap` を書き換える。`createHttpRobotClient` は既定の `endpointMap` を持ち、オプションで差し替えられる。
+`packages/robot/src/http.ts` の `DEFAULT_ENDPOINT_MAP` を書き換えるか、`createHttpRobotClient` の `endpointMap` オプションで差し替える。
+
+既定値（`DEFAULT_ENDPOINT_MAP`）と、実際に送られる本文は次のとおり。**本文からは `type` を落とす**（種別はパスが表すため）。
+
+| type | パス | メソッド | 本文 |
+|---|---|---|---|
+| `move` | `/move` | POST | `{"direction":"up","durationMs":500}` |
+| `stop` | `/stop` | POST | `{}` |
+| `speak` | `/speak` | POST | `{"text":"こんにちは"}` |
+| `emote` | `/emote` | POST | `{"emotion":"happy"}` |
+| `raw` | `cmd.path` | `cmd.method`（既定 POST） | `cmd.body` をそのまま |
+| status 取得 | `/status` | GET | —（`getStatus()` が使う） |
+
+`raw` だけは endpointMap を持たず、コマンドの `path` / `method` をそのまま使う（`endpointMap.raw` を指定した場合はそちらが優先）。
+
+
 
 ```ts
 const client = createHttpRobotClient({
