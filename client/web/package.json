@@ -17,6 +17,7 @@
     "@mastra/ai-sdk": "catalog:",
     "@workspace/agent": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/devices": "workspace:*",
     "@workspace/robot": "workspace:*",
     "@workspace/ui": "workspace:*",
     "ai": "catalog:",

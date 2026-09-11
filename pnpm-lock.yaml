@@ -89,6 +89,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@workspace/devices':
+        specifier: workspace:*
+        version: link:../../packages/devices
       '@workspace/robot':
         specifier: workspace:*
         version: link:../../packages/robot
