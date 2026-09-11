@@ -1,0 +1,320 @@
+<mxfile host="app.diagrams.net" modified="2026-09-12T00:00:00.000Z" agent="claude-code" version="24.7.17" type="device">
+  <diagram id="dependencies-v1" name="依存関係図">
+    <mxGraphModel dx="1600" dy="1080" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="ttl" value="依存関係図 — ワークスペース間依存と主要外部依存" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=24;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="40" y="18" width="980" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="sub" value="ElectricSheep-100bus / pnpm workspace + Turborepo ／ バージョンは 2026-09-12 時点の実インストール値（pnpm ls -r --depth 0 --json）" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=13;fontColor=#64748B;" vertex="1" parent="1">
+          <mxGeometry x="40" y="56" width="1200" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="upper" value="上段: ワークスペース間の依存グラフ（実線＝dependencies / workspace:*）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=14;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="96" width="1000" height="390" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_web" value="&lt;b&gt;client/web&lt;/b&gt;&lt;br&gt;Next.js アプリ（web）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="420" y="132" width="190" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ui" value="&lt;b&gt;@workspace/ui&lt;/b&gt;&lt;br&gt;shadcn 共有 UI" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#F0F9FF;strokeColor=#0284C7;fontColor=#0C4A6E;" vertex="1" parent="1">
+          <mxGeometry x="760" y="132" width="160" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_agent" value="&lt;b&gt;@workspace/agent&lt;/b&gt;&lt;br&gt;Mastra エージェント" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="300" y="222" width="190" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db" value="&lt;b&gt;@workspace/db&lt;/b&gt;&lt;br&gt;Supabase クライアント" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#ECFDF5;strokeColor=#059669;fontColor=#064E3B;" vertex="1" parent="1">
+          <mxGeometry x="680" y="222" width="170" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_devices" value="&lt;b&gt;@workspace/devices&lt;/b&gt;&lt;br&gt;機器 SDK（HTTP / WS）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#F0F9FF;strokeColor=#0284C7;fontColor=#0C4A6E;" vertex="1" parent="1">
+          <mxGeometry x="120" y="312" width="170" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_robot" value="&lt;b&gt;@workspace/robot&lt;/b&gt;&lt;br&gt;コマンド語彙（終端）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#F0F9FF;strokeColor=#0284C7;fontColor=#0C4A6E;" vertex="1" parent="1">
+          <mxGeometry x="560" y="312" width="170" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="n_cfg" value="&lt;b&gt;@workspace/eslint-config&lt;/b&gt;　／　&lt;b&gt;@workspace/typescript-config&lt;/b&gt;　（全パッケージ + ルートが devDependencies で参照）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fillColor=#F1F5F9;strokeColor=#94A3B8;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="120" y="410" width="800" height="46" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_web_agent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_web_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_web_db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.4;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_web_robot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_robot">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="294" />
+              <mxPoint x="594" y="294" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_web_devices" value="(統合待ち)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;fontColor=#475569;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_devices">
+          <mxGeometry x="0.6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="205" y="158" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_agent_devices" value="(統合待ち)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=#FFFFFF;fontColor=#475569;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_agent" target="n_devices">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="338" y="338" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_agent_robot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_agent" target="n_robot">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="452" y="338" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_agent_db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_agent" target="n_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_db_robot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeWidth=1.5;strokeColor=#475569;fontFamily=Helvetica;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_db" target="n_robot">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="765" y="338" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_dev_web" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_web" target="n_cfg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="88" y="174" />
+              <mxPoint x="88" y="433" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_dev_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0.9;exitY=1;exitDx=0;exitDy=0;entryX=0.98;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_ui" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_agent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.344;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_agent" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0.9;exitY=1;exitDx=0;exitDy=0;entryX=0.891;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_db" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_devices" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.106;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_devices" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_robot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeWidth=1;strokeColor=#94A3B8;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.656;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="n_robot" target="n_cfg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r1" value="&lt;b style=&quot;font-size:19px&quot;&gt;循環なし（DAG）&lt;/b&gt;&lt;br&gt;&lt;br&gt;依存は上から下への一方向だけ。&lt;b&gt;robot が終端&lt;/b&gt;（他の @workspace/* に依存しない）。&lt;b&gt;db → robot&lt;/b&gt; はあるが robot → db は無く、agent ↔ devices のような相互参照も無い。turbo の &lt;code&gt;dependsOn: [&quot;^build&quot;]&lt;/code&gt; がこの順でビルドできる。" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=2;fillColor=#FFFFFF;strokeColor=#0284C7;fontFamily=Helvetica;fontSize=12;fontColor=#0F172A;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="110" width="490" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="&lt;b&gt;catalog で一元管理（pnpm-workspace.yaml）&lt;/b&gt;&lt;br&gt;@ai-sdk/react・@mastra/{ai-sdk,core,libsql,memory,pg}・@supabase/supabase-js・ai・mastra・supabase・tsx・vitest・zod の 14 件を catalog: で pin。各 package.json は &lt;code&gt;&quot;catalog:&quot;&lt;/code&gt; と書くだけでバージョンが揃う。" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="224" width="490" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="&lt;b&gt;実行環境&lt;/b&gt;&lt;br&gt;Node &amp;gt;=22.13（.nvmrc = 22）&lt;br&gt;pnpm 10.34.5&lt;br&gt;Turborepo 2.10.12" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;spacingRight=8;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="330" width="240" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="&lt;b&gt;リンク方式&lt;/b&gt;&lt;br&gt;ワークスペース間は &lt;code&gt;workspace:*&lt;/code&gt;（pnpm の symlink）。ビルド成果物ではなく TS ソースを直接参照。" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=12;fontColor=#334155;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;spacingRight=8;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="330" width="240" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" value="&lt;b&gt;client/web/next.config.ts&lt;/b&gt;&lt;br&gt;&lt;code&gt;serverExternalPackages: ['@mastra/*']&lt;/code&gt;（Node ネイティブ依存をバンドルしない）&lt;br&gt;&lt;code&gt;transpilePackages&lt;/code&gt; は 5 パッケージ: @workspace/{ui, agent, robot, db, devices}" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#4338CA;fontFamily=Helvetica;fontSize=12;fontColor=#1E1B4B;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="412" width="490" height="74" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lower" value="下段: 各ワークスペースがぶら下げる主要外部依存（レイヤ別の棚）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FAFAFA;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=14;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="500" width="1520" height="430" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s1" value="フレームワーク" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="546" width="350" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="s1a" value="&lt;b&gt;next&lt;/b&gt;&lt;br&gt;16.2.6" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="74" y="580" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s1b" value="&lt;b&gt;react&lt;/b&gt;&lt;br&gt;19.2.4" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="244" y="580" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s1c" value="&lt;b&gt;react-dom&lt;/b&gt;&lt;br&gt;19.2.4" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="74" y="634" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s1d" value="&lt;b&gt;next-themes&lt;/b&gt;&lt;br&gt;0.4.6" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="244" y="634" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s1n" value="利用: client/web（App Router）／ react は packages/ui も同版" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="74" y="686" width="330" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s2" value="AI / エージェント" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="430" y="546" width="730" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="s2a" value="&lt;b&gt;@mastra/core&lt;/b&gt;&lt;br&gt;1.66.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="444" y="580" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2b" value="&lt;b&gt;@mastra/memory&lt;/b&gt;&lt;br&gt;1.29.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="622" y="580" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2c" value="&lt;b&gt;@mastra/pg&lt;/b&gt;&lt;br&gt;1.24.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="800" y="580" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2d" value="&lt;b&gt;@mastra/libsql&lt;/b&gt;&lt;br&gt;1.22.5" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="978" y="580" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e" value="&lt;b&gt;@mastra/ai-sdk&lt;/b&gt;&lt;br&gt;1.10.2" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="444" y="634" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2f" value="&lt;b&gt;mastra&lt;/b&gt; CLI (dev)&lt;br&gt;1.29.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="622" y="634" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2g" value="&lt;b&gt;ai&lt;/b&gt; (AI SDK)&lt;br&gt;7.0.97" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="800" y="634" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2h" value="&lt;b&gt;@ai-sdk/react&lt;/b&gt;&lt;br&gt;4.0.100" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F5F3FF;strokeColor=#7C3AED;fontColor=#3B0764;" vertex="1" parent="1">
+          <mxGeometry x="978" y="634" width="168" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s2n" value="利用: packages/agent（@mastra/core・memory・pg・libsql・ai、dev で mastra CLI）／ client/web（@mastra/ai-sdk・ai・@ai-sdk/react）" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="444" y="686" width="702" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3" value="検証（スキーマ）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="546" width="360" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="s3a" value="&lt;b&gt;zod&lt;/b&gt;&lt;br&gt;4.6.2" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F0F9FF;strokeColor=#0284C7;fontColor=#0C4A6E;" vertex="1" parent="1">
+          <mxGeometry x="1194" y="572" width="150" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="s3n" value="catalog: で pin。web / agent / devices / robot が使用（packages/ui のみ ^4.4.3 で 4.4.3）" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=10;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="1354" y="572" width="176" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s4" value="データ" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="638" width="360" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="s4a" value="&lt;b&gt;@supabase/supabase-js&lt;/b&gt;&lt;br&gt;2.116.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#ECFDF5;strokeColor=#059669;fontColor=#064E3B;" vertex="1" parent="1">
+          <mxGeometry x="1194" y="666" width="160" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="s4b" value="&lt;b&gt;supabase&lt;/b&gt; CLI (dev)&lt;br&gt;2.117.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#ECFDF5;strokeColor=#059669;fontColor=#064E3B;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="1366" y="666" width="160" height="42" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s5" value="通信" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="736" width="350" height="176" as="geometry" />
+        </mxCell>
+        <mxCell id="s5a" value="&lt;b&gt;ws&lt;/b&gt; (dev)&lt;br&gt;8.21.3" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#FFF7ED;strokeColor=#EA580C;fontColor=#7C2D12;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="74" y="772" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s5b" value="&lt;b&gt;@types/ws&lt;/b&gt; (dev)&lt;br&gt;8.18.1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#FFF7ED;strokeColor=#EA580C;fontColor=#7C2D12;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="244" y="772" width="160" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s5n" value="利用: packages/devices。実機（スタックちゃん）への接続は Node 22 のグローバル WebSocket を使うため実行時依存は無し。ws はモック WS サーバーとテストのみ。HTTP は fetch + AbortSignal.timeout。" style="text;html=1;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="74" y="828" width="330" height="74" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s6" value="UI" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="430" y="736" width="470" height="176" as="geometry" />
+        </mxCell>
+        <mxCell id="s6a" value="&lt;b&gt;tailwindcss&lt;/b&gt;&lt;br&gt;4.3.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="444" y="772" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6b" value="&lt;b&gt;@base-ui/react&lt;/b&gt;&lt;br&gt;1.8.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="596" y="772" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6c" value="&lt;b&gt;shadcn&lt;/b&gt;&lt;br&gt;4.21.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="748" y="772" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6d" value="&lt;b&gt;lucide-react&lt;/b&gt;&lt;br&gt;1.45.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="444" y="826" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6e" value="&lt;b&gt;tw-animate-css&lt;/b&gt;&lt;br&gt;1.4.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="596" y="826" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6f" value="&lt;b&gt;class-variance-&lt;br&gt;authority&lt;/b&gt; 0.7.1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fillColor=#EEF2FF;strokeColor=#4338CA;fontColor=#1E1B4B;" vertex="1" parent="1">
+          <mxGeometry x="748" y="826" width="142" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s6n" value="利用: packages/ui（shadcn の base-ui プリセット。Radix ではなく @base-ui/react）／ client/web は @tailwindcss/postcss 4.3.0 で読み込み" style="text;html=1;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="444" y="878" width="446" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s7" value="ツール（ビルド / テスト / 静的解析）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="920" y="736" width="620" height="176" as="geometry" />
+        </mxCell>
+        <mxCell id="s7a" value="&lt;b&gt;turbo&lt;/b&gt;&lt;br&gt;2.10.12" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="934" y="772" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7b" value="&lt;b&gt;vitest&lt;/b&gt;&lt;br&gt;5.0.0" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="772" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7c" value="&lt;b&gt;typescript&lt;/b&gt;&lt;br&gt;5.9.3" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="1338" y="772" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7d" value="&lt;b&gt;tsx&lt;/b&gt;&lt;br&gt;4.23.13" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="934" y="826" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7e" value="&lt;b&gt;eslint&lt;/b&gt;&lt;br&gt;9.39.4" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="826" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7f" value="&lt;b&gt;prettier&lt;/b&gt;&lt;br&gt;3.8.3" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="1338" y="826" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="s7n" value="全て devDependencies。turbo / prettier / supabase はルート、typescript・eslint・vitest は各パッケージ。eslint プラグイン群は @workspace/eslint-config（@typescript-eslint 8.60.0・eslint-plugin-react 7.37.5・@next/eslint-plugin-next 16.2.6 ほか）に集約。" style="text;html=1;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#64748B;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="934" y="878" width="594" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lg" value="凡例" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="944" width="760" height="134" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#EEF2FF;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="56" y="976" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1t" value="Web / クライアント" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="78" y="974" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#F5F3FF;strokeColor=#7C3AED;" vertex="1" parent="1">
+          <mxGeometry x="292" y="976" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2t" value="AI / エージェント" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="314" y="974" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#F0F9FF;strokeColor=#0284C7;" vertex="1" parent="1">
+          <mxGeometry x="528" y="976" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3t" value="共有パッケージ / 検証" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="550" y="974" width="200" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#ECFDF5;strokeColor=#059669;" vertex="1" parent="1">
+          <mxGeometry x="56" y="1000" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4t" value="データ（Supabase）" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="78" y="998" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFF7ED;strokeColor=#EA580C;" vertex="1" parent="1">
+          <mxGeometry x="292" y="1000" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5t" value="物理機器との通信" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="314" y="998" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg6s" value="" style="rounded=1;arcSize=30;html=1;shadow=0;strokeWidth=1.5;fillColor=#F1F5F9;strokeColor=#64748B;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="528" y="1000" width="16" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg6t" value="ツール / devDependency（破線枠）" style="text;html=1;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="550" y="998" width="210" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg7t" value="実線の矢印 → dependencies（workspace:*）　／　薄い破線の矢印 → devDependencies（共有の eslint / tsconfig）　／　「(統合待ち)」ラベル → develop には未マージで、feat/devices-web・feat/devices-agent-tools で追加済みの依存" style="text;html=1;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#475569;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="56" y="1022" width="730" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="src" value="出典（読んだファイル・実行したコマンド）" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=0;strokeWidth=1.5;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontFamily=Helvetica;fontSize=13;fontStyle=1;fontColor=#334155;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="820" y="944" width="740" height="134" as="geometry" />
+        </mxCell>
+        <mxCell id="srct" value="・pnpm-workspace.yaml（catalog の pin）　・package.json（ルート / client/web / packages/{agent,devices,robot,db,ui,eslint-config,typescript-config}）&lt;br&gt;・pnpm ls -r --depth 0 --json（実インストール版。表中の数値は全てこの実測値）　・pnpm-lock.yaml（turbo 2.10.12）&lt;br&gt;・client/web/next.config.ts（serverExternalPackages / transpilePackages）&lt;br&gt;・git show feat/devices-web:client/web/package.json ／ git show feat/devices-agent-tools:packages/agent/package.json（統合待ちの @workspace/devices 依存）&lt;br&gt;・基準: develop = eb86ea1（2026-09-12 時点）" style="text;html=1;align=left;verticalAlign=top;fontFamily=Helvetica;fontSize=11;fontColor=#475569;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="836" y="972" width="712" height="100" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
