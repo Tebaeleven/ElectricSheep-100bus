@@ -1,17 +1,12 @@
+import { createDesktopClient } from "./http/desktop"
+import { createRailClient } from "./http/rail"
 import {
   createMockDesktopClient,
   createMockRailClient,
   createMockStackchanClient,
 } from "./mock/index"
-import type {
-  DesktopClient,
-  DeviceMode,
-  Devices,
-  HttpDeviceOptions,
-  RailClient,
-  StackchanClient,
-  StackchanOptions,
-} from "./types"
+import type { DeviceMode, Devices } from "./types"
+import { createStackchanClient } from "./ws/stackchan"
 
 export {
   DEFAULT_TIMEOUT_MS,
@@ -96,25 +91,9 @@ export type {
   MockStackchanClient,
 } from "./mock/index"
 
-/** 実機 HTTP クライアント（レール）。P3-A レーンで実装する */
-export function createRailClient(options: HttpDeviceOptions): RailClient {
-  void options // P3-A レーンで使用する
-  throw new Error("not implemented yet")
-}
-
-/** 実機 HTTP クライアント（デスクトップ）。P3-A レーンで実装する */
-export function createDesktopClient(options: HttpDeviceOptions): DesktopClient {
-  void options // P3-A レーンで使用する
-  throw new Error("not implemented yet")
-}
-
-/** 実機 WebSocket クライアント（スタックちゃん）。P3-A レーンで実装する */
-export function createStackchanClient(
-  options: StackchanOptions
-): StackchanClient {
-  void options // P3-A レーンで使用する
-  throw new Error("not implemented yet")
-}
+export { createRailClient } from "./http/rail"
+export { createDesktopClient } from "./http/desktop"
+export { createStackchanClient } from "./ws/stackchan"
 
 /** env から動作モードを読む。未設定・不正値は mock */
 function resolveMode(env: NodeJS.ProcessEnv): DeviceMode {
@@ -127,26 +106,6 @@ function resolveHeaders(
 ): Record<string, string> | undefined {
   const token = env.DEVICE_AUTH_TOKEN?.trim()
   return token ? { Authorization: `Bearer ${token}` } : undefined
-}
-
-/**
- * 実クライアントの生成を試み、失敗したらモックへフォールバックする。
- * 実装が入るまで create*Client は throw するため、常にモックが返る
- */
-function withMockFallback<T>(
-  label: string,
-  create: () => T,
-  fallback: () => T
-): T {
-  try {
-    return create()
-  } catch (error) {
-    console.warn(
-      `[devices] ${label} の実クライアント生成に失敗したためモックを使用します:`,
-      error instanceof Error ? error.message : error
-    )
-    return fallback()
-  }
 }
 
 /**
@@ -164,35 +123,23 @@ export function createDevices(env: NodeJS.ProcessEnv): Devices {
 
   const rail =
     mode === "real" && railBaseUrl
-      ? withMockFallback(
-          "rail",
-          () => createRailClient({ baseUrl: railBaseUrl, timeoutMs, headers }),
-          createMockRailClient
-        )
+      ? createRailClient({ baseUrl: railBaseUrl, timeoutMs, headers })
       : createMockRailClient()
 
   const desktop =
     mode === "real" && desktopBaseUrl
-      ? withMockFallback(
-          "desktop",
-          () =>
-            createDesktopClient({
-              baseUrl: desktopBaseUrl,
-              timeoutMs,
-              headers,
-            }),
-          createMockDesktopClient
-        )
+      ? createDesktopClient({ baseUrl: desktopBaseUrl, timeoutMs, headers })
       : createMockDesktopClient()
 
   const stackchan =
     mode === "real" && stackchanUrl
-      ? withMockFallback(
-          "stackchan",
-          () =>
-            createStackchanClient({ url: stackchanUrl, timeoutMs, headers }),
-          createMockStackchanClient
-        )
+      ? createStackchanClient({
+          url: stackchanUrl,
+          timeoutMs,
+          headers,
+          // 実機は落ちても復帰させたいので再接続を有効にする
+          reconnect: true,
+        })
       : createMockStackchanClient()
 
   return { rail, desktop, stackchan }

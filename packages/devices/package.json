@@ -23,11 +23,13 @@
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/ws": "8.18.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9",
     "tsx": "catalog:",
     "typescript": "^5",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "ws": "8.21.3"
   }
 }
