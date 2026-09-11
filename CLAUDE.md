@@ -10,5 +10,5 @@
 - 開発手順の要約: `.claude/skills/dev-runbook/SKILL.md`（作業前に読む）
 - 常時守る規約: `.claude/rules/monorepo.md`（契約不変・`@workspace/*` import・shadcn は `client/web`・ロボットはサーバー経由・env の正本）
 - 全体像とコマンド: `README.md` / セットアップとトラブルシュート: `docs/setup.md`
-- runbook: `docs/runbooks/{supabase,mastra,robot}.md`
+- runbook: `docs/runbooks/{supabase,mastra,robot,devices,dev-dashboard}.md`（機器 API は `devices`、開発者ダッシュボード `/dev` は `dev-dashboard`）
 - 納品ゲートは `pnpm verify`。push・PR・マージはしない。
