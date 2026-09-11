@@ -41,7 +41,7 @@ pnpm wt setup <task> [base=develop]
 手動でやる場合の等価コマンド:
 
 ```bash
-ROOT=/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+ROOT=$(git rev-parse --show-toplevel)
 git -C "$ROOT" worktree add "$ROOT/.claude/worktrees/<task>" -b feat/<task> develop
 cd "$ROOT/.claude/worktrees/<task>"
 cp "$ROOT/client/web/.env.local" client/web/.env.local
@@ -52,7 +52,7 @@ pnpm install --prefer-offline
 ### 削除
 
 ```bash
-git worktree remove /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/.claude/worktrees/<task>
+git worktree remove "$(git rev-parse --show-toplevel)/.claude/worktrees/<task>"
 ```
 
 - **自分のセッションが作った worktree だけ**を、**1 本ずつ**消す

@@ -49,3 +49,5 @@ next-env.d.ts
 .claude/worktrees/
 .mastra/
 *.db
+.claude/settings.local.json
+.mcp.json

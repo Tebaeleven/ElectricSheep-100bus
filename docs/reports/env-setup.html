@@ -73,7 +73,8 @@
 <div class="note">
   <strong>いまの状態</strong>：モックで <em>全機能が動く</em>。実機（ESP32 レール・スタックちゃん・Electron）は
   IP / ポート / 認証が未確定のため未接続。<code>.env.local</code> に実機 URL を入れて <code>DEVICE_MODE=real</code> にすれば、
-  コードを 1 行も触らずに切り替わる。
+  コードを 1 行も触らずに切り替わる。<br>
+  本レポート中の <code>&lt;REPO_ROOT&gt;</code> は、このリポジトリをクローンしたルートディレクトリを指す。
 </div>
 
 <!-- ====================== ① やったこと ====================== -->
@@ -274,7 +275,7 @@ EXIT=0   lint 警告 0（出力中の warning は Node の DEP0205 のみ）</co
     <div class="chk-title"><label for="c1">1. 残っている bootstrap worktree を削除する</label></div>
     <div class="chk-tags"><span class="tag">担当: 開発者</span><span class="tag">所要 1 分</span></div>
     <p class="why">なぜ人間か: 別セッションが作った worktree なので、エージェントは他セッションの作業中ディレクトリを消せない規約（削除は作成者のみ）。中身はすでに develop にマージ済み。</p>
-<pre><code>git -C /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus worktree remove /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/.claude/worktrees/bootstrap</code></pre>
+<pre><code>git -C &lt;REPO_ROOT&gt; worktree remove &lt;REPO_ROOT&gt;/.claude/worktrees/bootstrap</code></pre>
   </div>
 </li>
 
@@ -299,7 +300,7 @@ EXIT=0   lint 警告 0（出力中の warning は Node の DEP0205 のみ）</co
     </table>
     </div>
     <p class="why">詳細版（<code>ack</code> / <code>error</code> のスキーマ、同時接続の可否、ネットワーク条件を含む 11 項目）：
-      <code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/devices.md</code> の「§8 未確定事項チェックリスト」</p>
+      <code>&lt;REPO_ROOT&gt;/docs/runbooks/devices.md</code> の「§8 未確定事項チェックリスト」</p>
   </div>
 </li>
 
@@ -310,7 +311,7 @@ EXIT=0   lint 警告 0（出力中の warning は Node の DEP0205 のみ）</co
     <div class="chk-tags"><span class="tag">担当: 開発者（実機の前で）</span><span class="tag">項目 2 の回答待ち</span></div>
     <p class="why">なぜ人間か: 実機の電源投入・LAN 接続・物理的な安全確認（動いてよい状態か）が必要で、エージェントには機器の状態が見えないため。最初の <code>rail/move</code> は必ず人が機器を見ながら短時間（500ms）で試す。</p>
     <p>編集するファイル（このファイルだけ。コードは触らない）：</p>
-<pre><code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local
+<pre><code>&lt;REPO_ROOT&gt;/client/web/.env.local
 
 DEVICE_MODE=real
 RAIL_BASE_URL=http://192.168.x.x:ポート
@@ -327,9 +328,9 @@ DEVICE_AUTH_TOKEN=（配布されたら）</code></pre>
   <div class="chk-body">
     <div class="chk-title"><label for="c4">4. GitHub リポジトリを作成して push する</label></div>
     <div class="chk-tags"><span class="tag">担当: あなた</span><span class="tag">所要 5 分</span></div>
-    <p class="why">なぜ人間か: リポジトリの可視性（private / public）の決定と、アカウント・組織の選択は不可逆な公開判断を含むため、エージェントは実行しない規約。現状 remote は未設定でローカルのみ。</p>
-<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
-gh repo create ElectricSheep-100bus --private --source=. --remote=origin
+    <p class="why">public 公開前の監査は実施済みで、リポジトリ本文に秘密情報は 0 件（<code>.env.local</code> は <code>.gitignore</code> 済み・絶対パス / LAN IP はプレースホルダ化・LICENSE は MIT）。作者メールアドレスがコミットメタデータに残る点の扱いは本人判断。なぜ人間か: 可視性の変更とアカウント・組織の選択は不可逆な公開判断のため、エージェントは実行しない規約。現状 remote は未設定でローカルのみ。</p>
+<pre><code>cd &lt;REPO_ROOT&gt;
+gh repo create ElectricSheep-100bus --public --source=. --remote=origin
 git push -u origin develop
 git push origin main</code></pre>
     <p class="why">機密は <code>.env.local</code> のみで <code>.gitignore</code> 済み（<code>.env.example</code> だけ追跡）。push 前に <code>git status --ignored | grep env</code> で再確認すると安心。</p>
@@ -342,7 +343,7 @@ git push origin main</code></pre>
     <div class="chk-title"><label for="c5">5. <code>develop</code> → <code>main</code> への反映を許可・実行する</label></div>
     <div class="chk-tags"><span class="tag">担当: あなた</span><span class="tag">項目 3 の実機確認後を推奨</span></div>
     <p class="why">なぜ人間か: <code>main</code> へのマージと push はエージェント禁止（規約で機械的にブロック済み）。実機確認まで済ませてから反映するのが安全。</p>
-<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+<pre><code>cd &lt;REPO_ROOT&gt;
 git log --oneline main..develop      # 入る変更を確認
 git checkout main &amp;&amp; git merge --ff-only develop
 git push origin main                 # 項目 4 を済ませている場合</code></pre>
@@ -365,7 +366,7 @@ git push origin main                 # 項目 4 を済ませている場合</cod
       </tbody>
     </table>
     </div>
-    <p class="why">切り替えは <code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local</code> を編集して <code>pnpm dev</code> を再起動するだけ。<strong>デモ中は <code>/dev</code> を開いたタブを来場者の手が届く画面に出さない</strong>（認証なしで機器が動く）。</p>
+    <p class="why">切り替えは <code>&lt;REPO_ROOT&gt;/client/web/.env.local</code> を編集して <code>pnpm dev</code> を再起動するだけ。<strong>デモ中は <code>/dev</code> を開いたタブを来場者の手が届く画面に出さない</strong>（認証なしで機器が動く）。</p>
   </div>
 </li>
 
@@ -375,26 +376,26 @@ git push origin main                 # 項目 4 を済ませている場合</cod
 <h2>④ 参照</h2>
 
 <h3>ドキュメント（絶対パス）</h3>
-<pre><code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/README.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/setup.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/development.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/specs/robot-api-requirements.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/devices.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/dev-dashboard.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/mastra.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/supabase.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/robot.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/reports/env-setup.html   ← 本レポート
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/.claude/skills/dev-runbook/SKILL.md
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/README.md              &larr; 資料用ダイアグラム 6 点の索引
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/usecase.drawio          ユースケース図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/context.drawio          コンテキスト図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/architecture.drawio     システムアーキテクチャ図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/software.drawio         ソフトウェアアーキテクチャ図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/dependencies.drawio     依存関係図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/quality.drawio          こだわり図
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local          ← env の正本
-/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.example</code></pre>
+<pre><code>&lt;REPO_ROOT&gt;/README.md
+&lt;REPO_ROOT&gt;/docs/setup.md
+&lt;REPO_ROOT&gt;/docs/development.md
+&lt;REPO_ROOT&gt;/docs/specs/robot-api-requirements.md
+&lt;REPO_ROOT&gt;/docs/runbooks/devices.md
+&lt;REPO_ROOT&gt;/docs/runbooks/dev-dashboard.md
+&lt;REPO_ROOT&gt;/docs/runbooks/mastra.md
+&lt;REPO_ROOT&gt;/docs/runbooks/supabase.md
+&lt;REPO_ROOT&gt;/docs/runbooks/robot.md
+&lt;REPO_ROOT&gt;/docs/reports/env-setup.html   ← 本レポート
+&lt;REPO_ROOT&gt;/.claude/skills/dev-runbook/SKILL.md
+&lt;REPO_ROOT&gt;/docs/diagrams/README.md              &larr; 資料用ダイアグラム 6 点の索引
+&lt;REPO_ROOT&gt;/docs/diagrams/usecase.drawio          ユースケース図
+&lt;REPO_ROOT&gt;/docs/diagrams/context.drawio          コンテキスト図
+&lt;REPO_ROOT&gt;/docs/diagrams/architecture.drawio     システムアーキテクチャ図
+&lt;REPO_ROOT&gt;/docs/diagrams/software.drawio         ソフトウェアアーキテクチャ図
+&lt;REPO_ROOT&gt;/docs/diagrams/dependencies.drawio     依存関係図
+&lt;REPO_ROOT&gt;/docs/diagrams/quality.drawio          こだわり図
+&lt;REPO_ROOT&gt;/client/web/.env.local          ← env の正本
+&lt;REPO_ROOT&gt;/client/web/.env.example</code></pre>
 
 <h3>ポート</h3>
 <div class="tablewrap">
@@ -415,7 +416,7 @@ git push origin main                 # 項目 4 を済ませている場合</cod
 </div>
 
 <h3>起動コマンド一式</h3>
-<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+<pre><code>cd &lt;REPO_ROOT&gt;
 
 pnpm install
 pnpm verify                 # 納品ゲート: lint typecheck test build

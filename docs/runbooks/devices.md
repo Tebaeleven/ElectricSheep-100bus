@@ -106,9 +106,9 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
 
    ```bash
    DEVICE_MODE=real
-   RAIL_BASE_URL=http://192.168.1.21:8080        # ← 実機の IP:ポート
-   DESKTOP_BASE_URL=http://192.168.1.30:8080
-   STACKCHAN_WS_URL=ws://192.168.1.22:8080
+   RAIL_BASE_URL=http://<ESP32_IP>:8080        # ← 実機の IP:ポート（例: 192.168.x.x）
+   DESKTOP_BASE_URL=http://<ELECTRON_IP>:8080
+   STACKCHAN_WS_URL=ws://<STACKCHAN_IP>:8080
    DEVICE_AUTH_TOKEN=<配布されたトークン。無ければ空のまま>
    ```
 
@@ -433,11 +433,11 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 
 ```bash
 # 疎通
-ping -c 3 192.168.1.21
+ping -c 3 <ESP32_IP>
 # ポートが開いているか（macOS 標準の nc）
-nc -zv 192.168.1.21 8080
+nc -zv <ESP32_IP> 8080
 # HTTP が返るか（ヘッダだけ）
-curl -sS -i --max-time 3 http://192.168.1.21:8080/api/v1/rail/status
+curl -sS -i --max-time 3 http://<ESP32_IP>:8080/api/v1/rail/status
 ```
 
 - 開発 PC と機器が**同じサブネット**にいるか（`ifconfig | grep 'inet '`）。
@@ -447,7 +447,7 @@ curl -sS -i --max-time 3 http://192.168.1.21:8080/api/v1/rail/status
 
 ### Chrome から直接叩けない理由
 
-ブラウザの JS から `http://192.168.1.21:8080/...` を直接 `fetch` してはいけない。
+ブラウザの JS から `http://<ESP32_IP>:8080/...` を直接 `fetch` してはいけない。
 
 - **CORS**: 機器側が `Access-Control-Allow-Origin` を返さないので、`localhost:3000` 由来のリクエストはブロックされる。
 - **Local Network Access**（Chrome 142 以降）: パブリック／ローカル間のリクエストに**事前の許可プロンプト**が必要になり、プリフライトも増える。ハッカソン当日の実機で確実に動く前提にできない。

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "exports": {
     ".": "./src/mastra/index.ts",
     "./mastra": "./src/mastra/index.ts"

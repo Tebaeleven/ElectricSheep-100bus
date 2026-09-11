@@ -76,7 +76,13 @@
 /Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -s 2 -o docs/diagrams/architecture.png docs/diagrams/architecture.drawio
 ```
 
-4. `.drawio` と `.png` を**必ずセットでコミット**する（PNG だけ古い状態にしない）
+4. PNG が 1MB を超えたら `sips` で縮小する（GitHub 上の表示が重くなるため。1MB 未満が目安）:
+
+```bash
+sips -s format png --resampleWidth 2000 docs/diagrams/<name>.png --out docs/diagrams/<name>.png
+```
+
+5. `.drawio` と `.png` を**必ずセットでコミット**する（PNG だけ古い状態にしない）
 
 ### 実装を変えたら図も直す
 

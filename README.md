@@ -81,6 +81,8 @@ pnpm dev            # http://localhost:3000
 #    開発者ダッシュボード（全 API を手で叩ける）: http://localhost:3000/dev
 ```
 
+> **`/dev` は認証なし・ローカル専用**。`/dev` と `/api/dev/*`・`/api/devices/*` には認証が無く、開けば誰でも機器を動かせる。`localhost` からのみ使い、`next dev` を `--hostname 0.0.0.0` で公開したり、トンネル（ngrok / Cloudflare Tunnel 等）で外に出したりしないこと。詳細は [`docs/runbooks/dev-dashboard.md`](docs/runbooks/dev-dashboard.md)。
+
 `DEVICE_MODE=mock`（既定）は**プロセス内モック**なので手順 5 は不要。8791-8793 のモックサーバーまで含めて実 HTTP / WebSocket 経路を試すときは、env を上書きして起動する。
 
 ```bash
@@ -145,7 +147,7 @@ pnpm dlx shadcn@latest add button -c client/web
 | `ROBOT_MODE` | `mock` | `mock` \| `http` |
 | `ROBOT_BASE_URL` | `http://127.0.0.1:8787` | `ROBOT_MODE=http` のときの接続先 |
 | `ROBOT_MOCK_PORT` | `8787` | モックサーバーの待ち受けポート |
-| `DATABASE_URL` | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` | Mastra Memory の保存先。未設定なら in-memory |
+| `DATABASE_URL` | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` | Mastra Memory の保存先。既定値は Supabase ローカルのもの（`supabase start` が生成）。未設定なら in-memory |
 | `SUPABASE_URL` | `http://127.0.0.1:54321` | Supabase ローカル API |
 | `SUPABASE_SECRET_KEY` | （空） | サーバー専用キー（`sb_secret_...`）。`pnpm exec supabase --workdir server status -o env \| grep SECRET_KEY` で取得。未設定なら `robot_commands` ログをスキップ |
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。機器 API の接続先。詳細は [`docs/runbooks/devices.md`](docs/runbooks/devices.md) |
