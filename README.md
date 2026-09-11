@@ -183,6 +183,8 @@ GHOST_MODEL=google/gemini-3.1-pro-preview  # 品質重視（遅い・高い）
 | [`docs/runbooks/robot.md`](docs/runbooks/robot.md) | 実機ロボット仕様受領後の差し替え手順 |
 | [`docs/runbooks/devices.md`](docs/runbooks/devices.md) | 機器 API（ESP32 レール / スタックちゃん / Electron）の env・モック起動・curl 例・安全要件 |
 | [`docs/runbooks/dev-dashboard.md`](docs/runbooks/dev-dashboard.md) | 開発者ダッシュボード [`/dev`](http://localhost:3000/dev) の使い方・エンドポイント追加手順 |
+| [`docs/runbooks/network.md`](docs/runbooks/network.md) | ハッカソン会場の接続手順（推奨構成・決定木・当日チェックリスト・切り分けコマンド） |
+| [`docs/reports/network-connectivity.html`](docs/reports/network-connectivity.html) | 会場ネットワーク接続の調査レポート（構成パターン A〜G・ESP32/スタックちゃんの接続可否・IP/ポート・Electron の localhost・クラウド中継） |
 | [`docs/specs/robot-api-requirements.md`](docs/specs/robot-api-requirements.md) | 受領した機器 API 要件定義（仕様の正本） |
 | [`docs/diagrams/README.md`](docs/diagrams/README.md) | 資料用ダイアグラム 6 点（ユースケース / コンテキスト / システム・ソフトウェアアーキテクチャ / 依存 / こだわり）と共通スタイルガイド・PNG 再出力手順 |
 | [`client/desktop/README.md`](client/desktop/README.md) | 将来の Tauri v2 方針 |

@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ハッカソン会場ネットワーク接続レポート</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#ffffff; --fg:#1b1b19; --muted:#5f6461; --line:#dfe0dc;
+    --accent:#2f6f4f; --accent-soft:#e6f1ea; --warn:#8a5a12; --warn-soft:#fbf1de;
+    --bad:#a33a2c; --bad-soft:#fbe9e6; --good:#2f6f4f;
+    --code-bg:#f1f2ef;
+    --dg-web-f:#EEF2FF; --dg-web-s:#4338CA; --dg-web-t:#1e1b4b;
+    --dg-ai-f:#F5F3FF;  --dg-ai-s:#7C3AED;  --dg-ai-t:#2e1065;
+    --dg-pkg-f:#F0F9FF; --dg-pkg-s:#0284C7; --dg-pkg-t:#07364f;
+    --dg-data-f:#ECFDF5;--dg-data-s:#059669; --dg-data-t:#043c2b;
+    --dg-hw-f:#FFF7ED;  --dg-hw-s:#EA580C;  --dg-hw-t:#4a1d05;
+    --dg-mock-f:#FEFCE8;--dg-mock-s:#CA8A04; --dg-mock-t:#42300a;
+    --dg-ext-f:#F1F5F9; --dg-ext-s:#64748B; --dg-ext-t:#1f2937;
+    --dg-bad-f:#FEF2F2; --dg-bad-s:#DC2626; --dg-bad-t:#511414;
+    --dg-line:#9aa3ad;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
+      --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
+      --bad:#f08c7c; --bad-soft:#331b17; --good:#7ec79c;
+      --code-bg:#101210;
+      --dg-web-f:#1c1f3d; --dg-web-s:#8b8ff2; --dg-web-t:#dde0ff;
+      --dg-ai-f:#241a3d;  --dg-ai-s:#b58cf5;  --dg-ai-t:#ebdcff;
+      --dg-pkg-f:#0d2738; --dg-pkg-s:#54b6e8; --dg-pkg-t:#d5eefc;
+      --dg-data-f:#0d2b21; --dg-data-s:#45c493; --dg-data-t:#d6f6e8;
+      --dg-hw-f:#33200f;  --dg-hw-s:#f08a4b;  --dg-hw-t:#fde4cf;
+      --dg-mock-f:#2d2810;--dg-mock-s:#dbb247; --dg-mock-t:#f8eec8;
+      --dg-ext-f:#1d232b; --dg-ext-s:#93a1b1; --dg-ext-t:#e2e8f0;
+      --dg-bad-f:#3a1717; --dg-bad-s:#ef7a6a; --dg-bad-t:#ffd9d2;
+      --dg-line:#6b7480;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
+    --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
+    --bad:#f08c7c; --bad-soft:#331b17; --good:#7ec79c;
+    --code-bg:#101210;
+    --dg-web-f:#1c1f3d; --dg-web-s:#8b8ff2; --dg-web-t:#dde0ff;
+    --dg-ai-f:#241a3d;  --dg-ai-s:#b58cf5;  --dg-ai-t:#ebdcff;
+    --dg-pkg-f:#0d2738; --dg-pkg-s:#54b6e8; --dg-pkg-t:#d5eefc;
+    --dg-data-f:#0d2b21; --dg-data-s:#45c493; --dg-data-t:#d6f6e8;
+    --dg-hw-f:#33200f;  --dg-hw-s:#f08a4b;  --dg-hw-t:#fde4cf;
+    --dg-mock-f:#2d2810;--dg-mock-s:#dbb247; --dg-mock-t:#f8eec8;
+    --dg-ext-f:#1d232b; --dg-ext-s:#93a1b1; --dg-ext-t:#e2e8f0;
+    --dg-bad-f:#3a1717; --dg-bad-s:#ef7a6a; --dg-bad-t:#ffd9d2;
+    --dg-line:#6b7480;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    line-height:1.75; font-size:15px;
+  }
+  .wrap{max-width:1040px; margin:0 auto; padding:16px; padding-block:40px}
+  h1{font-size:1.65rem; line-height:1.35; margin:0 0 6px}
+  h2{font-size:1.2rem; margin:46px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--accent)}
+  h3{font-size:1.02rem; margin:26px 0 8px; color:var(--accent)}
+  h4{font-size:.94rem; margin:18px 0 6px}
+  p{margin:10px 0}
+  .lede{color:var(--muted); margin:0 0 4px}
+  .meta{color:var(--muted); font-size:.86rem; margin:0 0 24px}
+  .summary{color:var(--muted); font-size:.9rem; border-left:3px solid var(--line);
+           padding:2px 0 2px 12px; margin:10px 0 18px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0}
+  code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  code{background:var(--code-bg); padding:1px 5px; border-radius:4px; font-size:.87em; word-break:break-all}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+      padding:14px; overflow-x:auto; font-size:.82rem; line-height:1.55; margin:12px 0}
+  pre code{background:none; padding:0}
+  .tablewrap{overflow-x:auto; margin:12px 0}
+  table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:520px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  .ok{color:var(--good); font-weight:700}
+  .ng{color:var(--bad); font-weight:700}
+  .note{background:var(--warn-soft); border-left:4px solid var(--warn); border-radius:0 8px 8px 0; padding:10px 14px; margin:14px 0}
+  .danger{background:var(--bad-soft); border-left:4px solid var(--bad); border-radius:0 8px 8px 0; padding:10px 14px; margin:14px 0}
+  a{color:var(--accent)}
+  footer{margin-top:48px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.84rem}
+  /* ===== 結論カード ===== */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin:14px 0}
+  .rc{background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--accent);
+      border-radius:10px; padding:14px 15px}
+  .rc.no{border-top-color:var(--bad)}
+  .rc .rank{font-size:.74rem; font-weight:700; letter-spacing:.06em; color:var(--accent)}
+  .rc.no .rank{color:var(--bad)}
+  .rc h3{margin:2px 0 8px; font-size:1rem; color:var(--fg)}
+  .rc dl{margin:0; font-size:.84rem}
+  .rc dt{font-weight:700; color:var(--muted); font-size:.76rem; margin-top:7px}
+  .rc dd{margin:1px 0 0}
+  .rc .time{margin-top:10px; font-size:.8rem; font-weight:700; color:var(--accent);
+            background:var(--accent-soft); border-radius:999px; padding:2px 10px; display:inline-block}
+  .rc.no .time{color:var(--bad); background:var(--bad-soft)}
+  /* ===== 図の共通枠 ===== */
+  figure{margin:16px 0; padding:0}
+  figcaption{font-size:.8rem; color:var(--muted); margin-top:8px}
+  .fig{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px;
+       overflow-x:auto}
+  .fig .figttl{font-size:.82rem; font-weight:700; color:var(--muted); margin:0 0 10px}
+  /* ===== ノード（箱） ===== */
+  .n{border:1.5px solid var(--bs,var(--dg-ext-s)); background:var(--bf,var(--dg-ext-f));
+     color:var(--bt,var(--dg-ext-t)); border-radius:9px; padding:7px 10px; min-width:0;
+     font-size:.82rem; line-height:1.45}
+  .n b{display:block; font-size:.85rem}
+  .n span{display:block; font-size:.74rem; opacity:.85;
+          font-family:ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere}
+  .n-net {--bf:var(--dg-ext-f); --bs:var(--dg-ext-s); --bt:var(--dg-ext-t)}
+  .n-ap  {--bf:var(--dg-pkg-f); --bs:var(--dg-pkg-s); --bt:var(--dg-pkg-t)}
+  .n-mac {--bf:var(--dg-web-f); --bs:var(--dg-web-s); --bt:var(--dg-web-t)}
+  .n-hw  {--bf:var(--dg-hw-f);  --bs:var(--dg-hw-s);  --bt:var(--dg-hw-t)}
+  .n-app {--bf:var(--dg-ai-f);  --bs:var(--dg-ai-s);  --bt:var(--dg-ai-t)}
+  .n-cloud{--bf:var(--dg-data-f);--bs:var(--dg-data-s);--bt:var(--dg-data-t)}
+  .n-phone{--bf:var(--dg-mock-f);--bs:var(--dg-mock-s);--bt:var(--dg-mock-t)}
+  .n-bad {--bf:var(--dg-bad-f); --bs:var(--dg-bad-s); --bt:var(--dg-bad-t)}
+  .n-web {--bf:var(--dg-web-f); --bs:var(--dg-web-s); --bt:var(--dg-web-t)}
+  .n-ext {--bf:var(--dg-ext-f); --bs:var(--dg-ext-s); --bt:var(--dg-ext-t)}
+  /* ===== 横向きチェーン（矢印つき） ===== */
+  .chain{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px}
+  .chain>.n{flex:1 1 150px}
+  .link{flex:0 0 76px; display:flex; flex-direction:column; justify-content:center;
+        align-items:center; gap:3px; min-width:64px}
+  .link .bar{width:100%; height:0; border-top:2px solid var(--dg-line); position:relative}
+  .link .bar::after{content:""; position:absolute; right:-1px; top:-5px;
+                    border-left:8px solid var(--dg-line);
+                    border-top:5px solid transparent; border-bottom:5px solid transparent}
+  .link .bar.both::before{content:""; position:absolute; left:-1px; top:-5px;
+                    border-right:8px solid var(--dg-line);
+                    border-top:5px solid transparent; border-bottom:5px solid transparent}
+  .link .t{font-size:.7rem; color:var(--muted); text-align:center; line-height:1.35}
+  .link.cut .bar{border-top-style:dashed; border-top-color:var(--bad)}
+  .link.cut .bar::after{border-left-color:var(--bad)}
+  .link.cut .t{color:var(--bad); font-weight:700}
+  /* ===== 縦向きの束（AP 配下） ===== */
+  .stack{display:flex; flex-direction:column; align-items:center; gap:0}
+  .vline{width:2px; height:16px; background:var(--dg-line)}
+  .vline.cut{background:none; border-left:2px dashed var(--bad)}
+  .branch{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+          gap:8px; width:100%; border-top:2px solid var(--dg-line); padding-top:14px; position:relative}
+  .branch>*{position:relative}
+  .branch>*::before{content:""; position:absolute; top:-14px; left:50%; width:2px; height:14px;
+                    background:var(--dg-line)}
+  /* ===== 決定木 ===== */
+  .tree{list-style:none; margin:0; padding:0}
+  .tree ul{list-style:none; margin:0; padding-left:22px; border-left:2px solid var(--dg-line)}
+  .tree li{position:relative; margin:8px 0; padding-left:0}
+  .tree ul>li::before{content:""; position:absolute; left:-22px; top:18px; width:18px; height:2px;
+                      background:var(--dg-line)}
+  .q{background:var(--dg-pkg-f); border:1.5px solid var(--dg-pkg-s); color:var(--dg-pkg-t);
+     border-radius:9px; padding:7px 11px; font-weight:700; font-size:.86rem; display:inline-block}
+  .yes,.no2{font-size:.74rem; font-weight:700; border-radius:999px; padding:1px 9px; margin-right:6px}
+  .yes{background:var(--accent-soft); color:var(--accent)}
+  .no2{background:var(--bad-soft); color:var(--bad)}
+  .leaf{background:var(--panel); border:1.5px solid var(--accent); border-radius:9px;
+        padding:7px 11px; display:inline-block; font-size:.86rem}
+  .leaf.warn{border-color:var(--warn)}
+  .leaf.bad{border-color:var(--bad)}
+  .why2{font-size:.78rem; color:var(--muted); margin:3px 0 0}
+  /* ===== パターン一覧 ===== */
+  .pats{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin:14px 0}
+  .pat{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:13px}
+  .pat h4{margin:0 0 4px; font-size:.92rem}
+  .pat .verdict{font-size:.76rem; font-weight:700; border-radius:999px; padding:1px 9px; margin-left:6px}
+  .v-best{background:var(--accent-soft); color:var(--accent)}
+  .v-ok{background:var(--dg-pkg-f); color:var(--dg-pkg-s)}
+  .v-mid{background:var(--warn-soft); color:var(--warn)}
+  .v-bad{background:var(--bad-soft); color:var(--bad)}
+  .pat p{font-size:.8rem; color:var(--muted); margin:8px 0 0}
+  /* パターンカード内は縦積み（幅が狭いので横チェーンは崩れる） */
+  .pat .chain{flex-direction:column; gap:0; align-items:stretch}
+  .pat .chain>.n{flex:0 0 auto; width:100%}
+  .pat .link{flex:0 0 auto; width:100%; flex-direction:row; align-items:center;
+             justify-content:flex-start; gap:9px; padding:3px 0; min-width:0}
+  .pat .link .bar{width:0; height:22px; margin-left:24px; border:0;
+                  border-left:2px solid var(--dg-line)}
+  .pat .link .bar::after{right:auto; left:-5px; top:auto; bottom:-1px;
+                  border-left:6px solid transparent; border-right:6px solid transparent;
+                  border-top:8px solid var(--dg-line); border-bottom:0}
+  .pat .link .bar.both::before{right:auto; left:-5px; top:-1px; bottom:auto;
+                  border-left:6px solid transparent; border-right:6px solid transparent;
+                  border-bottom:8px solid var(--dg-line); border-top:0}
+  .pat .link .t{text-align:left}
+  .pat .link.cut .bar{border-left-style:dashed; border-left-color:var(--bad)}
+  .pat .link.cut .bar::after{border-top-color:var(--bad)}
+  .pat .link.cut .bar.both::before{border-bottom-color:var(--bad)}
+  /* ===== チェックリスト ===== */
+  ul.checks{list-style:none; padding:0; margin:0}
+  ul.checks>li{background:var(--panel); border:1px solid var(--line); border-radius:10px;
+               padding:14px 16px; margin:10px 0; display:flex; gap:12px; align-items:flex-start}
+  ul.checks input[type=checkbox]{width:20px; height:20px; margin-top:3px; flex:0 0 auto; accent-color:var(--accent)}
+  .chk-body{flex:1 1 auto; min-width:0}
+  .chk-title{font-weight:700}
+  .chk-tags{margin:4px 0 6px; font-size:.8rem; color:var(--muted)}
+  .tag{display:inline-block; background:var(--accent-soft); color:var(--accent);
+       border-radius:999px; padding:1px 9px; margin-right:6px; font-weight:600}
+  .why{font-size:.86rem; color:var(--muted)}
+  .srcs{font-size:.8rem; line-height:1.7; word-break:break-all}
+  .srcs li{margin:2px 0}
+  @media (max-width:520px){
+    .chain>.n{flex:1 1 100%}
+    .link{flex:1 1 100%; min-width:0; padding:4px 0}
+    .link .bar{width:70%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>ハッカソン会場でのハードウェア／ソフトウェア通信方法</h1>
+<p class="lede">ESP32 レール・スタックちゃん・Electron・MacBook・スマホを、会場でどう繋ぐか</p>
+<p class="meta">2026-09-12 / ブランチ <code>docs/network-report</code> / 4 本の Web 調査（ESP32 能力・会場トポロジー・IP/ポート/Electron・クラウド中継）を統合 / 金額は <strong>1 ドル = 150 円</strong>で換算（以降このレートを使う）</p>
+
+<div class="note">
+  本レポート中の <code>&lt;REPO_ROOT&gt;</code> は、このリポジトリをクローンしたルートディレクトリを指す。
+  <code>192.168.x.x</code> などの IP は例示で、当日の実測値に置き換える。
+</div>
+
+<!-- ================= 0. 結論サマリー ================= -->
+<h2>§0 結論サマリー（30 秒で読む）</h2>
+<p class="summary">
+  会場で確実に動かす鍵は <strong>「自分で AP（親機）を持つこと」</strong> の 1 点に尽きる。
+  共用 WiFi と iPhone テザリングは、どちらも <strong>端末同士の通信を遮断する</strong>ため、Mac ↔ ESP32 の LAN 通信には使えない。
+  推奨は 1 位トラベルルーター、2 位 Mac のインターネット共有（元 = iPhone USB）、3 位 MQTT クラウド中継。
+</p>
+
+<h3>推奨構成 ベスト 3</h3>
+<div class="cards">
+  <div class="rc">
+    <p class="rank">1 位 ／ 本命</p>
+    <h3>トラベルルーターを持ち込む</h3>
+    <dl>
+      <dt>なぜ</dt><dd>自分のサブネット（<code>192.168.8.0/24</code>）を丸ごと持ち歩ける。SSID・パスワード・IP が会場によらず固定なので <strong>焼き直しが一切要らない</strong>。クライアント分離も自分で OFF にできる。WAN 側はスマホテザリングでも会場 WiFi でも良い（Repeater/WISP モード）。</dd>
+      <dt>準備</dt><dd>GL.iNet GL-SFT1200 Opal 約 $31〜34（約 4,700〜5,100 円）または GL-MT3000 Beryl AX（実売 9,500〜13,600 円）を<strong>今日発注</strong>。前日に自宅で初期設定 10〜15 分＋Mac の DHCP 予約。</dd>
+    </dl>
+    <span class="time">当日の切替 2〜3 分</span>
+  </div>
+  <div class="rc">
+    <p class="rank">2 位 ／ ルーターが間に合わない時</p>
+    <h3>Mac のインターネット共有<br>（元 = iPhone USB → 先 = Wi-Fi）</h3>
+    <dl>
+      <dt>なぜ</dt><dd>macOS は Wi-Fi→Wi-Fi の共有はできないが、<strong>iPhone を USB テザリングにすれば Wi-Fi 側を AP にできる</strong>。Mac が <code>192.168.2.1</code> 固定のゲートウェイになり、ESP32 の接続先 URL も固定できる。追加ハードウェア 0 円。</dd>
+      <dt>準備</dt><dd>Lightning/USB-C ケーブル、iPhone のインターネット共有 ON、Wi-Fi オプションで SSID 固定・WPA2/WPA3 混在・チャンネル 1/6/11（2.4GHz）。<strong>前日に自宅で通し検証</strong>。</dd>
+    </dl>
+    <span class="time">当日の切替 5 分</span>
+  </div>
+  <div class="rc">
+    <p class="rank">3 位 ／ LAN が全滅した時の本命保険</p>
+    <h3>MQTT クラウド中継（HiveMQ 無料）</h3>
+    <dl>
+      <dt>なぜ</dt><dd>会場の外向き 443/8883 はほぼ確実に通る。Mac も ESP32 も<strong>外へ出て行く</strong>だけなのでクライアント分離・IP 変動・AP の種類を一切気にしない。相手の IP を知る必要がない。コスト 0 円。</dd>
+      <dt>準備</dt><dd>HiveMQ Cloud Serverless 無料アカウント（100 接続 / 10GB 月）。ESP32 は PubSubClient + <code>WiFiClientSecure</code>、<strong><code>setBufferSize(2048)</code> 必須</strong>。実装 1〜2 時間。</dd>
+    </dl>
+    <span class="time">当日の切替 1 分（env 差替のみ）</span>
+  </div>
+</div>
+
+<h3>やってはいけない 2 つ</h3>
+<div class="cards">
+  <div class="rc no">
+    <p class="rank">禁止 1</p>
+    <h3>iPhone テザリング直下で Mac ↔ ESP32 を通信させる</h3>
+    <dl>
+      <dt>なぜ</dt><dd><strong>iOS 18 以降、Apple が配下クライアント同士の IPv4 通信を意図的に遮断</strong>している（Apple DTS 明言）。全端末が <code>192.0.0.2</code> を名乗り、ブロードキャスト／マルチキャストも届かない。ESP32 は「IP 取得済み・インターネットも使える」のに Mac から一切見えないという、<strong>最も紛らわしい失敗</strong>になる。</dd>
+      <dt>代わりに</dt><dd>iPhone は <em>WAN 回線としてのみ</em> 使う（ルーターの WAN、または Mac の USB テザリング元）。</dd>
+    </dl>
+    <span class="time">デバッグに 1 時間溶かす</span>
+  </div>
+  <div class="rc no">
+    <p class="rank">禁止 2</p>
+    <h3>会場共用 WiFi だけを頼りにする</h3>
+    <dl>
+      <dt>なぜ</dt><dd>ゲスト SSID の既定はクライアント分離 ON。さらに 2.4/5GHz が別 VLAN だと同一 SSID でも不通、キャプティブポータルは ESP32 が踏めない、WPA2-Enterprise は当日作業に不向き、DHCP リースが短く IP が動く。<strong>成否が会場運営次第で、事前に検証できない</strong>のが最大の問題。</dd>
+      <dt>代わりに</dt><dd>共用 WiFi は「Mac のインターネット回線」または「ルーターの WAN 側」としてだけ使う。</dd>
+    </dl>
+    <span class="time">到着後に判明して詰む</span>
+  </div>
+</div>
+
+<!-- ================= 1. 悩み→回答 ================= -->
+<h2>§1 悩み → 回答の対応表</h2>
+<p class="summary">
+  事前に挙がった 4 つの悩みに 1 対 1 で答える。結論だけ読んで、気になる行の詳細セクションへ飛ぶ。
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr><th style="width:22%">悩み</th><th style="width:34%">結論（1 行）</th><th style="width:30%">根拠</th><th style="width:14%">詳細</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>① 会場では自分のスマホのテザリングと共用 WiFi が使える</b></td>
+      <td>どちらも<strong>そのままでは機器間通信に使えない</strong>。両方とも「インターネットへの出口」として扱い、LAN は自分で作る（トラベルルーター or Mac 共有）。</td>
+      <td>iOS 18+ はクライアント間 IPv4 を遮断（Apple DTS）。ゲスト WiFi はクライアント分離が既定。</td>
+      <td><a href="#s3">§3</a> <a href="#s2">§2</a></td>
+    </tr>
+    <tr>
+      <td><b>②-a ESP32／スタックちゃんへの IP の指定・そもそもどう接続するのか</b></td>
+      <td><strong>機器 → Mac の向きに繋ぐ</strong>（ESP32 が WebSocket <em>クライアント</em>、Mac が <em>サーバー</em>）。こうすると Mac が機器の IP を知る必要がなくなり、指定するのは「機器側に 1 つだけ書く Mac の URL」に減る。</td>
+      <td>調査 A-2：IP 変動耐性・AP アイソレーション耐性・同時接続数の観点で逆向き接続が最強。既存実装も <code>STACKCHAN_WS_URL</code> の WS 前提。</td>
+      <td><a href="#s4">§4</a> <a href="#s5">§5</a></td>
+    </tr>
+    <tr>
+      <td><b>②-b 他の人とポート／IP が被らないか</b></td>
+      <td><strong>被らない。調整も不要</strong>。ポートは IP ごとの名前空間なので、隣のチームの 3000 と自分の 3000 は無関係。IP は DHCP が重複しないよう配る。100 台が同じ SSID にいても、届くかどうかを決めるのは「クライアント分離が有効か」だけ。</td>
+      <td>調査 C-1（RFC 5227 / ベンダー文書）。気にするのは自分の Mac 内の <code>EADDRINUSE</code> だけ。</td>
+      <td><a href="#s5">§5</a></td>
+    </tr>
+    <tr>
+      <td><b>②-c IP が変わるたびに焼き直しが大変</b></td>
+      <td><strong>焼き直しは完全に不要にできる</strong>。(1) WiFi 資格情報は WiFiManager / SD の <code>wifi.txt</code> / NVS で外出し、(2) 接続先 URL は機器の設定画面か <code>/dev</code> からの実行時上書きで変更、(3) そもそも逆向き接続なら Mac 側の IP 指定は 1 箇所。</td>
+      <td>調査 A-4 / A-5 / C-2。<code>.env.local</code> は再起動が要るのでデモ中は使えない → <code>/dev</code> で実行時上書き。</td>
+      <td><a href="#s5">§5</a></td>
+    </tr>
+    <tr>
+      <td><b>②-d MacBook やスマホを WiFi（AP）にできないか</b></td>
+      <td><strong>MacBook は条件付きで可</strong>：Wi-Fi→Wi-Fi 共有は不可だが、<strong>iPhone USB テザリングを元にすれば Wi-Fi を AP にできる</strong>（推奨 2 位）。<strong>iPhone のテザリングは AP にはなるが端末間通信が遮断</strong>されるので不可。<strong>Android テザリングは機種依存で有望</strong>（要現物テスト）。</td>
+      <td>調査 B-3 / B-2。Android は全面遮断が仕様化されておらず多くの機種で ping 可。</td>
+      <td><a href="#s3">§3</a></td>
+    </tr>
+    <tr>
+      <td><b>③ そもそも ESP32／スタックちゃんを WS/HTTP で接続できるのか（共用 WiFi に繋げるか・PC 無しで単体で繋げるか）</b></td>
+      <td><strong>できる。PC は不要</strong>。ESP32 は単体で Wi-Fi Station として接続し、HTTP サーバー／クライアント、WebSocket サーバー／クライアントのいずれにもなれる。ただし <strong>2.4GHz 専用</strong>、<strong>キャプティブポータルは踏めない</strong>ので共用 WiFi の種類次第。スタックちゃんは robo8080 / yh1224 系ファームなら<strong>最初から HTTP の口がある</strong>（<code>/chat?text=..</code>）ので即日疎通できる。</td>
+      <td>調査 A-1 / A-2 / A-3。</td>
+      <td><a href="#s4">§4</a></td>
+    </tr>
+    <tr>
+      <td><b>④ Electron はこの MacBook で起動する。localhost で通信できるのか</b></td>
+      <td><strong>できる。しかも最も簡単な部分</strong>。同一 Mac 内なら <code>127.0.0.1</code> のループバックで完結し、Wi-Fi・ファイアウォール・CORS・ローカルネットワーク権限のすべてと無関係。<strong>ただし <code>localhost</code> と書かず <code>127.0.0.1</code> と書く</strong>（<code>::1</code> に解決されて <code>ECONNREFUSED</code> になる罠）。現行の <code>DESKTOP_BASE_URL=http://127.0.0.1:8792</code>（モック）を実機 Electron のポートに差し替えるだけ。</td>
+      <td>調査 C-3 / C-4。Node 17+ の verbatim DNS 解決。</td>
+      <td><a href="#s6">§6</a></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ================= 2. 決定木 ================= -->
+<h2 id="s2">§2 接続構成の決定木</h2>
+<p class="summary">
+  上から順に答えていくと構成が 1 つに決まる。分岐の順番は「安定性 × 準備の少なさ」で並べてある。
+  どの葉に落ちても、<strong>MQTT クラウド中継（§7）は並行して用意しておく</strong>のが前提。
+</p>
+
+<figure>
+<div class="fig">
+  <p class="figttl">図 1：構成の決定木</p>
+  <ul class="tree">
+    <li>
+      <span class="q">Q1. トラベルルーターが手元にある？</span>
+      <ul>
+        <li>
+          <span class="yes">YES</span><span class="leaf"><b>構成 A：トラベルルーター</b>（推奨 1 位）</span>
+          <p class="why2">自分のサブネットを持ち込めるので、SSID・IP・分離設定がすべて自分の管理下。以降の分岐を考える必要がない。WAN はスマホでも会場 WiFi でも良い。</p>
+        </li>
+        <li>
+          <span class="no2">NO</span>
+          <span class="q">Q2. Android 端末（自分か仲間の）がある？</span>
+          <ul>
+            <li>
+              <span class="yes">YES</span>
+              <span class="q">Q2-1. その場で端末間 ping が通った？</span>
+              <ul>
+                <li><span class="yes">YES</span><span class="leaf"><b>構成 C：Android テザリング</b></span>
+                  <p class="why2">準備 0 分で最速。ただし機種によって分離が有効な個体があるので、<strong>必ず現物で ping を確認</strong>してから採用する。</p></li>
+                <li><span class="no2">NO</span><span class="leaf warn">→ Q3 へ</span>
+                  <p class="why2">分離されている個体なので諦める。ここで粘らない。</p></li>
+              </ul>
+            </li>
+            <li>
+              <span class="no2">NO</span>
+              <span class="q">Q3. iPhone を USB で Mac に挿せる？（ケーブルがある）</span>
+              <ul>
+                <li>
+                  <span class="yes">YES</span><span class="leaf"><b>構成 B：Mac インターネット共有（元 = iPhone USB / 先 = Wi-Fi）</b>（推奨 2 位）</span>
+                  <p class="why2">Mac が <code>192.168.2.1</code> の AP 兼ゲートウェイになる。会場 WiFi は使えなくなる（Wi-Fi が共有先に占有されるため）が、インターネットは iPhone から取れるので Gemini も使える。</p>
+                </li>
+                <li>
+                  <span class="no2">NO</span>
+                  <span class="q">Q4. Mac のインターネットが切れても良い？（Gemini を使わない／使える時間を分ける）</span>
+                  <ul>
+                    <li><span class="yes">YES</span><span class="leaf warn"><b>構成 F：ESP32 SoftAP に Mac が接続</b></span>
+                      <p class="why2">LAN 通信だけは確実。ただし Mac がインターネットから切り離される。SoftAP の同時接続は既定 4 台。</p></li>
+                    <li><span class="no2">NO</span><span class="leaf bad"><b>LAN を諦めて §7 のクラウド中継へ</b>（MQTT / BLE / 有線シリアル）</span>
+                      <p class="why2">会場 WiFi（構成 D）や iPhone テザリング（構成 E）に LAN 通信を期待してはいけない。外向き通信だけで完結する設計に切り替える。</p></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<figcaption>分岐の理由はすべて「端末間 L2 通信が通るか」と「自分で IP/SSID を固定できるか」の 2 点に帰着する。</figcaption>
+</figure>
+
+<div class="note">
+  <strong>どの葉でも共通でやること</strong>：① ESP32／スタックちゃんは <b>WS クライアント</b>として Mac に繋ぎに行く、
+  ② 機器の LCD に「IP / 接続先 URL / 接続状態」を常時表示する、
+  ③ <code>/dev</code> から接続先を実行時に上書きできるようにする、
+  ④ USB シリアル入口を 1 本用意しておく。
+</div>
+
+<!-- ================= 3. 構成パターン ================= -->
+<h2 id="s3">§3 構成パターン A〜G</h2>
+<p class="summary">
+  調査 B の 7 構成を、トポロジー図と比較マトリクスで並べる。
+  図の <span class="ng">赤い破線</span>は「繋がっているように見えて実際は通らない経路」を表す。
+  結論は <b>1 位 A / 2 位 B / 3 位 C</b>、<b>D と E は単独では不採用</b>。
+</p>
+
+<div class="pats">
+
+  <!-- A -->
+  <figure class="pat">
+    <h4>A. トラベルルーター（GL.iNet 等）<span class="verdict v-best">推奨 1 位</span></h4>
+    <div class="chain">
+      <div class="n n-phone"><b>iPhone / 会場 WiFi</b><span>WAN 回線</span></div>
+      <div class="link"><span class="t">Repeater<br>(WISP)</span><span class="bar"></span></div>
+      <div class="n n-ap"><b>トラベルルーター</b><span>192.168.8.1 / SSID 固定</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-mac"><b>MacBook</b><span>192.168.8.100（DHCP 予約）<br>Next :3000 / WS :8080</span></div>
+      <div class="n n-hw"><b>ESP32 レール</b><span>WS クライアント</span></div>
+      <div class="n n-hw"><b>スタックちゃん</b><span>WS / HTTP</span></div>
+      <div class="n n-phone"><b>スマホ（閲覧用）</b><span>同一 LAN</span></div>
+    </div>
+    <p>クライアント分離を自分で OFF、DHCP 予約で Mac を固定、SSID/パスワードは自宅と同じにして焼き直しゼロ。Electron は Mac 内で <code>127.0.0.1</code>。<br><b>初期設定</b> 10〜15 分（前日）／<b>当日切替</b> 2〜3 分。</p>
+  </figure>
+
+  <!-- B -->
+  <figure class="pat">
+    <h4>B. Mac インターネット共有（元 = iPhone USB）<span class="verdict v-ok">推奨 2 位</span></h4>
+    <div class="chain">
+      <div class="n n-phone"><b>iPhone</b><span>インターネット共有 ON</span></div>
+      <div class="link"><span class="t">USB<br>(iPhone USB)</span><span class="bar"></span></div>
+      <div class="n n-mac"><b>MacBook = AP 兼 GW</b><span>bridge100 / 192.168.2.1</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-hw"><b>ESP32 レール</b><span>→ http://192.168.2.1:3000</span></div>
+      <div class="n n-hw"><b>スタックちゃん</b><span>→ ws://192.168.2.1:8080</span></div>
+      <div class="n n-app"><b>Electron</b><span>同一 Mac / 127.0.0.1</span></div>
+    </div>
+    <p>Wi-Fi オプションで SSID 固定・WPA2/WPA3 混在・チャンネル 1/6/11 を選ぶ（<b>5GHz 既定だと ESP32 から見えない</b>）。Next は <code>-H 0.0.0.0</code> で起動。<br><b>会場 WiFi とは併用不可</b>（Wi-Fi が共有先に占有される）。Mac スリープで AP 停止 → <code>caffeinate -dimsu</code>。</p>
+  </figure>
+
+  <!-- C -->
+  <figure class="pat">
+    <h4>C. Android テザリング<span class="verdict v-mid">推奨 3 位・要現物テスト</span></h4>
+    <div class="chain">
+      <div class="n n-phone"><b>Android</b><span>2.4GHz / WPA2 Personal</span></div>
+      <div class="link"><span class="t">Wi-Fi</span><span class="bar both"></span></div>
+      <div class="n n-mac"><b>MacBook</b><span>192.168.43.x（可変）</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>同一サブネット</span></div>
+      <div class="n n-net"><b>端末間 ping</b><span>機種依存 ○/×</span></div>
+    </div>
+    <p>全面遮断は仕様化されておらず多くの機種で端末間 ping が通るが、<b>メーカー実装で分離が有効な個体がある</b>。Android 14+ は帯域を明示選択できる（2.4GHz を選ぶ）。<b>WPA3 のみだと ESP32 が繋がらない</b>。IP は固定できないので mDNS か手入力。自動 OFF を無効化し充電しながら使う。</p>
+  </figure>
+
+  <!-- D -->
+  <figure class="pat">
+    <h4>D. 会場共用 WiFi 単独<span class="verdict v-bad">不採用</span></h4>
+    <div class="chain">
+      <div class="n n-ap"><b>会場ゲスト AP</b><span>クライアント分離 ON（既定）</span></div>
+      <div class="link cut"><span class="t">L2 遮断</span><span class="bar both"></span></div>
+      <div class="n n-bad"><b>Mac ↔ ESP32</b><span>互いに見えない</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-net"><b>インターネットは通る</b><span>→ クラウド中継なら可（§7）</span></div>
+      <div class="n n-bad"><b>キャプティブポータル</b><span>ESP32 は踏めない</span></div>
+      <div class="n n-bad"><b>2.4/5GHz が別 VLAN</b><span>同一 SSID でも不通</span></div>
+    </div>
+    <p>「ネットは使えるのに Mac↔ESP32 だけ繋がらない」典型。分離は AP 単位なので<b>席を移動すると挙動が変わる</b>。事前検証が不可能なのが致命的。<b>ただしインターネット出口としては優秀</b>なので、A の WAN 側や §7 のクラウド中継では主役になる。</p>
+  </figure>
+
+  <!-- E -->
+  <figure class="pat">
+    <h4>E. iPhone テザリング直下で LAN 通信<span class="verdict v-bad">不採用（最も紛らわしい罠）</span></h4>
+    <div class="chain">
+      <div class="n n-phone"><b>iPhone ホットスポット</b><span>iOS 18+</span></div>
+      <div class="link cut"><span class="t">IPv4 を<br>Apple が遮断</span><span class="bar both"></span></div>
+      <div class="n n-bad"><b>全端末が 192.0.0.2</b><span>ブロードキャスト/マルチキャスト不達</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-hw"><b>ESP32</b><span>IP 取得済みに見える</span></div>
+      <div class="n n-mac"><b>Mac</b><span>一切見えない</span></div>
+      <div class="n n-net"><b>インターネット</b><span>両方から使える</span></div>
+    </div>
+    <p>Apple DTS が明言する仕様。IPv6 リンクローカルのみ通る。<b>iOS 17 以前は <code>172.20.10.0/28</code> で端末間通信が可能だった</b>ので、古い記事や過去の成功体験を信じてはいけない。台数上限は概ね 5、バッテリー消費大。<b>iPhone は「WAN 回線」としてのみ使う</b>。</p>
+  </figure>
+
+  <!-- F -->
+  <figure class="pat">
+    <h4>F. ESP32 SoftAP + iPhone USB<span class="verdict v-mid">条件付き</span></h4>
+    <div class="chain">
+      <div class="n n-hw"><b>ESP32 SoftAP</b><span>192.168.4.1 / 既定 4 台</span></div>
+      <div class="link"><span class="t">Wi-Fi</span><span class="bar both"></span></div>
+      <div class="n n-mac"><b>MacBook</b><span>Wi-Fi = SoftAP</span></div>
+      <div class="link"><span class="t">USB</span><span class="bar both"></span></div>
+      <div class="n n-phone"><b>iPhone</b><span>インターネット</span></div>
+    </div>
+    <p>LAN 通信だけなら確実。ネットワークのサービス順序で <b>iPhone USB を Wi-Fi より上</b>にすればインターネットも両立する。ただし AP+STA 同時は同一チャンネル強制・connect 時に SoftAP が落ちるなど制約が多く、当てにしない。台数が増えると破綻する。</p>
+  </figure>
+
+  <!-- G -->
+  <figure class="pat">
+    <h4>G. 有線 + USB シリアル<span class="verdict v-ok">最終保険</span></h4>
+    <div class="chain">
+      <div class="n n-mac"><b>MacBook</b><span>Node serialport / 115200</span></div>
+      <div class="link"><span class="t">USB<br>JSON Lines</span><span class="bar both"></span></div>
+      <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>給電 USB ハブ経由</span></div>
+    </div>
+    <div class="stack"><div class="vline"></div></div>
+    <div class="branch">
+      <div class="n n-net"><b>Mac のネット</b><span>USB-C Ethernet or Wi-Fi</span></div>
+      <div class="n n-bad"><b>スマホは参加不可</b><span>観客デモ用途には不向き</span></div>
+    </div>
+    <p>ネットワークの問題が 100% 消える唯一の手段。ESP32/M5Stack は素で Ethernet 非搭載なので、有線は <b>USB シリアルブリッジ</b>が現実解。<b>充電専用ケーブルは NG</b>、CP210x/CH340 ドライバを前日に確認、シリアルモニタは閉じる。事前実装が必要なので<b>前日までに作っておく</b>。</p>
+  </figure>
+
+</div>
+
+<h3>比較マトリクス</h3>
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr><th>構成</th><th>安定性</th><th>準備</th><th>ネット到達</th><th>端末間通信</th><th>IP 固定</th><th>2.4GHz</th><th>当日切替</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><b>A</b> トラベルルーター</td><td class="ok">◎</td><td>△ 事前購入 + 15 分</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎ 192.168.8.x</td><td class="ok">◎</td><td class="ok">◎</td></tr>
+    <tr><td><b>B</b> Mac 共有（元 = iPhone USB）</td><td>○</td><td class="ok">◎ 5 分</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎ 192.168.2.1</td><td class="ok">◎</td><td>○</td></tr>
+    <tr><td><b>C</b> Android テザリング</td><td>△ 機種依存</td><td class="ok">◎</td><td class="ok">◎</td><td>△ 要検証</td><td class="ng">×</td><td>○</td><td class="ok">◎</td></tr>
+    <tr><td><b>D</b> 会場 WiFi 単独</td><td class="ng">×</td><td class="ok">◎</td><td>○</td><td class="ng">×</td><td class="ng">×</td><td class="ng">×</td><td class="ok">◎</td></tr>
+    <tr><td><b>E</b> iPhone テザリング</td><td class="ng">×</td><td class="ok">◎</td><td class="ok">◎</td><td class="ng">× IPv4 遮断</td><td class="ng">×</td><td class="ok">◎</td><td class="ok">◎</td></tr>
+    <tr><td><b>F</b> ESP32 SoftAP + iPhone USB</td><td>○</td><td>○</td><td>△</td><td>○ 4 台まで</td><td class="ok">◎</td><td class="ok">◎</td><td>△</td></tr>
+    <tr><td><b>G</b> 有線 + USB シリアル</td><td class="ok">◎</td><td class="ng">× 事前実装</td><td class="ok">◎</td><td>○</td><td class="ok">◎</td><td>—</td><td>△</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ================= 4. ESP32 ================= -->
+<h2 id="s4">§4 ESP32／スタックちゃんは接続できるのか</h2>
+<p class="summary">
+  結論：<b>できる。PC は不要で、ESP32 単体が Wi-Fi Station として接続する</b>。
+  HTTP サーバー／クライアント、WebSocket サーバー／クライアントのすべてが可能。
+  ただし <b>2.4GHz 専用</b>、<b>キャプティブポータルは踏めない</b>という 2 つの絶対制約がある。
+  推奨は <b>「機器が WS クライアントとして Mac のサーバーへ繋ぎに行く」</b>。
+</p>
+
+<h3>4-1. 単体で Wi-Fi に繋がるか</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>条件</th><th>可否</th><th>備考</th></tr></thead>
+  <tbody>
+    <tr><td>PC なしで単体接続（Station モード）</td><td class="ok">◎ 可</td><td>電源さえあれば良い。起動時に NVS/SD の資格情報で自動接続</td></tr>
+    <tr><td>2.4GHz の WPA2/WPA3-PSK</td><td class="ok">◎ 可</td><td>本命。会場でもこれを狙う</td></tr>
+    <tr><td><b>5GHz</b></td><td class="ng">× 不可</td><td>ESP32/ESP32-S3（Core2/CoreS3）は 2.4GHz のみ。<b>SSID すら見えない</b>ので「電波が弱い」と誤診しやすい。ESP32-C5 のみ 5GHz 対応（同時デュアルバンド不可）</td></tr>
+    <tr><td>WPA2/WPA3-<b>Enterprise</b>（大学・企業 SSID）</td><td>△ 条件付き</td><td><code>esp_eap_client</code>（v3 で API 改名）で可能だが証明書／資格情報の埋め込みが必要。<b>当日作業には不向き</b></td></tr>
+    <tr><td><b>キャプティブポータル</b>付き公衆 Wi-Fi</td><td class="ng">× 実質不可</td><td>ブラウザで同意ボタンを押す仕組みなので ESP32 には踏めない。ルーターの管理画面から踏ませる（構成 A）のが唯一の回避</td></tr>
+    <tr><td>iPhone のホットスポット</td><td>△ 接続はできる</td><td><b>「互換性を優先」を ON</b> にしないと 5GHz になって SSID が見えない。ただし接続できても §3-E の通り Mac とは通信できない</td></tr>
+    <tr><td>Android のホットスポット</td><td>○ 可</td><td>WPA2 Personal・2.4GHz を選ぶこと（WPA3 のみだと不可）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>4-2. HTTP / WebSocket のサーバーとクライアント</h3>
+<p>両方できる。選択肢は次の通り。</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>役割</th><th>ライブラリ</th><th>メモ</th></tr></thead>
+  <tbody>
+    <tr><td>HTTP サーバー</td><td><code>WebServer.h</code> / ESPAsyncWebServer（ESP32Async fork）/ <code>esp_http_server</code>（IDF）</td><td>Async 版の WS は既定 8 クライアント・実用 3〜4。<code>ws.cleanupClients()</code> を毎 loop 呼ぶ</td></tr>
+    <tr><td><b>WS クライアント（推奨）</b></td><td><b>Links2004/arduinoWebSockets</b> / gilmaimon/ArduinoWebsockets / <code>esp_websocket_client</code>（IDF）</td><td><code>setReconnectInterval(3000)</code> + <code>enableHeartbeat(15000,3000,2)</code></td></tr>
+    <tr><td>安定化設定</td><td colspan="2"><code>CONFIG_ASYNC_TCP_RUNNING_CORE=1</code>、<code>STACK_SIZE=16384</code>、<code>esp_websocket_client</code> の <code>buffer_size</code> 既定 1024（超過は複数 DATA イベントに分割されるので再組立必須）、<code>task_stack</code> 4096（TLS は 6144+）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure>
+<div class="fig">
+  <p class="figttl">図 2：推奨する接続の向き（機器 → Mac）</p>
+  <div class="chain">
+    <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>WS クライアント<br>接続先 URL を 1 つ持つだけ</span></div>
+    <div class="link"><span class="t">ws:// で<br>繋ぎに行く</span><span class="bar"></span></div>
+    <div class="n n-mac"><b>MacBook</b><span>WS サーバー :8080<br>Next.js Route Handler</span></div>
+  </div>
+  <div class="stack"><div class="vline"></div></div>
+  <div class="branch">
+    <div class="n n-app"><b>IP 変動に強い</b><span>Mac は機器の IP を知らなくて良い</span></div>
+    <div class="n n-app"><b>AP 分離に強い</b><span>片方向で済む</span></div>
+    <div class="n n-app"><b>同時接続数を気にしない</b><span>制限は Mac 側の ws</span></div>
+    <div class="n n-app"><b>自己修復</b><span>切れたら機器が勝手に再接続</span></div>
+  </div>
+</div>
+<figcaption>逆（Mac → 機器）にすると、機器の IP が変わるたびに Mac 側の設定を直す必要が出る。低頻度の単純アクチュエータだけは HTTP のままで良い。</figcaption>
+</figure>
+
+<h3>4-3. スタックちゃんの既存ファーム比較</h3>
+<p><b>robo8080 系と yh1224 系は最初から HTTP の口を持っている</b>ので、Mac から <code>fetch</code> するだけで喋る。当日の疎通は 30 分で終わる。</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>ファーム</th><th>外部制御の口</th><th>評価</th></tr></thead>
+  <tbody>
+    <tr><td><b>robo8080 AI_StackChan2 / M5Unified_StackChan_ChatGPT</b></td><td><b>HTTP GET</b> <code>/chat?text=..&amp;voice=N</code>, <code>/setting?speaker=1</code>, <code>/setting?volume=180</code>, <code>/role</code>, <code>/apikey</code></td><td class="ok">★ 最有力。fetch するだけで喋る</td></tr>
+    <tr><td><b>yh1224 AIStackchan-hrs</b></td><td><b>HTTP</b> <code>/speech?say=..</code>, <code>/chat?text=..</code>, <code>/settings</code>（JSON PUT で <b>SSID も設定可</b>）</td><td class="ok">★ API 整理済み。設定を API で変更できるのが強い</td></tr>
+    <tr><td>ronron-gh AI_StackChan_Ex / FuncCall</td><td>上記 + YAML 設定・Function Calling</td><td>拡張の参考</td></tr>
+    <tr><td>M5Stack 公式 StackChan（CoreS3, xiaozhi-esp32 系）</td><td>WS で AI サーバーへ常時接続。接続先は OTA 設定 URL から取得 → 自前サーバーへ向け替え可</td><td>△ 音声プロトコル前提で自由度が低い</td></tr>
+    <tr><td>ciniml stackchan-idf</td><td>OpenAI Realtime / Gemini Live / 自前サーバーへ WS ストリーミング</td><td>IDF 派の WS 実装参考</td></tr>
+    <tr><td>stack-chan 公式（TypeScript/Moddable）</td><td>HTTP/WS の公式 API 記載なし。ESP-NOW / BLE Serial が第一級</td><td class="ng">× ハッカソン非推奨</td></tr>
+    <tr><td>kisaragi-mochi stackchan-mcp</td><td>MCP 経由で speak/listen/see/move/emote</td><td>参考実装</td></tr>
+    <tr><td>Stack-chan_Tester</td><td>ネットワークなし（サーボ／表情確認）</td><td>最初に焼いて可動確認</td></tr>
+  </tbody>
+</table>
+</div>
+<p><b>推奨の進め方</b>：Tester で可動確認 → AI_StackChan2 か AIStackchan-hrs の既存 HTTP API で即日疎通（30 分）→ 必要なら <code>WebSocketsClient</code> を 30 行足して WS 化。</p>
+<div class="note">
+  <b>スタックちゃんのファーム種別は最優先の確認事項</b>。公式の TypeScript/Moddable 版だと HTTP/WS の口がなく、MQTT ライブラリ（PubSubClient）も使えない。
+  <b>M5Unified + Arduino 系（robo8080 / yh1224）かどうか</b>を機器チームに今日中に確認する（§10 のチェックリスト参照）。
+</div>
+
+<!-- ================= 5. IP/ポート ================= -->
+<h2 id="s5">§5 IP・ポートの疑問を解消</h2>
+<p class="summary">
+  結論は 3 つ。<b>(1) ポートは他人と絶対に被らない（調整不要）</b>、<b>(2) IP は DHCP が重複しないよう配る</b>、
+  <b>(3) 届くかどうかを決めるのはクライアント分離だけ</b>。
+  IP 変動には 7 つの対策があり、焼き直しは完全に不要にできる。
+</p>
+
+<h3>5-1. 「他の人と被らないか」の正しい理解</h3>
+<figure>
+<div class="fig">
+  <p class="figttl">図 3：ポートは IP ごとの名前空間（100 台いても衝突しない）</p>
+  <div class="chain">
+    <div class="n n-mac"><b>自分の Mac</b><span>192.168.8.100:3000<br>:8080 / :8787</span></div>
+    <div class="link"><span class="t">無関係</span><span class="bar" style="border-top-style:dotted"></span></div>
+    <div class="n n-ext"><b>隣のチームの Mac</b><span>192.168.8.101:3000<br>同じ 3000 でも別物</span></div>
+    <div class="link"><span class="t">無関係</span><span class="bar" style="border-top-style:dotted"></span></div>
+    <div class="n n-ext"><b>さらに隣</b><span>192.168.8.102:3000</span></div>
+  </div>
+  <div class="stack"><div class="vline"></div></div>
+  <div class="branch">
+    <div class="n n-app"><b>気にするのはこれだけ</b><span>自分の Mac 内の EADDRINUSE<br>（Next 3000 / Electron 8787 / WS 8080 が自分の中で重ならない）</span></div>
+    <div class="n n-app"><b>IP の重複</b><span>DHCP が配るので通常起きない。<br>起きると ARP が 2 つの MAC を交互に学習し断続的に不安定（RFC 5227）</span></div>
+    <div class="n n-bad"><b>届くかを決めるのはこれだけ</b><span>クライアント分離（AP isolation）が有効か否か</span></div>
+  </div>
+</div>
+<figcaption>ポート割当表は「自分の Mac の中だけ」で決める。他チームとの調整は一切不要。</figcaption>
+</figure>
+
+<p>本プロジェクトの現行ポート割当（自分の Mac 内のみ）：</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>用途</th><th>ポート</th><th>env</th></tr></thead>
+  <tbody>
+    <tr><td>Next.js</td><td><code>3000</code></td><td>—</td></tr>
+    <tr><td>ESP32 レール（モック）</td><td><code>8791</code></td><td><code>RAIL_BASE_URL=http://127.0.0.1:8791</code></td></tr>
+    <tr><td>Electron デスクトップ（モック）</td><td><code>8792</code></td><td><code>DESKTOP_BASE_URL=http://127.0.0.1:8792</code></td></tr>
+    <tr><td>スタックちゃん（モック）</td><td><code>8793</code></td><td><code>STACKCHAN_WS_URL=ws://127.0.0.1:8793</code></td></tr>
+    <tr><td>Mac 側 WS サーバー（実機用・新設予定）</td><td><code>8080</code> は避け <code>8081</code> 等</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>5-2. IP 変動対策 7 手段（推奨順）</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>手段</th><th>コスト</th><th>信頼性</th><th>メモ</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><b>逆向き接続（機器 → Mac の WS サーバー）</b></td><td>中</td><td class="ok">最高</td><td>Mac は自分の IP を知らなくて良い。機器側は <code>macbook.local</code> か 1 回入力</td></tr>
+    <tr><td>2</td><td><b>mDNS <code>.local</code></b></td><td>低</td><td>中〜高</td><td>Node の <code>fetch</code> は <code>dns.lookup</code>=getaddrinfo なので macOS では <code>.local</code> を解決できる（<code>dns.resolve*</code> は不可）。マルチキャスト遮断環境では死ぬ。<b><code>MDNS.begin()</code> は Wi-Fi 接続<u>後</u>に呼ぶ</b></td></tr>
+    <tr><td>3</td><td><b>機器 LCD に IP / ホスト名 / WS URL / 接続状態を常時表示</b></td><td>極小</td><td class="ok">高</td><td><b>必ず入れる</b>。切り分けの速度が桁で変わる</td></tr>
+    <tr><td>4</td><td><b><code>/dev</code> で実行時に接続先を上書き</b>（<code>POST /api/dev/config</code> + <code>globalThis</code> ストア）+ 疎通テストボタン</td><td>小〜中</td><td class="ok">高</td><td><code>.env.local</code> は再起動が必要なのでデモ中に使えない。env は初期値のみと割り切る</td></tr>
+    <tr><td>5</td><td>DHCP 予約</td><td>低（自前ルーターのみ）</td><td class="ok">高</td><td>構成 A の標準手順。iOS 18 の MAC ランダム化で無効化される点に注意</td></tr>
+    <tr><td>6</td><td>静的 IP（NVS 保存 / WiFiManager のカスタムパラメータで入力）</td><td>中</td><td>中</td><td>サブネットが外れると即死。当日の最後の保険</td></tr>
+    <tr><td>7</td><td>UDP ブロードキャスト探索（<code>255.255.255.255:50000</code>、Node の <code>dgram</code> が応答）</td><td>中〜高</td><td>中</td><td>mDNS が死ぬ環境ではブロードキャストも大抵死ぬので<b>上位互換にならない</b></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>5-3. 焼き直しを不要にする（Wi-Fi 資格情報の外出し）</h3>
+<p>「IP が変わるたびに焼き直し」の本質は <b>Wi-Fi の SSID/パスワードと接続先 URL がファームに埋め込まれている</b>こと。両方を外に出せば焼き直しは消える。</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>手法</th><th>コスト</th><th>判定</th><th>やり方</th></tr></thead>
+  <tbody>
+    <tr><td><b>SD の <code>wifi.txt</code> / <code>config.json</code></b>（AI_StackChan2 系）</td><td>極低</td><td class="ok">★ スタックちゃんではこれが最速</td><td>SD を抜いてテキストを書き換えるだけ</td></tr>
+    <tr><td><b>WiFiManager</b>（tzapu / RoboMagus fork）</td><td>低</td><td class="ok">★ ESP32 では最推奨</td><td>接続失敗時に自動で AP 化（<code>StackChan-Setup</code>）→ スマホで SSID 選択・入力 → NVS 保存。<b>接続先 URL もカスタムパラメータとして入力できる</b></td></tr>
+    <tr><td>NVS（<code>Preferences</code>）保存</td><td>—</td><td>全手法で併用必須</td><td>起動時 10 秒で NVS の資格情報を試す</td></tr>
+    <tr><td>WiFiProv（BLE / SoftAP Provisioning）</td><td>中</td><td>次点</td><td>BLE でスケッチが肥大しパーティション変更が要る</td></tr>
+    <tr><td>Web 設定ページ <code>/settings</code></td><td>中</td><td>併設推奨</td><td>yh1224 版は最初から JSON PUT で SSID を変えられる</td></tr>
+    <tr><td>SmartConfig / ESP-Touch</td><td>低</td><td>保険</td><td>成功率が環境依存</td></tr>
+    <tr><td>シリアル経由 <code>SET_WIFI</code></td><td>低</td><td>最後の砦</td><td>USB で繋げば必ず通る</td></tr>
+  </tbody>
+</table>
+</div>
+<p><b>推奨 3 段フォールバック</b>：起動 → NVS の資格情報で 10 秒試行 → 失敗したら SD の <code>wifi.txt</code> → それも無ければ WiFiManager の AP モード（<code>StackChan-Setup</code>）に落ちる。</p>
+
+<h3>5-4. Next.js（Node）から LAN 機器へ届けるときの注意</h3>
+<ul>
+  <li><b>必ず Route Handler（サーバー側）から</b>叩く。ブラウザから直叩きすると Chrome 142 の Local Network Access で権限プロンプト／ブロックになる。Route Handler 内の <code>fetch</code> なら CORS も Private Network Access も無関係（README にも明記済みのルール）。</li>
+  <li><b><code>AbortSignal.timeout(1500)</code> を必ず付ける</b>。<code>fetch</code> は既定でタイムアウトしないので、機器が無応答だと永久に待つ（エラーは <code>TimeoutError</code>）。</li>
+  <li>macOS ファイアウォールは<b>受信のみ</b>制御。<code>listen</code> 時の「node の接続を許可」ダイアログは許可する。デモ中は FW オフが最速。</li>
+  <li>macOS Sequoia+ の「ローカルネットワーク」権限：Terminal 起動の CLI は対象外だが <b>Electron（GUI アプリ）は確実に対象</b>。症状が「無言でタイムアウト」なので気づきにくい。</li>
+  <li>Node 22 のグローバル <code>WebSocket</code> クライアントは stable（22.4+）。<b>サーバー側は <code>ws</code> が必要</b>。HMR でインスタンスが増殖しないよう <code>globalThis</code> シングルトンにする。</li>
+</ul>
+
+<!-- ================= 6. Electron ================= -->
+<h2 id="s6">§6 Electron と localhost</h2>
+<p class="summary">
+  結論：<b>同じ MacBook で動かすなら、これは全体で一番簡単な部分</b>。<code>127.0.0.1</code> のループバックは NIC を通らないので、
+  Wi-Fi の状態・ファイアウォール・CORS・ローカルネットワーク権限のすべてと無関係に通る。
+  現行実装は <code>DESKTOP_BASE_URL=http://127.0.0.1:8792</code>（モック）なので、<b>実機 Electron のポートに差し替えるだけ</b>。
+</p>
+
+<figure>
+<div class="fig">
+  <p class="figttl">図 4：同一 Mac 内のループバック通信（外に一切出ない）</p>
+  <div class="chain">
+    <div class="n n-web"><b>ブラウザ</b><span>http://localhost:3000</span></div>
+    <div class="link"><span class="t">同一オリジン<br>HTTP / SSE</span><span class="bar"></span></div>
+    <div class="n n-mac"><b>Next.js Route Handler</b><span>runtime = nodejs<br>/api/devices/desktop/*</span></div>
+    <div class="link"><span class="t">127.0.0.1<br>ループバック</span><span class="bar both"></span></div>
+    <div class="n n-app"><b>Electron メインプロセス</b><span>Express 等を 127.0.0.1:8787 に bind</span></div>
+  </div>
+  <div class="stack"><div class="vline cut"></div></div>
+  <div class="branch">
+    <div class="n n-bad"><b>Wi-Fi / ルーター</b><span>この経路には一切関与しない</span></div>
+    <div class="n n-bad"><b>ファイアウォール</b><span>受信制御はループバックに効かない</span></div>
+    <div class="n n-bad"><b>CORS / LNA / ローカルネットワーク権限</b><span>HTTP 通信自体には無関係</span></div>
+  </div>
+</div>
+<figcaption>会場のネットワークが全滅していても、Electron との通信だけは必ず動く。</figcaption>
+</figure>
+
+<h3>6-1. 必ず守る 5 点</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>項目</th><th>やること</th><th>やらないとどうなるか</th></tr></thead>
+  <tbody>
+    <tr><td><b><code>localhost</code> → <code>::1</code> の罠</b></td><td><b>bind も接続先も <code>127.0.0.1</code> と直書きする</b>。<code>localhost</code> という文字列をコードと env に書かない</td><td>Node 17+ は verbatim 解決なので <code>localhost</code> が <code>::1</code> になり、IPv4 で listen しているサーバーに対して <code>ECONNREFUSED ::1</code> で落ちる</td></tr>
+    <tr><td><b>ポート競合</b></td><td>固定 <code>8787</code> で試し、<code>EADDRINUSE</code> なら +1 でリトライ。確定ポートを <code>~/Library/Application Support/&lt;app&gt;/bridge.json</code> に書き、Next 側が読む（または <code>/dev</code> で手入力）。<b><code>8080</code> は避ける</b>（他アプリと衝突しやすい）</td><td>起動順によって Electron が立ち上がらない／Next が古いポートを叩き続ける。確認は <code>sudo lsof -i :8787</code></td></tr>
+    <tr><td><b>画面収録権限</b>（<code>desktopCapturer</code>）</td><td>macOS 10.15+ で必須。<code>getMediaAccessStatus('screen')</code> は TCC に登録<b>されない</b>ので、no-op の <code>desktopCapturer.getSources({types:['screen']})</code> を起動時に 1 回呼んで権限ダイアログを出す</td><td>権限ダイアログが出ないまま黒画面になる。権限変更後に古い値を返すバグ（electron#36722）があるのでアプリ再起動が必要</td></tr>
+    <tr><td><b>開発ビルドと本番ビルドは別アプリ扱い</b></td><td><b>前日に本番ビルドで権限を通しておく</b></td><td>当日に本番ビルドを配ったら権限が付いておらず、再度ダイアログから始まる</td></tr>
+    <tr><td><b>既定ブラウザで開く</b></td><td><code>shell.openExternal(url)</code> を<b>メインプロセスで</b>呼び、スキームを検証（<code>http:</code>/<code>https:</code> のみ許可）</td><td>レンダラーから任意 URL を開けると危険。<code>file:</code> や独自スキームの注入経路になる</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>6-2. 現行実装への接続</h3>
+<p>
+  <code>packages/devices/src/index.ts</code> の <code>createDevices()</code> は
+  <code>DEVICE_MODE</code> と各 URL を env から読む。Electron 実機への切替は env 1 行だけで済む。
+</p>
+<pre><code># &lt;REPO_ROOT&gt;/.env.local
+DEVICE_MODE=real
+DESKTOP_BASE_URL=http://127.0.0.1:8787   # ← モックの 8792 から実機 Electron のポートへ
+RAIL_BASE_URL=http://192.168.8.50        # ← ESP32 レール（構成 A の LAN IP）
+STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら Mac 側で listen する）
+</code></pre>
+<p>
+  デモ中に値を変えたい場合は <code>.env.local</code> ではなく <b><code>/dev</code> ダッシュボードから実行時上書き</b>する（§5-2 の #4）。
+  <code>.env.local</code> の変更は <code>next dev</code> の再起動を伴うので、本番デモ中には使えない。
+</p>
+<div class="danger">
+  <b><code>/dev</code> は認証なし・ローカル専用</b>。<code>next dev -H 0.0.0.0</code> で LAN に公開する構成（構成 B で必要）を取るときは、
+  会場の他の参加者からも <code>/dev</code> と <code>/api/devices/*</code> が叩けてしまう。
+  <b>デモ本番は <code>-H 0.0.0.0</code> を外す</b>か、<code>DEVICE_AUTH_TOKEN</code> を設定して機器側にも同じトークンを入れる。トンネル（ngrok 等）で外に出すのは厳禁。
+</div>
+
+<!-- ================= 7. クラウド中継 ================= -->
+<h2 id="s7">§7 LAN が使えない時の代替（クラウド中継）</h2>
+<p class="summary">
+  会場の外向き 443/TLS はほぼ確実に通る。つまり <b>全員が外のサーバーへ「出て行く」形</b>にすれば、
+  クライアント分離も IP 変動も AP の種類も一切関係なくなる。
+  本命は <b>MQTT（HiveMQ Cloud 無料）</b>、保険は <b>BLE</b> と <b>Tailscale</b>。いずれもコスト 0 円。
+</p>
+
+<h3>7-1. 比較マトリクス</h3>
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr><th>観点</th><th>LAN 直結</th><th><b>MQTT クラウド</b></th><th>Supabase ポーリング</th><th>トンネル</th><th>Tailscale</th><th>BLE</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>準備時間</td><td class="ok">0</td><td>1〜2h</td><td>2〜3h</td><td>15 分（ESP32 込み 1h）</td><td>20 分</td><td>2〜3h</td></tr>
+    <tr><td><b>会場依存（分離）</b></td><td class="ng">✗ 致命的</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎ Wi-Fi 不要</td></tr>
+    <tr><td>IP 変動耐性</td><td class="ng">✗</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td></tr>
+    <tr><td>遅延（往復）</td><td class="ok">5〜20ms</td><td>100〜350ms</td><td class="ng">1000ms 超</td><td>50〜150ms</td><td>5〜100ms</td><td>20〜100ms</td></tr>
+    <tr><td>ESP32 実装難度</td><td class="ok">低</td><td>低〜中</td><td>中</td><td>中（WSS の罠）</td><td class="ng">✗ 非対応</td><td>中</td></tr>
+    <tr><td>画像 / 音声</td><td class="ok">◎</td><td>△</td><td class="ng">✗</td><td>○</td><td class="ok">◎</td><td class="ng">✗</td></tr>
+    <tr><td>Electron</td><td>○</td><td>○</td><td>○</td><td>○</td><td class="ok">◎</td><td class="ok">◎</td></tr>
+    <tr><td>コスト</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>7-2.「本命 + 保険」構成図</h3>
+<figure>
+<div class="fig">
+  <p class="figttl">図 5：本命 MQTT ＋ 3 段の保険</p>
+  <div class="chain">
+    <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>外向き TLS のみ</span></div>
+    <div class="link"><span class="t">mqtts://<br>:8883</span><span class="bar both"></span></div>
+    <div class="n n-cloud"><b>HiveMQ Cloud Serverless</b><span>hack/&lt;team&gt;/&lt;deviceId&gt;/cmd｜res｜state｜lwt</span></div>
+    <div class="link"><span class="t">mqtts://<br>:8883</span><span class="bar both"></span></div>
+    <div class="n n-mac"><b>MacBook（Next.js）</b><span>mqtt.js / globalThis シングルトン</span></div>
+  </div>
+  <div class="stack"><div class="vline"></div></div>
+  <div class="branch">
+    <div class="n n-app"><b>保険 1：BLE</b><span>起動後 3 秒 MQTT に繋がらなければ自動で BLE へ<br>NimBLE-Arduino ⇄ @stoprocent/noble</span></div>
+    <div class="n n-app"><b>保険 2：Tailscale</b><span>Mac ⇄ Electron ⇄ スマホ。MagicDNS で名前固定<br>（ESP32 は非対応）</span></div>
+    <div class="n n-app"><b>保険 3：CF Quick Tunnel</b><span>+ HTTPS ロングポーリング（最大 20 秒 hold）<br>手順書だけ用意</span></div>
+    <div class="n n-app"><b>保険 4：USB シリアル（構成 G）</b><span>ネットワーク完全不要</span></div>
+  </div>
+</div>
+<figcaption>8883 が塞がれている会場に備えて、WSS 8884 も試す実装にしておく。会場到着後 5 分で両方の疎通を確認する。</figcaption>
+</figure>
+
+<h3>7-3. MQTT の実装メモ（最頻出のハマりどころ）</h3>
+<ul>
+  <li><b>ESP32 の <code>PubSubClient</code> は既定バッファ 256B</b>。<code>setBufferSize(2048)</code> を必ず呼ぶ。これが最頻出の失敗。</li>
+  <li><code>WiFiClientSecure</code> + <code>setInsecure()</code> でまず動かす。<code>setKeepAlive(15)</code>。<b>TLS ハンドシェイクで数十 KB のヒープを食う</b>ので <code>heap_caps_get_free_size</code> をログに出す。</li>
+  <li>トピック設計：<code>hack/&lt;team&gt;/&lt;deviceId&gt;/cmd | res | state(retain) | lwt</code>。<code>request_id</code> で相関、<code>cmd</code> は QoS1（<b>冪等化必須</b>）、テレメトリは QoS0、<b>LWT は必ず設定</b>。</li>
+  <li><b><code>clientId</code> が重複すると相互に切断し合う</b>。デバイスごとに UUID を持たせる。</li>
+  <li>ブローカー選択肢：HiveMQ Cloud Serverless（100 接続 / 10GB 月 / 保持 3 日・SLA なし。有料は $0.34/時 ≒ 約 51 円/時）、EMQX Cloud Serverless（支出上限 0 で無料運用可）、<code>test.mosquitto.org</code>（<b>全世界公開なのでトピックに UUID を必ず入れる</b>）。AWS IoT Core は X.509 証明書必須で当日には重い。</li>
+  <li>遅延は公開ベンチで RTT 約 300ms、近傍リージョンなら 50〜150ms。<b>会話 UI には十分</b>だが、レールのリアルタイム操作には体感が出る。</li>
+</ul>
+
+<h3>7-4. Supabase をクラウドにするか</h3>
+<p>
+  <b>ローカル Supabase（<code>127.0.0.1:54321</code>）のままでは会場の機器から届かない</b>。機器を Supabase 経由で動かす設計にするなら
+  supabase.com の無料プロジェクト（Tokyo）へ <code>supabase link</code> → <code>db push</code> → env 差替 → anon key + RLS（<code>device_id</code>）が必要。
+  ただし ESP32 から Realtime WS への直結は非推奨（<code>jhagas/ESPSupabase</code> は Broadcast 未実装、公式 Discussion に未解決の接続不可報告あり）で、
+  現実解は PostgREST ポーリング（<code>robot_commands</code> を 500ms〜1s で GET、PATCH で done）。
+  <b>往復 1 秒超で体感が鈍い</b>ため、機器制御には MQTT を推す。
+  <b>Supabase 無料プロジェクトは 1 週間無操作で一時停止する</b>ので、当日朝に必ず起こしておく。
+</p>
+
+<h3>7-5. 現行コードへの落とし込み</h3>
+<p>
+  <code>packages/devices</code> は現在 <code>http/rail</code>・<code>http/desktop</code>・<code>ws/stackchan</code> と、トランスポートごとにクライアント実装が分かれている。
+  ここに <b>トランスポート抽象化（HTTP / WS / MQTT / BLE / シリアル）</b>を 1 枚挟み、<code>RailClient</code> / <code>StackchanClient</code> / <code>DesktopClient</code> のインターフェース（<code>packages/devices/src/types.ts</code>）はそのまま維持する。
+  具体的には <code>send(envelope) / onInbound(handler)</code> だけを持つ <code>Transport</code> 型を定義し、既存の <code>createRailClient</code> 等はその Transport を受け取る形に変える。
+  <code>request_id</code> の採番（<code>createRequestId</code>）・タイムアウト・再送は既に <code>wire.ts</code> 側に集約されているので、トランスポートを差し替えても Route Handler と Mastra tool は無変更で済む。
+  env は <code>DEVICE_TRANSPORT=http|ws|mqtt|ble|serial</code> を 1 本足し、<code>DEVICE_MODE=real</code> と組み合わせる。
+  これにより<b>当日「LAN 全滅」と判明しても、env 1 行の変更で MQTT 中継へ切り替わる</b>。
+</p>
+
+<!-- ================= 8. 落とし穴 ================= -->
+<h2 id="s8">§8 安全・実装の落とし穴チェック</h2>
+<p class="summary">
+  ここに挙げた 9 つは、どれも「当日その場で原因を特定するのが難しい」種類の問題。
+  前日までに潰しておくとデバッグ時間が劇的に減る。
+</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>項目</th><th>対処</th><th>放置すると</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><b><code>WiFi.setSleep(false)</code> と自前 reconnect</b></td><td>低遅延のためモデムスリープを切る。ただし <code>setSleep(false)</code> だと自動再接続しないバグ（arduino-esp32 #8877）があるので、<code>onEvent(STA_DISCONNECTED)</code> で <code>WiFi.reconnect()</code> を自分で呼ぶ</td><td>数百 ms の遅延が乗る／一度切れると二度と復帰しない</td></tr>
+    <tr><td>2</td><td><b><code>ws.cleanupClients()</code> を毎 loop</b></td><td>ESPAsyncWebServer の WS サーバー側で毎ループ呼ぶ</td><td>切断済みクライアントが溜まり、既定 8（実用 3〜4）の枠を食い潰して新規接続を拒否</td></tr>
+    <tr><td>3</td><td><b>PubSubClient バッファ 256B</b></td><td><code>client.setBufferSize(2048)</code></td><td>JSON が 256B を超えた瞬間に publish が黙って失敗する（エラーも出ない）</td></tr>
+    <tr><td>4</td><td><b>TLS のヒープ消費</b></td><td>TLS は 30〜45KB 食う。LAN 内は <code>ws://</code> 平文で良い。<code>task_stack</code> は TLS 時 6144+、<code>heap_caps_get_free_size()</code> を定期ログ。HTTPS を繰り返すなら接続を使い回す（mbedtls #3119）</td><td>ヒープ枯渇でランダムに再起動。原因が特定できない</td></tr>
+    <tr><td>5</td><td><b>電源 2A 以上・短く太い USB ケーブル</b></td><td>給電付き USB ハブを用意。充電専用ケーブルは NG</td><td><b>ブラウンアウト再起動が不調の最多原因</b>。ソフトを疑って何時間も溶かす</td></tr>
+    <tr><td>6</td><td><b>mDNS は Wi-Fi 接続<u>後</u>に <code>begin</code></b></td><td><code>MDNS.begin()</code> / <code>mdns_hostname_set()</code> を接続完了イベントの後に呼ぶ</td><td>名前が登録されず <code>ENOTFOUND</code>。再起動のたびに挙動が変わる</td></tr>
+    <tr><td>7</td><td><b><code>AbortSignal.timeout()</code></b></td><td>Node の <code>fetch</code> は既定でタイムアウトしない。機器向けは <code>AbortSignal.timeout(1500)</code> を必ず付ける</td><td>機器が無応答だと Route Handler が永久に返らず、UI が固まる</td></tr>
+    <tr><td>8</td><td><b>Node の <code>globalThis</code> シングルトン</b></td><td>WS サーバー・MQTT クライアント・serialport は <code>globalThis</code> に載せる（HMR 対策）</td><td><code>next dev</code> のホットリロードのたびに接続が増殖し、<code>EADDRINUSE</code> や clientId 重複切断を起こす</td></tr>
+    <tr><td>9</td><td><b>Wi-Fi と BLE の共存を避ける</b></td><td>Core2/CoreS3 で両方使うとスループット低下・RAM 消費・スケッチ肥大。BLE 保険に切り替える時は Wi-Fi を停止する</td><td>両方が中途半端に不安定になり、切り分けが不可能になる</td></tr>
+    <tr><td>10</td><td><b>WS のゾンビ接続</b></td><td>RFC 6455 の Ping/Pong を 5 秒間隔。無応答は <code>close()</code> ではなく <b><code>terminate()</code></b>。再接続は指数バックオフ + ジッター（1→2→4→8→上限 10s）、再接続後に状態を再同期</td><td>TCP はゾンビ接続に気づけないので「繋がっているのに反応しない」状態が続く</td></tr>
+    <tr><td>11</td><td><b>Mac のスリープ</b></td><td>AP 共有・トンネルは Mac スリープで落ちる。<code>caffeinate -dimsu</code> を実行しておく</td><td>デモ直前に全機器が切断される</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ================= 9. 当日タイムライン ================= -->
+<h2 id="s9">§9 当日タイムライン</h2>
+<p class="summary">
+  前日までの準備・到着直後 5 分の判定・トラブル時の 8 ステップ切り分け。
+  <b>到着直後の 5 分で構成が確定できれば、その日の勝ち筋はほぼ決まる</b>。
+</p>
+
+<h3>9-1. 前日まで</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>いつ</th><th>やること</th><th>完了条件</th></tr></thead>
+  <tbody>
+    <tr><td><b>今日</b></td><td>トラベルルーターを発注（GL-SFT1200 Opal 約 4,700〜5,100 円 / GL-MT3000 Beryl AX 9,500〜13,600 円）</td><td>到着予定日が当日より前</td></tr>
+    <tr><td>今日</td><td>LAN 側の SSID / パスワードをチームで決定して共有</td><td>全員が同じ文字列を持っている</td></tr>
+    <tr><td>今日</td><td>機器チームに確認（ファーム種別・Wi-Fi 設定方法・IP 表示の有無）</td><td>§10 の質問に回答が揃う</td></tr>
+    <tr><td>2 日前</td><td>決定した SSID で ESP32／スタックちゃんに焼き込み（または SD の <code>wifi.txt</code> を書く）</td><td>自宅の同名 SSID で自動接続する</td></tr>
+    <tr><td>2 日前</td><td>ESP32 / スタックちゃんの LCD に <b>IP・接続先 URL・接続状態</b>を常時表示</td><td>電源を入れたら画面で IP が読める</td></tr>
+    <tr><td>2 日前</td><td>HiveMQ Cloud 無料アカウント作成 + MQTT 疎通（保険）</td><td>Mac ↔ ESP32 が MQTT で往復する</td></tr>
+    <tr><td>前日</td><td><b>構成 B（Mac インターネット共有・元 = iPhone USB）を自宅で通し検証</b></td><td>ESP32 が <code>192.168.2.x</code> を取り、Mac の <code>:3000</code> に到達する</td></tr>
+    <tr><td>前日</td><td>USB シリアル保険の実装と動作確認（給電ハブ・ドライバ CP210x/CH340）</td><td>ネットワークを切っても機器が動く</td></tr>
+    <tr><td>前日</td><td>Electron を<b>本番ビルド</b>で起動して画面収録権限を通す</td><td>ダイアログが出て許可済みになっている</td></tr>
+    <tr><td>前日</td><td>Tailscale を Mac とスマホに導入</td><td>MagicDNS で相互に到達できる</td></tr>
+    <tr><td>当日朝</td><td>Supabase クラウドプロジェクトを起こす（1 週間無操作で一時停止するため）</td><td>ダッシュボードが Active</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>9-2. 到着直後 5 分の判定</h3>
+<p>上から順に実行し、最初に失敗したところで構成を決める。</p>
+<pre><code># ① 同一 SSID（同帯域）か
+ipconfig getsummary en0 | awk -F' SSID : ' '/ SSID : /{print $2}'
+# Option を押しながら Wi-Fi アイコン → チャンネルが 1〜13 なら 2.4GHz
+
+# ② 自分の IP とゲートウェイ（169.254.x.x なら DHCP 失敗）
+ipconfig getifaddr en0
+netstat -rn | grep default
+
+# ③ 機器とゲートウェイへ ping（機器の IP は LCD から読む）
+ping -c 3 192.168.8.50      # 機器
+ping -c 3 192.168.8.1       # ゲートウェイ
+#   → GW は通るのに機器が通らない ＝ クライアント分離。ここで LAN を諦める判断ができる
+
+# ④ ARP で L2 到達性（incomplete なら L2 で遮断されている）
+arp -a
+
+# ⑤ mDNS が生きているか
+dns-sd -B _services._dns-sd._udp
+dns-sd -G v4 esp32-obake.local
+
+# ⑥ 保険の疎通（LAN が死んでいてもこれが通れば MQTT に切り替えられる）
+nc -zv &lt;broker-host&gt; 8883
+nc -zv &lt;broker-host&gt; 8884
+</code></pre>
+<div class="note">
+  <b>判定基準</b>：③ で機器に ping が通れば LAN 構成（A/B/C）で進む。通らなければ <b>迷わず §7 の MQTT 中継へ切り替える</b>。
+  ここで「なぜ通らないのか」を探り始めると 1 時間が溶ける。<b>分離は AP 単位なので、席を移動すると結果が変わる</b>点だけ覚えておく。
+</div>
+
+<h3>9-3. トラブル時の切り分け 8 ステップ</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>見るもの</th><th>コマンド</th><th>判定</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>同一 SSID・同一帯域</td><td><code>ipconfig getsummary en0 | awk -F' SSID : ' '/ SSID : /{print $2}'</code></td><td>違えば繋ぎ直す。2.4/5GHz が別 VLAN の可能性</td></tr>
+    <tr><td>1</td><td>IP / デフォルトゲートウェイ</td><td><code>ipconfig getifaddr en0</code> / <code>netstat -rn | grep default</code></td><td><code>169.254.x.x</code> は DHCP 失敗。機器 LCD の IP とサブネットが一致するか</td></tr>
+    <tr><td>2</td><td>ping</td><td><code>ping -c 3 &lt;機器 IP&gt;</code> / <code>ping -c 3 &lt;GW&gt;</code></td><td><b>GW は通るが機器が通らない → クライアント分離</b></td></tr>
+    <tr><td>3</td><td>ARP</td><td><code>arp -a</code></td><td><code>incomplete</code> = L2 不通。同一 IP に複数 MAC = IP 重複</td></tr>
+    <tr><td>4</td><td>ポート</td><td><code>nc -zv &lt;機器 IP&gt; 80</code> / <code>nc -zv 127.0.0.1 8787</code></td><td>閉じていればサーバー未起動か bind アドレス違い</td></tr>
+    <tr><td>5</td><td>HTTP / WS</td><td><code>curl -v --max-time 3 http://&lt;ip&gt;/status</code>（WS は 101 が返るか）</td><td>mDNS 名でも試す。名前で失敗し IP で成功 → 名前解決の問題</td></tr>
+    <tr><td>6</td><td>listen / FW / 権限</td><td><code>sudo lsof -i :3000</code> / <code>socketfilterfw --getglobalstate</code></td><td><b><code>127.0.0.1</code> bind だと外から届かない → <code>next dev -H 0.0.0.0</code></b>。Electron は「ローカルネットワーク」権限を確認</td></tr>
+    <tr><td>7</td><td>mDNS</td><td><code>dns-sd -B _http._tcp</code> / <code>dns-sd -G v4 esp32-obake.local</code> / <code>scutil --dns</code></td><td>マルチキャストが遮断されていれば IP 直指定に切り替える</td></tr>
+    <tr><td>8</td><td>ログ</td><td>ESP32 のシリアル 115200 / Next の <code>err.name</code>・<code>err.cause.code</code></td><td>下のエラーコード表で場所を特定</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>エラーコード → 見る場所</h4>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>エラー</th><th>意味</th><th>戻るステップ</th></tr></thead>
+  <tbody>
+    <tr><td><code>ENOTFOUND</code></td><td>名前が引けない</td><td>7（mDNS / DNS）</td></tr>
+    <tr><td><code>ECONNREFUSED</code></td><td>ポートが閉じている（<code>::1</code> の罠も含む）</td><td>4・6</td></tr>
+    <tr><td><code>EHOSTUNREACH</code> / <code>ENETUNREACH</code></td><td>経路がない</td><td>1・2</td></tr>
+    <tr><td><code>TimeoutError</code></td><td>パケットが消えている</td><td>2（クライアント分離）・6（FW / ローカルネットワーク権限）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ================= 10. 次の一手 ================= -->
+<h2 id="s10">§10 次の一手（人間がやること）</h2>
+<p class="summary">
+  着手順に並べてある。<b>①〜③ は今日中</b>（物理的な調達とチーム内の合意が必要なため）。
+  ④〜⑧ は前日までに順次。エージェントが代行できない理由も添えた。
+</p>
+
+<ul class="checks">
+  <li>
+    <input type="checkbox" id="c1"><div class="chk-body">
+    <div class="chk-title">① トラベルルーターを発注する（最優先・今日中）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 10 分</span><span class="tag">費用 約 4,700〜13,600 円</span></div>
+    <p class="why"><b>なぜ人間か</b>：購入・支払いを伴うため。<b>何を買うか</b>：最安なら GL.iNet <b>GL-SFT1200 Opal</b>（$31〜34 ≒ 約 4,700〜5,100 円）、Wi-Fi 6 と USB テザリング対応が欲しければ <b>GL-MT3000 Beryl AX</b>（実売 9,500〜13,600 円）。上位は GL-BE3600 Slate 7（$150 ≒ 約 22,500 円）。<b>当日に間に合う配送日を必ず確認する</b>。間に合わないなら②の構成 B が本命に繰り上がる。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c2"><div class="chk-body">
+    <div class="chk-title">② LAN 側の SSID / パスワードをチームで決定する（今日中）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人 + 機器チーム</span><span class="tag">所要 5 分</span></div>
+    <p class="why"><b>なぜ人間か</b>：チーム全員の合意事項であり、これが決まらないと焼き込みが始められないため。ルーター（構成 A）と Mac 共有（構成 B）で<b>同じ SSID/パスワードを使う</b>と、当日どちらに切り替えても機器側は無変更で済む。決めたら機器チームに共有（<b>パスワードはこのレポートやリポジトリに書かない</b>）。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c3"><div class="chk-body">
+    <div class="chk-title">③ 機器チームに 4 点を確認する（今日中）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 5 分（回答待ち）</span></div>
+    <p class="why"><b>なぜ人間か</b>：他チームへの問い合わせのため。<b>聞くこと</b>：(1) ESP32 のファーム種別は Arduino か ESP-IDF か、(2) スタックちゃんのファームは robo8080 / yh1224 / M5Stack 公式 / Moddable 公式のどれか（<b>Moddable 公式だと HTTP/MQTT の口がなく設計が変わる</b>）、(3) Wi-Fi 設定の変更方法（WiFiManager / SD の <code>wifi.txt</code> / 再ビルド）、(4) LCD に IP を表示する仕組みがあるか。詳細は <a href="#s4">§4-3</a>。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c4"><div class="chk-body">
+    <div class="chk-title">④ 構成 B（iPhone USB → Mac の Wi-Fi 共有）を自宅で検証する</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 30 分</span><span class="tag">前日まで</span></div>
+    <p class="why"><b>なぜ人間か</b>：iPhone の物理接続と macOS のシステム設定 GUI 操作、実機の挙動確認が必要なため。<b>手順</b>：iPhone を USB 接続しインターネット共有 ON → システム設定 &gt; 一般 &gt; 共有 &gt; インターネット共有 (i) → 共有元「iPhone USB」/ 共有先「Wi-Fi」→ <b>Wi-Fi オプションで SSID 固定・WPA2/WPA3 混在・チャンネル 1/6/11</b> → ON。ESP32 が <code>192.168.2.x</code> を取り、<code>http://192.168.2.1:3000</code> に到達することを確認。Next は <code>-H 0.0.0.0</code> で起動。<b>共有 ON のままでは設定を変更できない</b>（一度 OFF にする）。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c5"><div class="chk-body">
+    <div class="chk-title">⑤ HiveMQ Cloud の無料アカウントを作る（保険の本命）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 15 分</span><span class="tag">前日まで</span></div>
+    <p class="why"><b>なぜ人間か</b>：アカウント作成とクレデンシャル発行は本人確認・同意を伴うため。<a href="https://www.hivemq.com/pricing/fully-managed/">https://www.hivemq.com/pricing/fully-managed/</a> の Serverless 無料枠（100 接続 / 10GB 月）。発行したユーザー名・パスワードは <code>&lt;REPO_ROOT&gt;/.env.local</code> に置き、<b>リポジトリにコミットしない</b>。実装（mqtt.js / PubSubClient）はエージェントに委譲できる。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c6"><div class="chk-body">
+    <div class="chk-title">⑥ Tailscale を Mac とスマホに入れる</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 20 分</span><span class="tag">前日まで</span></div>
+    <p class="why"><b>なぜ人間か</b>：アカウント作成と各端末での認証・権限許可が必要なため。<a href="https://tailscale.com/pricing">Personal 無料（6 ユーザー）</a>。<b>ESP32 は非対応</b>なので機器には効かないが、Mac ↔ Electron ↔ スマホの到達性が IP 変動と無関係になる（MagicDNS で名前固定）。<b>入れない理由がない</b>ので保険として導入する。Personal プランは非商用向けである点に注意。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c7"><div class="chk-body">
+    <div class="chk-title">⑦ 会場で 8883 / 443 の疎通を確認する（到着直後）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 2 分</span><span class="tag">当日</span></div>
+    <p class="why"><b>なぜ人間か</b>：会場に物理的にいないと実行できないため。<code>nc -zv &lt;broker-host&gt; 8883</code> と <code>nc -zv &lt;broker-host&gt; 8884</code>（WSS 保険）。8883 が塞がれている会場があるので両方試す。あわせて <a href="#s9">§9-2 の 5 分判定</a>を上から実行する。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c8"><div class="chk-body">
+    <div class="chk-title">⑧ Supabase をクラウドに移すか決める</div>
+    <div class="chk-tags"><span class="tag">担当: 本人（設計判断）</span><span class="tag">所要 10 分の判断</span><span class="tag">前日まで</span></div>
+    <p class="why"><b>なぜ人間か</b>：アーキテクチャの方針決定であり、無料枠・停止リスク・移行コストのトレードオフ判断を伴うため。<b>判断材料</b>：機器を Supabase 経由で制御する設計にしないなら、ローカル Supabase のままで良い（Mastra Memory とログ用途のみ）。機器の中継に使うなら、クラウド移行が必須で、かつ<b>往復 1 秒超の遅延を受け入れることになる</b>（MQTT なら 100〜350ms）。<b>推奨は「Supabase はログ用途のみ・機器中継は MQTT」</b>。詳細は <a href="#s7">§7-4</a>。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c9"><div class="chk-body">
+    <div class="chk-title">⑨ Electron を本番ビルドして画面収録権限を通す</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 15 分</span><span class="tag">前日まで</span></div>
+    <p class="why"><b>なぜ人間か</b>：macOS の権限ダイアログは GUI での本人操作が必須（TCC はスクリプトから許可できない）。<b>開発バイナリと本番ビルドは別アプリ扱い</b>なので、当日配る本番ビルドで通しておくこと。権限変更後は<b>アプリ再起動が必要</b>（electron#36722）。詳細は <a href="#s6">§6-1</a>。</p>
+    </div>
+  </li>
+</ul>
+
+<!-- ================= 11. 出典 ================= -->
+<h2 id="s11">§11 出典</h2>
+<p class="summary">4 本の調査で参照した一次情報・技術記事・リポジトリを分類して全件列挙（重複除去済み）。</p>
+
+<h3>ESP32 / Wi-Fi ハードウェア</h3>
+<ul class="srcs">
+  <li>https://www.espressif.com/en/products/socs/esp32-c5</li>
+  <li>https://www.espboards.dev/blog/connect-esp32-to-5ghz-wifi/</li>
+  <li>https://www.espboards.dev/troubleshooting/issues/wifi/esp32-captive-portal-issues/</li>
+  <li>https://www.espboards.dev/troubleshooting/issues/wifi/esp32-wifi-sleep-causing-drops/</li>
+  <li>https://www.espboards.dev/troubleshooting/issues/wifi/esp32-wifi-reconnect-issue/</li>
+  <li>https://www.espboards.dev/troubleshooting/issues/wifi/esp32-mdns-not-working/</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/8877</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/7240</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/9384</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/10613</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/3822</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/1477</li>
+  <li>https://github.com/espressif/arduino-esp32/issues/4125</li>
+  <li>https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/wifi-security.html</li>
+  <li>https://github.com/espressif/esp-idf/blob/master/examples/wifi/wifi_enterprise/README.md</li>
+  <li>https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFiClientSecure/examples/WiFiClientSecureEnterprise/WiFiClientSecureEnterprise.ino</li>
+  <li>https://www.elektormagazine.com/labs/how-connect-esp32-to-wpawpa2-enterprise-network</li>
+  <li>https://zbotic.in/troubleshoot-esp32-wifi-drops-and-reconnection-issues/</li>
+  <li>https://circuitlabs.net/combining-station-and-ap-modes-apsta/</li>
+  <li>https://www.esp32.com/viewtopic.php?t=8063</li>
+  <li>https://esp32.com/viewtopic.php?t=1192</li>
+  <li>https://esp32.com/viewtopic.php?t=13394</li>
+  <li>https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/bt/ble.html</li>
+  <li>https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/protocols/mbedtls.html</li>
+</ul>
+
+<h3>HTTP / WebSocket サーバー・クライアント</h3>
+<ul class="srcs">
+  <li>https://github.com/me-no-dev/ESPAsyncWebServer/blob/master/README.ESP32Async.md</li>
+  <li>https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/esp_http_server.html</li>
+  <li>https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/protocols/esp_websocket_client.html</li>
+  <li>https://github.com/espressif/esp-idf/issues/7010</li>
+  <li>https://github.com/Links2004/arduinoWebSockets</li>
+  <li>https://github.com/gilmaimon/ArduinoWebsockets</li>
+  <li>https://github.com/gilmaimon/ArduinoWebsockets/issues/101</li>
+  <li>https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/</li>
+  <li>https://www.rfc-editor.org/rfc/rfc6455</li>
+  <li>https://github.com/websockets/ws/issues/1467</li>
+  <li>https://websocket.org/guides/heartbeat/</li>
+  <li>https://zenn.dev/ckoshien/articles/a534b7cf15dff1</li>
+</ul>
+
+<h3>スタックちゃん / M5Stack ファーム</h3>
+<ul class="srcs">
+  <li>https://github.com/robo8080/AI_StackChan2</li>
+  <li>https://github.com/robo8080/AI_StackChan2_README/</li>
+  <li>https://github.com/robo8080/M5Unified_StackChan_ChatGPT</li>
+  <li>https://github.com/yh1224/AIStackchan-hrs</li>
+  <li>https://notes.yh1224.com/stackchan-connect/</li>
+  <li>https://github.com/ronron-gh/AI_StackChan_Ex</li>
+  <li>https://github.com/m5stack/StackChan</li>
+  <li>https://github.com/stack-chan/stack-chan</li>
+  <li>https://github.com/ciniml/stackchan-idf</li>
+  <li>https://github.com/kisaragi-mochi/stackchan-mcp</li>
+  <li>https://github.com/circlemouth/Hermes-StackChan/blob/main/README.ja.md</li>
+  <li>https://docs.m5stack.com/ja/StackChan</li>
+  <li>https://zenn.dev/pinelibg/articles/stackchan-firmware-build</li>
+  <li>https://zenn.dev/karaage0703/articles/f14b27ccb22737</li>
+  <li>https://www.hackster.io/tominaga/two-stackchan-units-talk-via-websocket-7ddc67</li>
+</ul>
+
+<h3>Wi-Fi プロビジョニング / mDNS / 探索</h3>
+<ul class="srcs">
+  <li>https://github.com/tzapu/WiFiManager</li>
+  <li>https://github.com/RoboMagus/WiFiManager</li>
+  <li>https://dronebotworkshop.com/wifimanager/</li>
+  <li>https://randomnerdtutorials.com/esp32-wi-fi-provisioning-ble-arduino/</li>
+  <li>https://circuitlabs.net/wifi-provisioning-methods-for-esp32/</li>
+  <li>https://github.com/CDFER/Captive-Portal-ESP32</li>
+  <li>https://hieromon.github.io/AutoConnect/adcpcontrol.html</li>
+  <li>https://docs.espressif.com/projects/esp-protocols/mdns/docs/latest/en/index.html</li>
+  <li>https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/protocols/mdns.html</li>
+  <li>https://techtutorialsx.wordpress.com/2021/10/29/esp32-mdns-host-name-resolution/</li>
+</ul>
+
+<h3>会場ネットワーク / クライアント分離 / テザリング</h3>
+<ul class="srcs">
+  <li>https://developer.apple.com/forums/thread/773086 <b>（iOS 18+ のクライアント間 IPv4 遮断・一次情報）</b></li>
+  <li>https://developer.apple.com/forums/thread/808802</li>
+  <li>https://developer.apple.com/forums/thread/760964</li>
+  <li>https://support.apple.com/guide/iphone/share-your-internet-connection-iph45447ca6/ios</li>
+  <li>https://support.apple.com/en-us/102509</li>
+  <li>https://www.tp-link.com/us/blog/2586/what-is-ap-isolation-and-when-to-enable-it-/</li>
+  <li>https://multitech.com/iot-wiki/client-isolation/</li>
+  <li>https://documentation.meraki.com/Wireless/Operate_and_Maintain/How_Tos/Firewall_and_Traffic_Shaping/Wireless_Client_Isolation</li>
+  <li>https://help.ui.com/hc/en-us/articles/18965560820247-Implementing-Network-and-Client-Isolation-in-UniFi</li>
+  <li>https://www.ndss-symposium.org/wp-content/uploads/2026-f1282-paper.pdf</li>
+  <li>https://github.com/vanhoefm/airsnitch</li>
+  <li>https://pulsesecurity.co.nz/articles/bypassing-wifi-client-isolation</li>
+  <li>https://www.antlabs.com/advisories/advisory-ios-18-mac-randomization-what-it-means-for-your-hotel-wi-fi-2/</li>
+  <li>https://charsiurice.wordpress.com/2021/02/08/iphone-hotspot-subnet-info/</li>
+  <li>https://discussions.apple.com/thread/250393935</li>
+  <li>https://forum.arduino.cc/t/esp32-wifi-connectivity-issue-with-iphone13-hotspot/1127501</li>
+  <li>https://community.m5stack.com/topic/2362/m5stack-fire-won-t-connect-to-iphone-hotspot</li>
+  <li>https://www.idownloadblog.com/2020/11/04/iphone-personal-hotspot-wi-fi-bands-tutorial/</li>
+  <li>https://www.androidpolice.com/android-14-control-wi-fi-hotspot-frequency-band/</li>
+  <li>https://source.android.com/docs/core/connect/wifi-ap-ap-concurrency</li>
+</ul>
+
+<h3>macOS インターネット共有 / トラベルルーター</h3>
+<ul class="srcs">
+  <li>https://www.macworld.com/article/234236/how-to-share-a-wi-fi-connection-via-macos.html</li>
+  <li>https://www.takecontrolbooks.com/resources/0170/site/chap24.html</li>
+  <li>https://chariotsolutions.com/blog/post/configuring-network-used-by-mac-os-x/</li>
+  <li>https://www.jigsaw24.com/resource/quick-tips-change-internet-sharing-subnet-on-macos</li>
+  <li>https://support.apple.com/en-az/guide/mac-help/share-internet-connection-mac-network-users-mchlp1540/26/mac/26</li>
+  <li>https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac</li>
+  <li>https://support.speedify.com/article/407-tether-iphone-mac-usb</li>
+  <li>https://docs.gl-inet.com/router/en/4/interface_guide/internet_repeater/</li>
+  <li>https://docs.gl-inet.com/router/en/2/setup/internet_setting/</li>
+  <li>https://www.gl-inet.com/en-us/pages/travel-routers</li>
+  <li>https://kakaku.com/item/K0001725206/</li>
+  <li>https://www.amazon.co.jp/dp/B0BQ1YRH9F</li>
+  <li>https://win-tab.net/acc/gl-inet-wifi6-router-2504283/</li>
+  <li>https://dongknows.com/gl-inet-gl-be3600-slate-7-review/</li>
+  <li>https://slickdeals.net/f/17658207-gl-inet-gl-sft1200-secure-travel-wifi-router-ac1200-dual-band-ipv6-ddr3-33-90-amazon</li>
+</ul>
+
+<h3>IP / ポート / Node / Electron</h3>
+<ul class="srcs">
+  <li>https://www.rfc-editor.org/rfc/rfc5227.html</li>
+  <li>https://support.apple.com/en-ca/guide/mac-help/mh27606/mac</li>
+  <li>https://nodejs.org/api/dns.html</li>
+  <li>https://httptoolkit.com/blog/configuring-nodejs-dns/</li>
+  <li>https://serebrov.github.io/html/2023-07-28-node-econnrefused-localhost.html</li>
+  <li>https://nodejs.org/en/blog/announcements/v22-release-announce</li>
+  <li>https://github.com/nodejs/node/pull/53352</li>
+  <li>https://github.com/nodejs/node/pull/37931</li>
+  <li>https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static</li>
+  <li>https://developer.chrome.com/blog/local-network-access</li>
+  <li>https://developer.chrome.com/blog/private-network-access-update</li>
+  <li>https://eclecticlight.co/2025/03/10/manage-privacy-protection-for-network-devices-and-others/</li>
+  <li>https://www.electronjs.org/docs/latest/api/desktop-capturer</li>
+  <li>https://www.electronjs.org/docs/latest/api/shell</li>
+  <li>https://www.electronjs.org/docs/latest/tutorial/devices</li>
+  <li>https://github.com/electron/electron/issues/36722</li>
+  <li>https://github.com/electron/electron/issues/38190</li>
+  <li>https://github.com/video-db/focusd/issues/1</li>
+</ul>
+
+<h3>MQTT / クラウド中継 / トンネル / VPN</h3>
+<ul class="srcs">
+  <li>https://www.hivemq.com/pricing/fully-managed/</li>
+  <li>https://www.hivemq.com/products/mqtt-cloud-broker/</li>
+  <li>https://docs.hivemq.com/hivemq-cloud/quick-start-guide.html</li>
+  <li>https://www.hivemq.com/blog/websocket-support-for-hivemq-cloud-basic/</li>
+  <li>https://www.emqx.com/en/blog/how-to-get-a-forever-free-serverless-mqtt-service</li>
+  <li>https://docs.emqx.com/en/cloud/latest/price/pricing.html</li>
+  <li>https://docs.emqx.com/en/cloud/latest/connect_to_deployments/esp32.html</li>
+  <li>https://www.emqx.com/en/blog/mqtt-js-tutorial</li>
+  <li>https://test.mosquitto.org/</li>
+  <li>https://aws.amazon.com/iot-core/pricing/</li>
+  <li>https://github.com/MateusBU/esp32-hivemq-cloud-mqtt</li>
+  <li>https://goughlui.com/2022/10/23/project-benchmarking-public-free-mqtt-brokers/</li>
+  <li>https://ably.com/docs/protocols/mqtt</li>
+  <li>https://github.com/pubnub/pubnub-mqtt-gate-esp32-iot</li>
+  <li>https://github.com/mobizt/FirebaseClient/blob/main/resources/docs/realtime_database.md</li>
+  <li>https://ngrok.com/docs/pricing-limits/free-plan-limits/</li>
+  <li>https://ngrok.com/pricing</li>
+  <li>https://ngrok.com/blog/free-static-domains-ngrok-users</li>
+  <li>https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/</li>
+  <li>https://github.com/localtunnel/localtunnel</li>
+  <li>https://tailscale.com/pricing</li>
+  <li>https://tailscale.com/docs/account/manage-plans/free-plans-discounts</li>
+  <li>https://www.zerotier.com/pricing/</li>
+  <li>https://www.zerotier.com/news/introducing-our-new-usage-based-pricing-model-zerotier-essential/</li>
+</ul>
+
+<h3>Supabase / BLE / WebRTC / シリアル</h3>
+<ul class="srcs">
+  <li>https://supabase.com/docs/guides/realtime/limits</li>
+  <li>https://github.com/jhagas/ESPSupabase</li>
+  <li>https://github.com/orgs/supabase/discussions/30762</li>
+  <li>https://github.com/MarleyPlant/ESP32_Supabase</li>
+  <li>https://github.com/Mbed-TLS/mbedtls/issues/3119</li>
+  <li>https://developer.chrome.com/docs/capabilities/bluetooth</li>
+  <li>https://www.npmjs.com/package/@stoprocent/noble</li>
+  <li>https://github.com/noble/bleno</li>
+  <li>https://github.com/espressif/esp-webrtc-solution</li>
+  <li>https://developer.espressif.com/blog/2026/01/kvs-webrtc-sdk-esp-announcement/</li>
+  <li>https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API</li>
+  <li>https://www.testmuai.com/learning-hub/web-serial-api-browser-support/</li>
+  <li>https://makeabilitylab.github.io/physcomp/communication/web-serial.html</li>
+  <li>https://github.com/cjihrig/webserial</li>
+</ul>
+
+<div class="note">
+  <b>調査間の矛盾について</b>：調査 C は「iOS テザリングはクライアント分離をしていない」と記述していたが、
+  調査 B が示す <b>Apple DTS の一次情報（<a href="https://developer.apple.com/forums/thread/773086">forums/thread/773086</a>）を正</b>とし、
+  本レポートは <b>iOS 18 以降はクライアント間 IPv4 通信が遮断される</b>という前提で書いている。
+  <b>iOS 17 以前は <code>172.20.10.0/28</code> で端末間通信が可能だった</b>ため、古い記事や過去の成功体験と食い違って見えるのはこのためである。
+</div>
+
+<footer>
+  ElectricSheep-100bus / <code>docs/reports/network-connectivity.html</code>（ブランチ <code>docs/network-report</code>）<br>
+  運用手順の Markdown 版は <code>&lt;REPO_ROOT&gt;/docs/runbooks/network.md</code>。機器 API の仕様は <code>docs/specs/robot-api-requirements.md</code>、env と curl 例は <code>docs/runbooks/devices.md</code>。<br>
+  為替レートは 1 ドル = 150 円（2026-09-12 時点の概算）。
+</footer>
+
+</div>
+</body>
+</html>
