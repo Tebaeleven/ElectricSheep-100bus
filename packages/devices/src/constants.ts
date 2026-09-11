@@ -9,9 +9,7 @@ export const STACKCHAN_WS_PATH = "/ws/v1/robot"
 /** 駆動時間の既定上限（ミリ秒）。安全要件によりクライアント側でも上限を設ける */
 export const RAIL_MAX_DURATION_MS_DEFAULT = 3000
 
-// turbo.json の globalEnv 追記は別レーン（P3-C）の担当のため、ここでは警告のみ抑止する
 const rawMaxDurationMs = Number(
-  // eslint-disable-next-line turbo/no-undeclared-env-vars
   process.env.DEVICE_RAIL_MAX_DURATION_MS ?? RAIL_MAX_DURATION_MS_DEFAULT
 )
 

@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     "@workspace/agent",
     "@workspace/robot",
     "@workspace/db",
+    "@workspace/devices",
   ],
   turbopack: {
     // workspace パッケージの TS ソースを解決させるためモノレポのルートを基準にする
