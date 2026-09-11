@@ -1,0 +1,9 @@
+node_modules/
+.claude/worktrees/
+.env*
+!.env.example
+.next/
+.turbo/
+dist/
+.mastra/
+*.db
