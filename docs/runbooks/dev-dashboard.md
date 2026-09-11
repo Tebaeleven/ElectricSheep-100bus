@@ -1,8 +1,7 @@
 # 開発者ダッシュボード `/dev` runbook
 
 > 全 API エンドポイントを**認証なし・手作業で**実行できる開発者用画面。入力と実行のしやすさ最優先。
-> 実装は **P3-E レーン `feat/dev-dashboard` の所有（予定）**。所有ファイルは `client/web/app/dev/**`、`client/web/components/dev/**`、`client/web/lib/dev/**`、`client/web/app/api/dev/env/route.ts`。
-> 本書は契約に基づいて先に書いてある。実装が入るまで `/dev` は存在しない。
+> 実装済み（`chore/integration3` で develop に統合）。実体は `client/web/app/dev/page.tsx`、`client/web/components/dev/**`、`client/web/lib/dev/**`、`client/web/app/api/dev/env/route.ts`。
 
 ---
 
@@ -10,13 +9,13 @@
 
 ```bash
 # 1) 機器モックを 3 台起動（rail 8791 / desktop 8792 / stackchan 8793）
-pnpm --filter @workspace/devices mock
+pnpm devices:mock
 
 # 2) 別ターミナルで web を起動
 pnpm dev
 ```
 
-ブラウザで **http://localhost:3000/dev** を開く。トップページ（`/`）のヘッダーにも `/dev` へのリンクを置く（`app/page.tsx`・P3-C 所有・予定）。
+ブラウザで **http://localhost:3000/dev** を開く。トップページ（`/`）のヘッダーにも `/dev` へのリンクがある（`client/web/app/page.tsx`）。
 
 前提の env（`client/web/.env.local`）は [`docs/runbooks/devices.md` §2](./devices.md#2-env-一覧) を参照。既定の `DEVICE_MODE=mock` なら実機なしで全ボタンが動く。
 
@@ -29,13 +28,13 @@ pnpm dev
 | 位置 | 内容 |
 | --- | --- |
 | **ヘッダー（上部固定）** | 現在の `DEVICE_MODE`・各機器 URL・接続状態。`GET /api/dev/env` と `GET /api/devices/*/status` から取得。**緊急停止ボタン（`rail/stop` と `audio/stop`）を常時表示** |
-| **左** | 機器グループ別のエンドポイント一覧（`chat` / `robot` / `rail` / `desktop` / `stackchan`）。method バッジ（GET / POST）と path を表示 |
+| **左** | 機器グループ別のエンドポイント一覧（`chat` / `robot` / `rail` / `desktop` / `stackchan` / `dev`）。method バッジ（GET / POST）と path を表示 |
 | **中央** | 選択中エンドポイントのフォーム（自動生成タブ / JSON 直編集タブ）とプリセット、実行ボタン |
 | **右（狭い画面では下）** | レスポンス: HTTP status・latency・JSON ツリー（折りたたみ・コピー）・画像・SSE の逐次表示。下に履歴 |
 
 ### 対象エンドポイント
 
-`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/hand|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env`。
+`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/hand|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env` の **16 エントリ**が `client/web/lib/dev/endpoints.ts` に定義済み（id は `chat.send` / `robot.command` / `rail.move` … / `dev.env`）。
 
 ---
 
@@ -108,7 +107,7 @@ pnpm dev
 // client/web/lib/dev/endpoints.ts
 {
   id: 'devices.rail.move',
-  group: 'rail',                       // 'chat' | 'robot' | 'rail' | 'desktop' | 'stackchan'
+  group: 'rail',                       // 'chat' | 'robot' | 'rail' | 'desktop' | 'stackchan' | 'dev'
   method: 'POST',
   path: '/api/devices/rail/move',
   description: 'レールを指定軸・方向に指定時間だけ動かす（リトライしない）',
@@ -139,8 +138,29 @@ UI コンポーネント側は触らなくてよい。
 - `/dev` と `/api/dev/env` には**認証が無い**。開けば誰でも機器を動かせる。
 - **`localhost` からのみ使う**。`next dev` を `--hostname 0.0.0.0` で公開したり、トンネル（ngrok / Cloudflare Tunnel 等）で外に出したりしない。
 - 展示・デモ中は `/dev` を開いたタブを来場者の手が届く画面に出さない。誤操作で機器が動く。
-- `GET /api/dev/env` は**秘密でない env のみ**返す。`DEVICE_AUTH_TOKEN` や `ANTHROPIC_API_KEY` のようなキー類は値を返さず **「設定済み / 未設定」の真偽値だけ**返す。ここに値を足さないこと。
+- `GET /api/dev/env` は**秘密でない env のみ**返す。`DEVICE_AUTH_TOKEN` や `GOOGLE_GENERATIVE_AI_API_KEY` のようなキー類は値を返さず **「設定済み / 未設定」の真偽値だけ**返す。ここに値を足さないこと。
 - 本番相当のデプロイを行う場合は、`/dev` と `/api/dev/*` を**ビルドから外すかミドルウェアで 404 にする**（当面ローカル運用のみなので未対応）。
+
+### `GET /api/dev/env` のレスポンス例
+
+```json
+{
+  "deviceMode": "mock",
+  "railBaseUrl": "http://127.0.0.1:8791",
+  "desktopBaseUrl": "http://127.0.0.1:8792",
+  "stackchanWsUrl": "ws://127.0.0.1:8793",
+  "robotMode": "mock",
+  "robotBaseUrl": "http://127.0.0.1:8787",
+  "ghostModel": "google/gemini-3.8-flash",
+  "secrets": {
+    "DATABASE_URL": true,
+    "SUPABASE_SECRET_KEY": true,
+    "GOOGLE_GENERATIVE_AI_API_KEY": true
+  }
+}
+```
+
+`secrets` は**値を返さず設定済みかどうかの真偽値だけ**。ヘッダーの「キー未設定」表示に使う。
 
 ---
 

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ElectricSheep-100bus 環境構築レポート</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#ffffff; --fg:#1b1b19; --muted:#5f6461; --line:#dfe0dc;
+    --accent:#2f6f4f; --accent-soft:#e6f1ea; --warn:#8a5a12; --warn-soft:#fbf1de;
+    --code-bg:#f1f2ef;
+  }
+  :root:not([data-theme="light"]){}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
+      --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
+      --code-bg:#101210;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
+    --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
+    --code-bg:#101210;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    line-height:1.75; font-size:15px;
+  }
+  .wrap{max-width:1040px; margin:0 auto; padding:16px; padding-block:40px}
+  h1{font-size:1.65rem; line-height:1.35; margin:0 0 6px}
+  h2{font-size:1.2rem; margin:44px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--accent)}
+  h3{font-size:1.02rem; margin:26px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  .lede{color:var(--muted); margin:0 0 4px}
+  .meta{color:var(--muted); font-size:.86rem; margin:0 0 24px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0}
+  code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  code{background:var(--code-bg); padding:1px 5px; border-radius:4px; font-size:.87em; word-break:break-all}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+      padding:14px; overflow-x:auto; font-size:.82rem; line-height:1.55; margin:12px 0}
+  pre code{background:none; padding:0}
+  .tablewrap{overflow-x:auto; margin:12px 0}
+  table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:520px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:var(--accent-soft); font-weight:600}
+  td.num{text-align:right; font-variant-numeric:tabular-nums}
+  .ok{color:var(--accent); font-weight:700}
+  .note{background:var(--warn-soft); border-left:4px solid var(--warn); border-radius:0 8px 8px 0; padding:10px 14px; margin:14px 0}
+  ul.checks{list-style:none; padding:0; margin:0}
+  ul.checks>li{background:var(--panel); border:1px solid var(--line); border-radius:10px;
+               padding:14px 16px; margin:10px 0; display:flex; gap:12px; align-items:flex-start}
+  ul.checks input[type=checkbox]{width:20px; height:20px; margin-top:3px; flex:0 0 auto; accent-color:var(--accent)}
+  .chk-body{flex:1 1 auto; min-width:0}
+  .chk-title{font-weight:700}
+  .chk-tags{margin:4px 0 6px; font-size:.8rem; color:var(--muted)}
+  .tag{display:inline-block; background:var(--accent-soft); color:var(--accent);
+       border-radius:999px; padding:1px 9px; margin-right:6px; font-weight:600}
+  .why{font-size:.86rem; color:var(--muted)}
+  footer{margin-top:48px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.84rem}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>ElectricSheep-100bus 環境構築レポート</h1>
+<p class="lede">おばけロボット会話アプリ — Phase 0〜3（機器 API 接続基盤・開発者ダッシュボード）まで完了</p>
+<p class="meta">2026-09-12 / ブランチ <code>develop</code>（<code>chore/integration3</code> を ff マージ）/ 検証は全てローカル</p>
+
+<div class="note">
+  <strong>いまの状態</strong>：モックで <em>全機能が動く</em>。実機（ESP32 レール・スタックちゃん・Electron）は
+  IP / ポート / 認証が未確定のため未接続。<code>.env.local</code> に実機 URL を入れて <code>DEVICE_MODE=real</code> にすれば、
+  コードを 1 行も触らずに切り替わる。
+</div>
+
+<!-- ====================== ① やったこと ====================== -->
+<h2>① やったこと</h2>
+
+<h3>構成図</h3>
+<pre><code>┌──────────────────────── ブラウザ（localhost:3000） ────────────────────────┐
+│  /            チャット UI（@ai-sdk/react useChat）＋ device-panel          │
+│  /dev         開発者ダッシュボード（全 16 エンドポイントを手で実行）      │
+└───────────────────────────────┬───────────────────────────────────────────┘
+                                │ 同一オリジンの fetch のみ（LAN 直叩き禁止）
+┌───────────────────────────────▼───────────────────────────────────────────┐
+│  Next.js 16 App Router（client/web・runtime = nodejs・同一プロセス）      │
+│                                                                           │
+│   POST /api/chat ──► @mastra/ai-sdk handleChatStream({ version: 'v7' })   │
+│   POST/GET /api/robot/{command,status}        … 2 本                      │
+│   POST/GET /api/devices/**                    … 12 本                     │
+│   GET  /api/dev/env                           … 1 本（秘密は真偽値のみ）  │
+│                                                                           │
+│                    lib/devices.ts  getDevices()（globalThis シングルトン）│
+└───────┬───────────────────────────────────────────────┬───────────────────┘
+        │                                               │
+┌───────▼──────────────────────┐            ┌───────────▼───────────────────┐
+│ @workspace/agent（Mastra v1）│            │ @workspace/devices（機器 SDK）│
+│  ghost-agent / Gemini        │            │  createDevices(process.env)   │
+│  tools:                      │──────────► │  rail / desktop / stackchan   │
+│   robotCommand, robotStatus  │            │  camelCase ⇄ snake_case 変換  │
+│   railMove, railStop,        │            └───────────┬───────────────────┘
+│   handSet, cameraCapture,    │                        │
+│   desktopScreenshot,         │       DEVICE_MODE=mock │ DEVICE_MODE=real
+│   desktopOpenBrowser         │      （プロセス内モック）│（HTTP / WebSocket）
+│  Memory: lastMessages 20     │                        │
+└───────┬──────────────────────┘            ┌───────────▼───────────────────┐
+        │ Memory / robot_commands           │ 実機  or  モックサーバー 3 台 │
+┌───────▼──────────────────────┐            │  レール      :8791  HTTP      │
+│ Supabase ローカル（Docker）  │            │  デスクトップ:8792  HTTP      │
+│  54322 Postgres              │            │  スタックちゃん:8793 WebSocket│
+│   mastra.*（会話履歴）        │            │   /api/v1/**  /ws/v1/robot    │
+│   public.robot_commands      │            └───────────────────────────────┘
+│  54321 API / 54323 Studio    │
+└──────────────────────────────┘</code></pre>
+
+<h3>パッケージ構成</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>パス</th><th>パッケージ</th><th>役割</th></tr></thead>
+<tbody>
+<tr><td><code>client/web</code></td><td><code>web</code></td><td>Next.js 16 App Router。チャット UI・<code>/dev</code>・Route Handler 16 本</td></tr>
+<tr><td><code>client/desktop</code></td><td>—</td><td>将来の Tauri v2 方針メモのみ（実装なし）</td></tr>
+<tr><td><code>packages/agent</code></td><td><code>@workspace/agent</code></td><td>Mastra v1 インスタンス・ghost Agent・tool 8 本・Memory / Storage 分岐</td></tr>
+<tr><td><code>packages/devices</code></td><td><code>@workspace/devices</code></td><td>機器 API SDK（HTTP / WebSocket クライアント・モッククライアント・モックサーバー 3 台）</td></tr>
+<tr><td><code>packages/robot</code></td><td><code>@workspace/robot</code></td><td>旧ロボット語彙（zod）・RobotClient・モックサーバー 8787</td></tr>
+<tr><td><code>packages/db</code></td><td><code>@workspace/db</code></td><td>Supabase 生成型・サーバー専用 client・<code>robot_commands</code> ログ</td></tr>
+<tr><td><code>packages/ui</code></td><td><code>@workspace/ui</code></td><td>shadcn 共有コンポーネント（16 件）</td></tr>
+<tr><td><code>server/</code></td><td>—</td><td>Supabase ローカル（config.toml / migrations / seed）</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>採用バージョン</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>対象</th><th>バージョン</th><th>補足</th></tr></thead>
+<tbody>
+<tr><td>Node</td><td>v26.3.0（<code>.nvmrc</code> = 22）</td><td>Mastra は 22.13+ が必要</td></tr>
+<tr><td>pnpm</td><td>10.34.5</td><td><code>packageManager</code> で固定。workspace + catalog</td></tr>
+<tr><td>Next.js</td><td>16.2.6</td><td>Turbopack 既定。Route Handler の <code>params</code> は Promise</td></tr>
+<tr><td>React</td><td>19.2.4</td><td></td></tr>
+<tr><td>Turborepo</td><td>2.10.12</td><td><code>pnpm verify</code> = <code>turbo run lint typecheck test build</code></td></tr>
+<tr><td>@mastra/core</td><td>1.66.0</td><td>v1 系。<code>createTool</code> は <code>execute(input, ctx)</code> の 2 引数</td></tr>
+<tr><td>mastra CLI / @mastra/memory</td><td>1.29.0</td><td>Studio 4111</td></tr>
+<tr><td>@mastra/pg / libsql / ai-sdk</td><td>1.24.0 / 1.22.5 / 1.10.2</td><td><code>handleChatStream({ version: 'v7' })</code> 必須</td></tr>
+<tr><td>ai / @ai-sdk/react</td><td>7.0.97 / 4.0.100</td><td>AI SDK 7</td></tr>
+<tr><td>zod</td><td>4.6.2</td><td>契約スキーマの正本</td></tr>
+<tr><td>@supabase/supabase-js / CLI</td><td>2.116.0 / 2.117.0</td><td>CLI は devDependency</td></tr>
+<tr><td>LLM</td><td><code>google/gemini-3.8-flash</code></td><td>Mastra モデルルーター文字列。キーは <code>GOOGLE_GENERATIVE_AI_API_KEY</code></td></tr>
+<tr><td>ws / tsx</td><td>8.21.3 / 4.23.13</td><td>モック WebSocket サーバー用</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>並列レーン一覧</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Phase</th><th>ブランチ</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td>0</td><td><code>chore/bootstrap</code></td><td>モノレポ雛形・契約ファイル・turbo / pnpm-workspace・<code>scripts/wt-setup.sh</code></td></tr>
+<tr><td>1-A</td><td><code>feat/supabase-local</code></td><td>Supabase ローカル・<code>robot_commands</code> migration・生成型・<code>logRobotCommand</code></td></tr>
+<tr><td>1-B</td><td><code>feat/robot-client</code></td><td><code>createHttpRobotClient</code>・ロボットモックサーバー 8787</td></tr>
+<tr><td>1-E</td><td><code>feat/agent-mastra</code></td><td>ghost instructions・<code>robotCommand</code> / <code>robotStatus</code>・Memory</td></tr>
+<tr><td>1-C</td><td><code>feat/web-chat</code></td><td>チャット UI・<code>/api/chat</code>（v7）・<code>/api/robot/*</code></td></tr>
+<tr><td>1-D</td><td><code>docs/dev-runbook</code></td><td>README・setup / development・runbook 一式・<code>.claude/skills</code></td></tr>
+<tr><td>3-0</td><td><code>feat/devices-contract</code></td><td><code>@workspace/devices</code> の型 / zod / モッククライアント・仕様転記</td></tr>
+<tr><td>3-A</td><td><code>feat/devices-sdk</code></td><td>実 HTTP / WS クライアント・モックサーバー 3 台・vitest 50 件</td></tr>
+<tr><td>3-B</td><td><code>feat/devices-agent-tools</code></td><td>Mastra tool 6 本（railMove ほか）・instructions 追記</td></tr>
+<tr><td>3-C</td><td><code>feat/devices-web</code></td><td><code>lib/devices.ts</code>・<code>/api/devices/*</code> 12 本・<code>device-panel.tsx</code></td></tr>
+<tr><td>3-E</td><td><code>feat/dev-dashboard</code></td><td><code>/dev</code> ダッシュボード・<code>/api/dev/env</code>・shadcn 12 件追加</td></tr>
+<tr><td>3-D</td><td><code>docs/devices-runbook</code></td><td><code>docs/runbooks/devices.md</code> / <code>dev-dashboard.md</code></td></tr>
+<tr><td>統合</td><td><code>chore/integration3</code></td><td>上記 4 本をマージ・instructions 修正・ドキュメント整合・E2E・本レポート</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>Phase 3 統合での修正</h3>
+<ul>
+<li><strong>移動経路の一本化</strong>：<code>packages/agent/src/mastra/agents/ghost.ts</code> の instructions に「移動は必ず <code>railMove</code>。<code>robotCommand</code> の <code>move</code> は使わない（<code>robotCommand</code> は emote / speak / stop 用）」を明記。<code>tools/robot.ts</code> は未変更（手動操作パネルからは引き続き <code>move</code> を使える）。</li>
+<li><strong>ドキュメント整合</strong>：<code>docs/runbooks/devices.md</code> / <code>dev-dashboard.md</code> の「（予定）」を全て実装済みの記述に置換。<code>mastra.md</code> に機器 tool 6 本の表（<code>direction</code> は LLM 向けに <code>'plus' | 'minus'</code>）を追加。README にポート 8791-8793・<code>pnpm devices:mock</code>・機器 env 7 件・runbook / <code>/dev</code> / 仕様書へのリンクを追加。<code>.claude/skills/dev-runbook/SKILL.md</code> にも <code>/dev</code> と <code>pnpm devices:mock</code> を追記。</li>
+</ul>
+
+<!-- ====================== ② 検証結果 ====================== -->
+<h2>② 検証結果</h2>
+
+<h3>pnpm verify（納品ゲート）</h3>
+<pre><code>$ pnpm verify --force        # = turbo run lint typecheck test build
+
+ Tasks:    19 successful, 19 total
+Cached:    0 cached, 19 total
+  Time:    7.837s
+
+EXIT=0   lint 警告 0（出力中の warning は Node の DEP0205 のみ）</code></pre>
+<div class="tablewrap">
+<table>
+<thead><tr><th>パッケージ</th><th class="num">テストファイル</th><th class="num">テスト</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td><code>@workspace/devices</code></td><td class="num">8</td><td class="num">50</td><td class="ok">passed</td></tr>
+<tr><td><code>@workspace/robot</code></td><td class="num">3</td><td class="num">19</td><td class="ok">passed</td></tr>
+<tr><td><code>@workspace/agent</code></td><td class="num">3</td><td class="num">16</td><td class="ok">passed</td></tr>
+<tr><td><code>@workspace/db</code></td><td class="num">1</td><td class="num">6</td><td class="ok">passed</td></tr>
+<tr><td><code>web</code> / <code>@workspace/ui</code></td><td class="num">0</td><td class="num">0</td><td>テストなし（<code>--passWithNoTests</code>）</td></tr>
+<tr><td colspan="1"><strong>合計</strong></td><td class="num"><strong>15</strong></td><td class="num"><strong>91</strong></td><td class="ok"><strong>all passed</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>Gemini E2E（<code>POST /api/chat</code>・ストリームの tool part）</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>発話</th><th>経路</th><th>呼ばれた tool</th><th>tool 入力</th><th>応答</th></tr></thead>
+<tbody>
+<tr><td>「手を開いて」</td><td>mock</td><td><code>handSet</code>（＋ <code>robotCommand</code> emote）</td><td><code>{"state":"open"}</code></td><td>「ぱぁっ！手を開いてみたよ、どうかな？」</td></tr>
+<tr><td>「x 軸プラスに 500ms 動いて」</td><td>mock</td><td><code>railMove</code></td><td><code>{"axis":"x","direction":"plus","durationMs":500}</code></td><td>「はーい、ふわっと横に動いてみたよ！」</td></tr>
+<tr><td>「手を開いて」</td><td>real</td><td><code>handSet</code>（＋ <code>robotCommand</code> emote）</td><td><code>{"state":"open"}</code></td><td>モックサーバーに <code>hand.set</code> 到達を確認</td></tr>
+<tr><td>「x 軸プラスに 500ms 動いて」</td><td>real</td><td><code>railMove</code></td><td><code>{"axis":"x","direction":"plus","durationMs":500}</code></td><td>モックサーバーに <code>POST /api/v1/rail/move</code> 到達を確認</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>移動が <code>robotCommand</code> の <code>move</code> ではなく <code>railMove</code> に流れることを確認済み</strong>（instructions 修正の目的）。ストリームには <code>tool-input-start / tool-input-delta / tool-input-available / tool-output-available</code> が <code>toolName</code> 付きで流れる。</p>
+
+<h3>curl（Route Handler 12 本 ＋ ページ 2 本 ＋ <code>/api/dev/env</code>）</h3>
+<p>両モードで実施。<code>DEVICE_MODE=mock</code> はプロセス内モック、<code>DEVICE_MODE=real</code> は env 上書きでモックサーバー 8791-8793 に接続。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>リクエスト</th><th>mock 経路</th><th>real 経路（→ モックサーバーに到達）</th></tr></thead>
+<tbody>
+<tr><td><code>GET /</code></td><td class="ok">200</td><td class="ok">200</td></tr>
+<tr><td><code>GET /dev</code></td><td class="ok">200 / HTML に <code>/api/devices/rail/move</code> を含む</td><td class="ok">200 / 同上</td></tr>
+<tr><td><code>GET /api/dev/env</code></td><td class="ok"><code>deviceMode:"mock"</code>, secrets は真偽値のみ</td><td class="ok"><code>deviceMode:"real"</code></td></tr>
+<tr><td><code>POST /api/devices/rail/move</code></td><td class="ok"><code>{"ok":true,"data":{"accepted":true}}</code></td><td class="ok"><code>duration_ms:500</code> でエコー・<code>rail POST /api/v1/rail/move</code></td></tr>
+<tr><td><code>POST /api/devices/rail/stop</code></td><td class="ok">ok</td><td class="ok"><code>rail POST /api/v1/rail/stop</code></td></tr>
+<tr><td><code>GET /api/devices/rail/status</code></td><td class="ok"><code>state:"moving"</code></td><td class="ok"><code>state:"stopped"</code>, <code>move_count:1</code></td></tr>
+<tr><td><code>POST /api/devices/desktop/screenshot</code></td><td class="ok">PNG base64</td><td class="ok"><code>desktop POST /api/v1/desktop/screenshot</code></td></tr>
+<tr><td><code>POST /api/devices/desktop/browser/open</code></td><td class="ok">ok</td><td class="ok"><code>url</code> エコー・到達</td></tr>
+<tr><td><code>GET /api/devices/desktop/status</code></td><td class="ok"><code>state:"running"</code></td><td class="ok"><code>screenshot_count:1</code></td></tr>
+<tr><td><code>POST /api/devices/stackchan/hand</code></td><td class="ok"><code>state:"open"</code></td><td class="ok">WS <code>hand.set</code> recv</td></tr>
+<tr><td><code>POST /api/devices/stackchan/camera</code></td><td class="ok">PNG base64</td><td class="ok">WS <code>camera.capture</code> → <code>camera.frame</code></td></tr>
+<tr><td><code>POST /api/devices/stackchan/audio/start|stop</code></td><td class="ok"><code>requestId</code> 返却</td><td class="ok">WS <code>audio.start</code> / <code>audio.stop</code> recv</td></tr>
+<tr><td><code>GET /api/devices/stackchan/audio/recent?limit=3</code></td><td class="ok"><code>chunks:[]</code>（未録音）</td><td class="ok"><code>audio/pcm</code> チャンクを新しい順（<code>seq:10</code>…）で取得</td></tr>
+<tr><td><code>GET /api/devices/stackchan/status</code></td><td class="ok"><code>connected:true, mode:"mock"</code></td><td class="ok"><code>connected:true, mode:"real"</code></td></tr>
+<tr><td><code>POST rail/move</code> に <code>durationMs:99999</code></td><td>—</td><td class="ok"><strong>400</strong>（<code>DEVICE_RAIL_MAX_DURATION_MS=3000</code> で機器へ送る前に弾く）</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>DB（Supabase ローカル 54322）</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>確認</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td><code>pnpm db:status</code></td><td class="ok">起動中（API 54321 / DB 54322 / Studio 54323）</td></tr>
+<tr><td><code>mastra</code> スキーマ</td><td class="ok">Mastra が自動作成（<code>mastra_threads</code> / <code>mastra_messages</code> ほか 30 テーブル超）</td></tr>
+<tr><td><code>mastra.mastra_threads</code></td><td class="ok">5 行（E2E の会話スレッド）</td></tr>
+<tr><td><code>mastra.mastra_messages</code></td><td class="ok">15 行</td></tr>
+<tr><td><code>public.robot_commands</code></td><td class="ok">9 行（<code>emote</code> 8 / <code>move</code> 1）</td></tr>
+</tbody>
+</table>
+</div>
+<p class="why">E2E 終了後、dev（3000）・機器モック（8791-8793）・Mastra Studio（4111）は全て停止済み。Supabase は起動したまま。</p>
+
+<!-- ====================== ③ 次の一手 ====================== -->
+<h2>③ 次の一手（人間がやること）</h2>
+<p>上から順に着手するのが最短。チェックを入れながら進める。</p>
+
+<ul class="checks">
+
+<li>
+  <input type="checkbox" id="c1">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c1">1. 残っている bootstrap worktree を削除する</label></div>
+    <div class="chk-tags"><span class="tag">担当: 開発者</span><span class="tag">所要 1 分</span></div>
+    <p class="why">なぜ人間か: 別セッションが作った worktree なので、エージェントは他セッションの作業中ディレクトリを消せない規約（削除は作成者のみ）。中身はすでに develop にマージ済み。</p>
+<pre><code>git -C /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus worktree remove /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/.claude/worktrees/bootstrap</code></pre>
+  </div>
+</li>
+
+<li>
+  <input type="checkbox" id="c2">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c2">2. ロボット機器チームに未確定事項をヒアリングする</label></div>
+    <div class="chk-tags"><span class="tag">担当: あなた（対人）</span><span class="tag">最優先・ブロッカー</span></div>
+    <p class="why">なぜ人間か: 相手チームとのコミュニケーションが必要で、回答が来るまで実機接続（項目 3）が始められないため。聞く項目は下記の 7 点＋詳細版チェックリスト。</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>聞くこと</th><th>なぜ必要か</th></tr></thead>
+      <tbody>
+        <tr><td><strong>IP アドレス</strong>（3 台）</td><td><code>RAIL_BASE_URL</code> / <code>DESKTOP_BASE_URL</code> / <code>STACKCHAN_WS_URL</code> に入れる。DHCP か固定か、mDNS 名があるかも</td></tr>
+        <tr><td><strong>ポート</strong>（3 台）</td><td>同上。SDK 既定はモックの 8791 / 8792 / 8793</td></tr>
+        <tr><td><strong>認証</strong></td><td>現状は <code>DEVICE_AUTH_TOKEN</code> → <code>Authorization: Bearer</code> の暫定実装。別ヘッダ・クエリ・mTLS なら SDK 修正が必要</td></tr>
+        <tr><td><strong>軸方向</strong></td><td><code>axis</code> の x / y / z が物理的にどの向きか、<code>direction: 1</code> がどちら向きか。可動範囲・原点・リミットスイッチの有無。<em>現在の instructions は「x=左右 / y=前後 / z=上下（仮）」</em></td></tr>
+        <tr><td><strong>速度</strong></td><td><code>duration_ms</code> 500 で実際に何 cm 動くか。安全上限 3000ms は妥当か</td></tr>
+        <tr><td><strong>音声形式</strong></td><td><code>audio.chunk</code> のコーデック・サンプリングレート・チャンネル数・1 チャンク長・<code>seq</code> の採番規則</td></tr>
+        <tr><td><strong>撮影ディスプレイ</strong></td><td>マルチモニタ時にどれを撮るか、指定できるか。解像度・画像形式。<code>browser/open</code> はどのブラウザで開くか</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="why">詳細版（<code>ack</code> / <code>error</code> のスキーマ、同時接続の可否、ネットワーク条件を含む 11 項目）：
+      <code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/devices.md</code> の「§8 未確定事項チェックリスト」</p>
+  </div>
+</li>
+
+<li>
+  <input type="checkbox" id="c3">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c3">3. 実機 IP を <code>.env.local</code> に設定して <code>DEVICE_MODE=real</code> で疎通確認する</label></div>
+    <div class="chk-tags"><span class="tag">担当: 開発者（実機の前で）</span><span class="tag">項目 2 の回答待ち</span></div>
+    <p class="why">なぜ人間か: 実機の電源投入・LAN 接続・物理的な安全確認（動いてよい状態か）が必要で、エージェントには機器の状態が見えないため。最初の <code>rail/move</code> は必ず人が機器を見ながら短時間（500ms）で試す。</p>
+    <p>編集するファイル（このファイルだけ。コードは触らない）：</p>
+<pre><code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local
+
+DEVICE_MODE=real
+RAIL_BASE_URL=http://192.168.x.x:ポート
+DESKTOP_BASE_URL=http://192.168.x.x:ポート
+STACKCHAN_WS_URL=ws://192.168.x.x:ポート
+DEVICE_AUTH_TOKEN=（配布されたら）</code></pre>
+    <p>手順：① 機器を直接 curl（<code>devices.md §4</code>）→ ② <code>pnpm dev</code> 再起動 → ③ <code>http://localhost:3000/dev</code> で 1 エンドポイントずつ実行 → ④ チャットで「x 軸プラスに 500ms 動いて」。</p>
+    <p class="why">緊急停止は <code>/dev</code> 画面上部に常時固定されている（<code>rail/stop</code> / <code>audio/stop</code>）。</p>
+  </div>
+</li>
+
+<li>
+  <input type="checkbox" id="c4">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c4">4. GitHub リポジトリを作成して push する</label></div>
+    <div class="chk-tags"><span class="tag">担当: あなた</span><span class="tag">所要 5 分</span></div>
+    <p class="why">なぜ人間か: リポジトリの可視性（private / public）の決定と、アカウント・組織の選択は不可逆な公開判断を含むため、エージェントは実行しない規約。現状 remote は未設定でローカルのみ。</p>
+<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+gh repo create ElectricSheep-100bus --private --source=. --remote=origin
+git push -u origin develop
+git push origin main</code></pre>
+    <p class="why">機密は <code>.env.local</code> のみで <code>.gitignore</code> 済み（<code>.env.example</code> だけ追跡）。push 前に <code>git status --ignored | grep env</code> で再確認すると安心。</p>
+  </div>
+</li>
+
+<li>
+  <input type="checkbox" id="c5">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c5">5. <code>develop</code> → <code>main</code> への反映を許可・実行する</label></div>
+    <div class="chk-tags"><span class="tag">担当: あなた</span><span class="tag">項目 3 の実機確認後を推奨</span></div>
+    <p class="why">なぜ人間か: <code>main</code> へのマージと push はエージェント禁止（規約で機械的にブロック済み）。実機確認まで済ませてから反映するのが安全。</p>
+<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+git log --oneline main..develop      # 入る変更を確認
+git checkout main &amp;&amp; git merge --ff-only develop
+git push origin main                 # 項目 4 を済ませている場合</code></pre>
+  </div>
+</li>
+
+<li>
+  <input type="checkbox" id="c6">
+  <div class="chk-body">
+    <div class="chk-title"><label for="c6">6. デモ当日の <code>ROBOT_MODE</code> / <code>DEVICE_MODE</code> を決める</label></div>
+    <div class="chk-tags"><span class="tag">担当: あなた（当日判断）</span><span class="tag">所要 1 分</span></div>
+    <p class="why">なぜ人間か: 実機が当日どこまで安定しているか・来場者の前で動かしてよいかは、その場の状況判断だから。どちらでも UI と会話は同じように動く。</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>状況</th><th>設定</th></tr></thead>
+      <tbody>
+        <tr><td>実機が安定している</td><td><code>ROBOT_MODE=http</code> ＋ <code>DEVICE_MODE=real</code></td></tr>
+        <tr><td>実機が不安定 / 未到着</td><td><code>ROBOT_MODE=mock</code> ＋ <code>DEVICE_MODE=mock</code>（会話とツール演出はそのまま動く）</td></tr>
+        <tr><td>一部だけ実機</td><td><code>DEVICE_MODE=real</code> のまま、実機化しない機器の URL を空にする（その機器だけモックに自動フォールバック）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="why">切り替えは <code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local</code> を編集して <code>pnpm dev</code> を再起動するだけ。<strong>デモ中は <code>/dev</code> を開いたタブを来場者の手が届く画面に出さない</strong>（認証なしで機器が動く）。</p>
+  </div>
+</li>
+
+</ul>
+
+<!-- ====================== ④ 参照 ====================== -->
+<h2>④ 参照</h2>
+
+<h3>ドキュメント（絶対パス）</h3>
+<pre><code>/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/README.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/setup.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/development.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/specs/robot-api-requirements.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/devices.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/dev-dashboard.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/mastra.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/supabase.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/runbooks/robot.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/reports/env-setup.html   ← 本レポート
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/.claude/skills/dev-runbook/SKILL.md
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.local          ← env の正本
+/Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/client/web/.env.example</code></pre>
+
+<h3>ポート</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th class="num">ポート</th><th>用途</th><th>起動コマンド</th></tr></thead>
+<tbody>
+<tr><td class="num">3000</td><td>Next.js（<code>/</code> チャット・<code>/dev</code> ダッシュボード）</td><td><code>pnpm dev</code></td></tr>
+<tr><td class="num">4111</td><td>Mastra Studio（任意）</td><td><code>pnpm agent:studio</code></td></tr>
+<tr><td class="num">8787</td><td>ロボットモックサーバー</td><td><code>pnpm robot:mock</code></td></tr>
+<tr><td class="num">8791</td><td>機器モック: レール / ESP32（HTTP）</td><td rowspan="3"><code>pnpm devices:mock</code></td></tr>
+<tr><td class="num">8792</td><td>機器モック: デスクトップ / Electron（HTTP）</td></tr>
+<tr><td class="num">8793</td><td>機器モック: スタックちゃん（WebSocket）</td></tr>
+<tr><td class="num">54321</td><td>Supabase API</td><td rowspan="3"><code>pnpm db:start</code></td></tr>
+<tr><td class="num">54322</td><td>Supabase Postgres（<code>DATABASE_URL</code>）</td></tr>
+<tr><td class="num">54323</td><td>Supabase Studio</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>起動コマンド一式</h3>
+<pre><code>cd /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus
+
+pnpm install
+pnpm verify                 # 納品ゲート: lint typecheck test build
+
+pnpm db:start               # Supabase（Docker 必須）
+pnpm db:status              # URL・キーの再表示
+pnpm devices:mock           # 機器モック 3 台（8791 / 8792 / 8793）
+pnpm robot:mock             # 旧ロボットモック（8787）
+pnpm dev                    # http://localhost:3000  ・ http://localhost:3000/dev
+pnpm agent:studio           # Mastra Studio http://localhost:4111（任意）
+
+# モックサーバーまで含めた実 HTTP / WebSocket 経路を試す（.env.local は書き換えない）
+DEVICE_MODE=real \
+RAIL_BASE_URL=http://127.0.0.1:8791 \
+DESKTOP_BASE_URL=http://127.0.0.1:8792 \
+STACKCHAN_WS_URL=ws://127.0.0.1:8793 \
+PORT=3000 pnpm --filter web dev
+
+# 動作確認の最短ルート
+curl -s -X POST http://localhost:3000/api/devices/rail/move \
+  -H 'content-type: application/json' \
+  -d '{"axis":"x","direction":1,"durationMs":500}'</code></pre>
+
+<footer>
+ElectricSheep-100bus / Phase 0〜3 統合レポート（<code>chore/integration3</code>）。
+金額・課金に関する記述は含まない。実機接続前の状態を記録したもの。
+</footer>
+
+</div>
+</body>
+</html>

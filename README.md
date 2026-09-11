@@ -35,7 +35,7 @@ flowchart LR
 ElectricSheep-100bus/
 ├─ client/
 │  ├─ web/                  # Next.js 16 App Router（チャット UI + Route Handler）
-│  │  ├─ app/               # / と /api/chat, /api/robot/*
+│  │  ├─ app/               # /, /dev, /api/chat, /api/robot/*, /api/devices/*, /api/dev/env
 │  │  ├─ components.json    # shadcn add はここを -c で指す
 │  │  └─ .env.example       # env の正本は client/web/.env.local
 │  └─ desktop/README.md     # 将来の Tauri v2 方針（実装なし）
@@ -43,6 +43,7 @@ ElectricSheep-100bus/
 ├─ packages/
 │  ├─ agent/                # @workspace/agent  Mastra インスタンス・ghost Agent・tools・storage
 │  ├─ robot/                # @workspace/robot  コマンド語彙(zod)・RobotClient・Mock・HTTP・モックサーバー
+│  ├─ devices/              # @workspace/devices 機器 API SDK（レール/スタックちゃん/デスクトップ・モック 3 台）
 │  ├─ db/                   # @workspace/db     Supabase 生成型・サーバー専用 client・robot_commands ログ
 │  ├─ ui/                   # @workspace/ui     shadcn 共有コンポーネント
 │  ├─ eslint-config/ , typescript-config/
@@ -71,8 +72,23 @@ pnpm db:start
 # 4. ロボットのモックサーバー（別ターミナル）
 pnpm robot:mock
 
-# 5. Web アプリ
+# 5. 機器（レール / スタックちゃん / デスクトップ）のモック 3 台（別ターミナル・任意）
+pnpm devices:mock   # 8791 / 8792 / 8793
+
+# 6. Web アプリ
 pnpm dev            # http://localhost:3000
+#    チャット: http://localhost:3000
+#    開発者ダッシュボード（全 API を手で叩ける）: http://localhost:3000/dev
+```
+
+`DEVICE_MODE=mock`（既定）は**プロセス内モック**なので手順 5 は不要。8791-8793 のモックサーバーまで含めて実 HTTP / WebSocket 経路を試すときは、env を上書きして起動する。
+
+```bash
+DEVICE_MODE=real \
+RAIL_BASE_URL=http://127.0.0.1:8791 \
+DESKTOP_BASE_URL=http://127.0.0.1:8792 \
+STACKCHAN_WS_URL=ws://127.0.0.1:8793 \
+PORT=3000 pnpm --filter web dev
 ```
 
 Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` をコメントアウトすれば、Mastra Memory は in-memory（LibSQL）にフォールバックして起動する。
@@ -93,6 +109,7 @@ Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` を�
 | `pnpm db:types` | 生成型を `packages/db/src/database.types.ts` に出力 |
 | `pnpm agent:studio` | Mastra Studio（http://localhost:4111） |
 | `pnpm robot:mock` | ロボットモックサーバー（既定 8787） |
+| `pnpm devices:mock` | 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793） |
 | `pnpm wt setup <task> [base]` | 並列開発用の worktree を作る |
 
 shadcn コンポーネントの追加は **`client/web` を指して**実行する（生成先は `packages/ui/src/components`）。
@@ -111,6 +128,9 @@ pnpm dlx shadcn@latest add button -c client/web
 | 54322 | Supabase Postgres（`DATABASE_URL` の接続先） |
 | 54323 | Supabase Studio |
 | 8787 | ロボットモックサーバー（`ROBOT_MOCK_PORT`） |
+| 8791 | 機器モック: レール / ESP32（`pnpm devices:mock`） |
+| 8792 | 機器モック: デスクトップ / Electron（同上） |
+| 8793 | 機器モック: スタックちゃん / WebSocket（同上） |
 
 並列開発時のポート割当は [`docs/development.md`](docs/development.md) を参照。
 
@@ -128,6 +148,13 @@ pnpm dlx shadcn@latest add button -c client/web
 | `DATABASE_URL` | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` | Mastra Memory の保存先。未設定なら in-memory |
 | `SUPABASE_URL` | `http://127.0.0.1:54321` | Supabase ローカル API |
 | `SUPABASE_SECRET_KEY` | （空） | サーバー専用キー（`sb_secret_...`）。`pnpm exec supabase --workdir server status -o env \| grep SECRET_KEY` で取得。未設定なら `robot_commands` ログをスキップ |
+| `DEVICE_MODE` | `mock` | `mock` \| `real`。機器 API の接続先。詳細は [`docs/runbooks/devices.md`](docs/runbooks/devices.md) |
+| `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32 レールの `http://host:port`（`/api/v1` は付けない） |
+| `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | Electron デスクトップの `http://host:port` |
+| `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`（`/ws/v1/robot` は付けない） |
+| `DEVICE_AUTH_TOKEN` | （空） | 設定時に全機器へ `Authorization: Bearer` を付与（方式未確定） |
+| `DEVICE_RAIL_MAX_DURATION_MS` | `3000` | `rail/move` の `durationMs` 上限（安全要件） |
+| `DEVICE_TIMEOUT_MS` | `5000` | 機器 HTTP / WS のタイムアウト |
 
 `turbo.json` の `globalEnv` に全件登録済み（値が変わるとキャッシュが無効化される）。
 
@@ -152,5 +179,8 @@ GHOST_MODEL=google/gemini-3.1-pro-preview  # 品質重視（遅い・高い）
 | [`docs/runbooks/supabase.md`](docs/runbooks/supabase.md) | DB スキーマ変更・RLS・認証導入 |
 | [`docs/runbooks/mastra.md`](docs/runbooks/mastra.md) | Studio・tool 追加・Memory・v1 の落とし穴 |
 | [`docs/runbooks/robot.md`](docs/runbooks/robot.md) | 実機ロボット仕様受領後の差し替え手順 |
+| [`docs/runbooks/devices.md`](docs/runbooks/devices.md) | 機器 API（ESP32 レール / スタックちゃん / Electron）の env・モック起動・curl 例・安全要件 |
+| [`docs/runbooks/dev-dashboard.md`](docs/runbooks/dev-dashboard.md) | 開発者ダッシュボード [`/dev`](http://localhost:3000/dev) の使い方・エンドポイント追加手順 |
+| [`docs/specs/robot-api-requirements.md`](docs/specs/robot-api-requirements.md) | 受領した機器 API 要件定義（仕様の正本） |
 | [`client/desktop/README.md`](client/desktop/README.md) | 将来の Tauri v2 方針 |
 | [`.claude/skills/dev-runbook/SKILL.md`](.claude/skills/dev-runbook/SKILL.md) | エージェント向けの開発手順まとめ |

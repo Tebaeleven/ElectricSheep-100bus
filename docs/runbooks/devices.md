@@ -2,7 +2,7 @@
 
 > 対象: `@workspace/devices`（`packages/devices`）と、それを使う Next.js Route Handler・Mastra tool。
 > 仕様の正本は [`docs/specs/robot-api-requirements.md`](../specs/robot-api-requirements.md)。
-> 本書の記述のうち **「（予定）」と明記した項目は、並走レーン（P3-A 実クライアント / P3-B Mastra tools / P3-C Web）の成果が入った時点で有効**になる。契約（型・パス・env 名）は確定済みなので、先に書いてある。
+> 本書の記述は **すべて実装済み**（SDK・モックサーバー・Route Handler 12 本・Mastra tool 6 本・device-panel・`/dev` ダッシュボード）。`chore/integration3` で develop に統合済み。
 
 ---
 
@@ -11,14 +11,14 @@
 ```mermaid
 flowchart LR
   subgraph Browser["ブラウザ（localhost:3000）"]
-    UI["チャット UI / device-panel（予定）"]
-    DEV["/dev 開発者ダッシュボード（予定）"]
+    UI["チャット UI / device-panel"]
+    DEV["/dev 開発者ダッシュボード"]
   end
 
   subgraph Next["Next.js 16（サーバー側・同一プロセス）"]
-    RH["Route Handler<br/>/api/devices/*（予定）"]
-    MA["Mastra ghost-agent<br/>devices tools（予定）"]
-    LIB["client/web/lib/devices.ts<br/>getDevices() シングルトン（予定）"]
+    RH["Route Handler<br/>/api/devices/* (12 本)"]
+    MA["Mastra ghost-agent<br/>devices tools (6 本)"]
+    LIB["client/web/lib/devices.ts<br/>getDevices() シングルトン"]
   end
 
   SDK["@workspace/devices<br/>createDevices(process.env)"]
@@ -75,9 +75,9 @@ flowchart LR
 
 | env | 既定値 | 意味 |
 | --- | --- | --- |
-| `DEVICE_TIMEOUT_MS` | `5000`（`DEFAULT_TIMEOUT_MS`） | HTTP / WS 応答待ちのタイムアウト |
+| `DEVICE_TIMEOUT_MS` | `5000`（`DEFAULT_TIMEOUT_MS`） | HTTP 応答待ち・WS の `ack` / `camera.frame` 待ちのタイムアウト |
 
-`.env.example` へのこれらの追記と `turbo.json` の `globalEnv` 追記は **P3-0/P3-C レーンの所有**（予定）。未反映のうちは `client/web/.env.local` に手で足す。
+これらは `client/web/.env.example` と `turbo.json` の `globalEnv` に**登録済み**。`.env.example` をコピーすればそのまま使える。
 
 ### `.env.local` の雛形（機器まわりだけ）
 
@@ -119,6 +119,20 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
    pnpm dev
    ```
 
+   `.env.local` を書き換えずに**その場だけ実機（またはモックサーバー）へ向ける**なら、env を上書きして起動する。
+   検証時はこの形が速い（`.env.local` は `DEVICE_MODE=mock` のまま置いておける）。
+
+   ```bash
+   DEVICE_MODE=real \
+   RAIL_BASE_URL=http://127.0.0.1:8791 \
+   DESKTOP_BASE_URL=http://127.0.0.1:8792 \
+   STACKCHAN_WS_URL=ws://127.0.0.1:8793 \
+   PORT=3000 pnpm --filter web dev
+   ```
+
+   > `DEVICE_MODE=mock`（既定）は**プロセス内のモッククライアント**なので、8791-8793 のモックサーバーには届かない。
+   > モックサーバーまで含めた経路（HTTP / WebSocket・snake_case 変換・タイムアウト）を確認したいときは、必ず上の `DEVICE_MODE=real` 上書きで起動する。
+
 4. 疎通確認: まず機器を直接 `curl`（§4）、次に Next 経由（§5）。
 5. 機器を 1 台だけ実機にすることもできる。`DEVICE_MODE=real` にして、実機化しない機器の URL を空にすれば、その機器だけモックのまま動く（`createDevices` が URL 未設定の機器をモックにフォールバックする）。
 6. 実機の URL が間違っている・機器が落ちている場合でも例外にはならず、各呼び出しが `{ ok: false, error: ... }` の `DeviceResult` を返す。UI と会話は止まらない。
@@ -129,12 +143,12 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
 
 ```bash
 # 3 台同時起動（rail 8791 / desktop 8792 / stackchan 8793）
-pnpm --filter @workspace/devices mock
+pnpm devices:mock
 ```
 
 - 実体は `packages/devices/src/mock-servers.ts`（`startMockRailServer` / `startMockDesktopServer` / `startMockStackchanServer` / `startAllMockServers`）。ポート定数は `packages/devices/src/constants.ts` の `MOCK_RAIL_PORT` / `MOCK_DESKTOP_PORT` / `MOCK_STACKCHAN_PORT`。
-- **現状（`feat/devices-contract` 時点）はスタブで全リクエスト 404** を返す。受領仕様どおりの応答を返す実装は **P3-A レーンの所有（予定）**。したがって §4 の `curl` 例の期待レスポンスは P3-A 完了後に有効になる。
-- ルート `package.json` に `devices:mock` スクリプトを足す（予定）。それまでは上の `pnpm --filter` 形式で起動する。
+- 受領仕様（`/api/v1` 付きの HTTP、`/ws/v1/robot` の WebSocket）どおりに応答する**実装済みのモック**。§4 の `curl` 例はそのまま通る。
+- ルート `package.json` の `devices:mock` は `pnpm --filter @workspace/devices mock` の別名。どちらで起動してもよい。
 - 起動ログ: `[devices:mock] rail listening on http://127.0.0.1:8791` のように出る。ポート衝突時は `EADDRINUSE` で落ちるので、`lsof -i :8791` で掴んでいるプロセスを確認する。
 
 ### モックが返す固定値（`constants.ts`）
@@ -151,7 +165,7 @@ pnpm --filter @workspace/devices mock
 
 機器そのものの API（`/api/v1` 付き）を確認するときはこちら。Next を経由しないので、SDK・Route Handler のバグと機器側の問題を切り分けられる。
 
-> いずれも **P3-A のモックサーバー実装後**に期待どおりのレスポンスになる（それまでは 404）。実機に向けるときは `127.0.0.1:879x` を実機の IP:ポートに読み替える。`DEVICE_AUTH_TOKEN` を使う構成なら `-H "Authorization: Bearer $DEVICE_AUTH_TOKEN"` を足す。
+> 実機に向けるときは `127.0.0.1:879x` を実機の IP:ポートに読み替える。`DEVICE_AUTH_TOKEN` を使う構成なら `-H "Authorization: Bearer $DEVICE_AUTH_TOKEN"` を足す。
 
 ### 4.1 レール（ESP32・8791）
 
@@ -234,7 +248,7 @@ setTimeout(() => ws.close(), 3000);
 
 ## 5. Next 経由の API 一覧（`/api/devices/*`）
 
-**すべて P3-C レーンの所有（予定）**。実装は `client/web/app/api/devices/...`、接続は `client/web/lib/devices.ts` の `getDevices()`（`globalThis` キャッシュのシングルトン。HMR で WebSocket が増殖しないようにする）。
+**12 本すべて実装済み**。実体は `client/web/app/api/devices/...`、接続は `client/web/lib/devices.ts` の `getDevices()`（`globalThis` キャッシュのシングルトン。HMR で WebSocket が増殖しないようにする）。
 
 共通仕様:
 
@@ -266,7 +280,7 @@ interface DeviceResult<T = unknown> {
 | POST | `/api/devices/stackchan/camera` | なし | `{"mimeType":"image/png","imageBase64":"..."}` |
 | POST | `/api/devices/stackchan/audio/start` | なし | 受理結果 |
 | POST | `/api/devices/stackchan/audio/stop` | なし | 受理結果 |
-| GET | `/api/devices/stackchan/audio/recent` | なし | 直近 N 件の `AudioChunk[]`（メモリのリングバッファ） |
+| GET | `/api/devices/stackchan/audio/recent` | クエリ `?limit=`（**既定 20**・上限 200） | `{"chunks": AudioChunk[]}` を**新しい順**で返す。リングバッファ容量は **200**（`AUDIO_BUFFER_CAPACITY`）で、溢れた古いチャンクから捨てる |
 | GET | `/api/devices/stackchan/status` | なし | `{"connected":true\|false}` |
 
 ### curl 例（web を `pnpm dev` で 3000 に起動した状態）
@@ -318,11 +332,11 @@ curl -sS http://localhost:3000/api/devices/stackchan/status
 
 ## 6. Mastra tools 一覧
 
-**P3-B レーンの所有（予定）**。実装は `packages/agent/src/mastra/tools/devices.ts`。`createDevices(process.env)` はモジュールスコープでメモ化する。
+**6 本すべて実装済み**。実体は `packages/agent/src/mastra/tools/devices.ts`。詳細な入出力スキーマは [`docs/runbooks/mastra.md`](./mastra.md#機器-devices-tools6-本) を参照。`createDevices(process.env)` はモジュールスコープでメモ化する。
 
 | tool | 入力 | 返すもの | 対応する機器操作 |
 | --- | --- | --- | --- |
-| `railMove` | `{ axis: 'x'\|'y'\|'z', direction: 1\|-1, durationMs }` | `DeviceResult` | `POST /rail/move` |
+| `railMove` | `{ axis: 'x'\|'y'\|'z', direction: 'plus'\|'minus', durationMs }` | `DeviceResult`（`data` 抜き） | `POST /rail/move` |
 | `railStop` | なし | `DeviceResult` | `POST /rail/stop` |
 | `handSet` | `{ state: 'open'\|'closed' }` | `DeviceResult` | WS `hand.set` → `ack` |
 | `cameraCapture` | なし | **画像 base64 は返さない**。撮影成否とサイズだけ | WS `camera.capture` → `camera.frame` |
@@ -331,13 +345,15 @@ curl -sS http://localhost:3000/api/devices/stackchan/status
 
 > 画像を LLM の文脈に流し込むとトークンを食いつぶすため、`cameraCapture` / `desktopScreenshot` は「撮れた・何バイト」だけをエージェントに返す。**画像そのものは Route Handler（§5）経由で UI に表示する**。
 
-ghost の instructions には「レールで移動できる／手を開閉できる／カメラで見られる／PC の画面を開ける」を追記する（予定）。
+> **`direction` は LLM には `plus` / `minus` の文字列で見せる**（Gemini の function declaration が数値リテラルの union を扱えないことがあるため）。tool 内部で `+1` / `-1` に変換してから `railMoveSchema` に通す。機器へのワイヤ形式は `direction: 1 | -1`。
+
+> **移動は必ず `railMove`**。ghost の instructions に「robotCommand の `move` は使わない（robotCommand は emote / speak / stop 用）」と明記してある。
 
 ### 会話例
 
 | 来場者の発話 | 呼ばれる tool |
 | --- | --- |
-| 「ちょっと右に動いて」 | `railMove { axis:'x', direction:1, durationMs:500 }` |
+| 「ちょっと右に動いて」 | `railMove { axis:'x', direction:'plus', durationMs:500 }` |
 | 「止まって！」 | `railStop` |
 | 「手を開いてみて」 | `handSet { state:'open' }` |
 | 「手を握って」 | `handSet { state:'closed' }` |
@@ -345,7 +361,7 @@ ghost の instructions には「レールで移動できる／手を開閉でき
 | 「私の PC の画面見て」 | `desktopScreenshot` |
 | 「Google 開いて」 | `desktopOpenBrowser { url:'https://www.google.com' }` |
 
-UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが動いています」を演出する（P3-C 予定）。
+UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが動いています」を演出する（`client/web/app/page.tsx`）。part 名は `ghost.ts` の `tools: { ... }` のキー名（`railMove` / `railStop` / `handSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser`）。
 
 ---
 
@@ -354,13 +370,13 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 | 安全要件 | 実装箇所 | 挙動 |
 | --- | --- | --- |
 | **駆動時間の上限** | `packages/devices/src/constants.ts` の `RAIL_MAX_DURATION_MS`（`DEVICE_RAIL_MAX_DURATION_MS ?? 3000`）→ `schemas.ts` の `railMoveSchema.durationMs = z.number().int().min(1).max(RAIL_MAX_DURATION_MS)` | 上限超過は**機器へ送る前に**バリデーションで弾く。Route Handler は 400、Mastra tool は入力スキーマ違反で実行されない |
-| **移動命令の自動再送禁止** | `createRailClient().move`（P3-A・予定） | `rail/move` は**リトライしない**（機器が受理済みで二重移動になる危険）。`rail/stop` は冪等なのでリトライ可 |
+| **移動命令の自動再送禁止** | `createRailClient().move`（`packages/devices/src/http.ts`） | `rail/move` は**リトライしない**（機器が受理済みで二重移動になる危険）。タイムアウト・ネットワークエラーでもそのまま `{ok:false}` を返す。`rail/stop` は冪等なので 1 回だけリトライする |
 | **URL の限定** | `schemas.ts` の `openUrlSchema`（`.url()` + `/^https?:\/\//` の `refine`） | `file:` / `javascript:` / `data:` は 400。Route Handler と Mastra tool の両方が同じスキーマを使う |
-| **停止の常時受付** | `rail/stop` は冪等・ボディなし・リトライ可。`/dev` ダッシュボードでは `rail/stop` と `audio/stop` を**画面上部に固定した緊急ボタン**として常時表示（P3-E・予定）。device-panel にも停止ボタンを置く（P3-C・予定） | どの画面・どの状態からでも 1 クリックで停止できる |
-| **タイムアウト** | `DEFAULT_TIMEOUT_MS`（5000）、HTTP は `AbortSignal.timeout`、WS は `ack` / `camera.frame` の待ち受けにタイマー（P3-A・予定） | 応答が来なくてもハングしない |
+| **停止の常時受付** | `rail/stop` は冪等・ボディなし・リトライ可。`/dev` ダッシュボードは `rail/stop` と `audio/stop` を**画面上部に固定した緊急ボタン**として常時表示。`device-panel.tsx` にも停止ボタンがある | どの画面・どの状態からでも 1 クリックで停止できる |
+| **タイムアウト** | `DEFAULT_TIMEOUT_MS`（**5000ms**・env `DEVICE_TIMEOUT_MS` で変更）、HTTP は `AbortSignal.timeout`、WS は `ack` / `camera.frame` の待ち受けにタイマー | 応答が来なくてもハングしない |
 | **認証** | `createDevices` の `resolveHeaders`（`DEVICE_AUTH_TOKEN` → `Authorization: Bearer`） | 方式未確定のため暫定。§8 で確認する |
 | **障害時の扱い** | 全公開 API が `DeviceResult` を返す。`createDevices` は実クライアント生成に失敗するとモックへフォールバックし警告ログを出す | 機器が落ちていても会話と UI は継続する |
-| **接続管理** | `client/web/lib/devices.ts` の `getDevices()`（`globalThis` シングルトン・lazy connect）（P3-C・予定） | dev の HMR で WebSocket が増殖しない |
+| **接続管理** | `client/web/lib/devices.ts` の `getDevices()`（`globalThis` シングルトン・lazy connect）。Mastra tool 側は `packages/agent/src/mastra/tools/devices.ts` の `getDevices()`（モジュールスコープでメモ化） | dev の HMR で WebSocket が増殖しない |
 
 ---
 
@@ -386,7 +402,7 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 
 ### 接続拒否（`ECONNREFUSED` / `fetch failed`）
 
-- モック運用のつもりなら、モックサーバーが起動しているか（`pnpm --filter @workspace/devices mock`）。`lsof -i :8791 -i :8792 -i :8793` で待ち受けを確認。
+- モック運用のつもりなら、モックサーバーが起動しているか（`pnpm devices:mock`）。**`DEVICE_MODE=mock` はプロセス内モックなのでモックサーバーには届かない**（届かせたいなら `DEVICE_MODE=real` + URL をモックに向ける）。`lsof -i :8791 -i :8792 -i :8793` で待ち受けを確認。
 - `RAIL_BASE_URL` に **`/api/v1` を付けていないか**。付けると `/api/v1/api/v1/rail/move` になって 404 になる。ベース URL は `http://host:port` まで。
 - `DEVICE_MODE=real` にしたのに URL が空 → その機器は**モックのまま**動く（これは仕様）。ログの `[devices] ... モックを使用します` を確認。
 - 実機の IP が変わった（DHCP）。§8 の IP を再確認。
@@ -402,6 +418,7 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 - 接続先パスを確認する。`STACKCHAN_WS_URL` は `ws://host:port` まで。`/ws/v1/robot` は SDK が付ける。手で `websocat` を叩くときは**パスを含めて** `ws://127.0.0.1:8793/ws/v1/robot`。
 - 送信 JSON のエンベロープが `{ type, request_id, data }` になっているか。`request_id` が欠けていると `stackchanOutboundSchema` で弾かれる。
 - SDK が採番する `request_id` は `req-<uuid>`（`createRequestId()`）。機器が `req-001` 形式を返してきても、**受信側は非空文字列まで緩めてある**（`inboundRequestIdSchema`）ので受け取れる。
+- **`request_id` のフォールバック**: 機器が `ack` / `camera.frame` に `request_id` を付けずに返した場合、SDK は「その種別を待っている最も古い 1 件」に対応づける（`request_id` が一致するものが無いときだけ）。1 リクエストずつなら機器が ID をエコーしなくても動く。ただし**並行リクエストでは取り違えうる**ので、実機仕様が固まったら §8 で確認する。
 - `wss://`（TLS）が必要な機器に `ws://` で繋いでいないか。
 - 接続はできるが応答が無い場合、機器側が別クライアントに占有されている可能性（§8 の「同時接続」）。
 

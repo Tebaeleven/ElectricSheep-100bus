@@ -7,7 +7,8 @@ packages/agent/src/mastra/
 ├─ index.ts            # export: mastra, ghost, GHOST_AGENT_ID, createStorage
 ├─ agents/ghost.ts     # おばけロボットの Agent（instructions / model / memory / tools）
 ├─ storage.ts          # DATABASE_URL の有無で Postgres / LibSQL を分岐
-└─ tools/robot.ts      # robotCommand / robotStatus
+├─ tools/robot.ts      # robotCommand / robotStatus
+└─ tools/devices.ts    # railMove / railStop / handSet / cameraCapture / desktopScreenshot / desktopOpenBrowser
 ```
 
 ## Studio
@@ -78,7 +79,30 @@ export const robotCommand = createTool({
 
 **語彙の正本は `@workspace/robot` の `robotCommandSchema`。** LLM 向けにフラット化したスキーマは「入口の形」でしかなく、実際に送る値は必ず `toRobotCommand`（＝ `robotCommandSchema.parse`）を通す。ここで独自に zod を書くと Web / モックと語彙がずれる。
 
-エージェントが持つ tool を確認するには `await ghost.listTools()`（キーは `robotCommand` / `robotStatus`）。
+エージェントが持つ tool を確認するには `await ghost.listTools()`（キーは `robotCommand` / `robotStatus` / `railMove` / `railStop` / `handSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser` の 8 件）。
+
+## 機器 devices tools（6 本）
+
+実装は `packages/agent/src/mastra/tools/devices.ts`。機器クライアントは `createDevices(process.env)` を**モジュールスコープでメモ化**した `getDevices()` から取る（毎回作るとモックの履歴が消え、実機では WebSocket 接続が増殖する）。
+
+| tools キー（＝ UI の part 名） | tool id | 入力スキーマ | 出力 | 機器操作 |
+|---|---|---|---|---|
+| `railMove` | `rail-move` | `{ axis: 'x'\|'y'\|'z', direction: 'plus'\|'minus', durationMs: int 1..RAIL_MAX_DURATION_MS }` | `deviceResultSchema` = `{ ok, status?, error?, latencyMs }` | `POST /api/v1/rail/move` |
+| `railStop` | `rail-stop` | `{}`（引数なし） | `deviceResultSchema` | `POST /api/v1/rail/stop` |
+| `handSet` | `hand-set` | `{ state: 'open'\|'closed' }` | `deviceResultSchema` | WS `hand.set` → `ack` |
+| `cameraCapture` | `camera-capture` | `{}`（引数なし） | `imageResultSchema` = `{ ok, mimeType?, byteLength?, error?, latencyMs }` | WS `camera.capture` → `camera.frame` |
+| `desktopScreenshot` | `desktop-screenshot` | `{}`（引数なし） | `imageResultSchema` | `POST /api/v1/desktop/screenshot` |
+| `desktopOpenBrowser` | `desktop-open-browser` | `{ url: string }`（`openUrlSchema` で http/https のみ） | `deviceResultSchema` | `POST /api/v1/desktop/browser/open` |
+
+設計上のポイント:
+
+1. **`direction` は LLM には `'plus'` / `'minus'` の文字列で見せる。** 正本の `railMoveSchema` は `direction: 1 | -1` だが、Gemini の function declaration は数値リテラルの union を扱えないことがある。tool 内の `toRailDirection()` で `+1` / `-1` に変換してから `railMoveSchema.safeParse` に通す（スキーマ違反は例外にせず `{ ok:false, error }` で返す）。
+2. **画像 base64 は LLM に返さない。** `cameraCapture` / `desktopScreenshot` は `mimeType` と `byteLength` だけを返す（トークンを食い潰さないため）。画像そのものは Route Handler `/api/devices/*`（`data.imageBase64`）経由で UI に表示する。
+3. **`DeviceResult.data` も LLM に返さない。** `toLlmResult()` が `ok` / `status` / `error` / `latencyMs` に絞る。
+4. **例外を投げない。** `runDeviceCall()` が全ての呼び出しを包み、機器が落ちていても `{ ok:false }` になって会話が止まらない。
+5. **移動は必ず `railMove`。** `robotCommand` の `type:'move'` は使わない（instructions に明記）。`robotCommand` は emote / speak / stop 用。
+
+機器側の env・モック起動・curl 例・安全要件は [`docs/runbooks/devices.md`](./devices.md)。
 
 ## instructions を変える
 

@@ -26,7 +26,8 @@ pnpm install
 cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ
 pnpm db:start      # Supabase（Docker 必須）。不要なら DATABASE_URL を空にして in-memory
 pnpm robot:mock    # ロボットモック 8787
-pnpm dev           # web 3000
+pnpm devices:mock  # 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793）
+pnpm dev           # web 3000。全 API を手で叩ける開発者ダッシュボードは http://localhost:3000/dev
 pnpm agent:studio  # Mastra Studio 4111（任意）
 ```
 
@@ -40,7 +41,7 @@ green にしてからコミット（日本語メッセージ）。**push / PR / 
 
 ## ポート
 
-3000 web / 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック。
+3000 web（`/dev` は開発者ダッシュボード）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / 8791-8793 機器モック（`pnpm devices:mock`）。
 並列レーンでは web は `PORT=3001..`、モックは `ROBOT_MOCK_PORT` でずらす（割当表は `docs/development.md`）。
 
 ## ファイル所有権
