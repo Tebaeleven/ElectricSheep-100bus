@@ -1,5 +1,5 @@
 import type { z } from "zod"
-import type { robotCommandSchema } from "./schema.js"
+import type { robotCommandSchema } from "./schema"
 
 export type RobotCommand = z.infer<typeof robotCommandSchema>
 

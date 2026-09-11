@@ -20,7 +20,6 @@ catalog:
   "@supabase/supabase-js": "2.116.0"
   "ai": "7.0.97"
   "mastra": "1.29.0"
-  "server-only": "0.0.1"
   "supabase": "2.117.0"
   "tsx": "4.23.13"
   "vitest": "5.0.0"

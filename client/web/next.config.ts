@@ -15,18 +15,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     // workspace パッケージの TS ソースを解決させるためモノレポのルートを基準にする
     root: workspaceRoot,
-    rules: {
-      // packages/* の相対 `.js` インポートを剥がす（詳細は loader のコメント）
-      "**/packages/*/src/**/*.ts": {
-        loaders: [
-          path.join(
-            import.meta.dirname,
-            "turbopack/strip-js-extension-loader.cjs"
-          ),
-        ],
-        as: "*.ts",
-      },
-    },
   },
 }
 

@@ -8,7 +8,7 @@ import {
   robotResultSchema,
   robotStatus,
   toRobotCommand,
-} from "./robot.js"
+} from "./robot"
 
 /** 型を絞らずに execute を直接呼ぶためのヘルパー（tool の execute は optional） */
 async function run(

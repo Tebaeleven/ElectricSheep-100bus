@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { pathToFileURL } from "node:url"
 
-import { DEFAULT_ENDPOINT_MAP } from "./http.js"
-import { robotCommandSchema } from "./schema.js"
-import type { RobotCommand } from "./types.js"
+import { DEFAULT_ENDPOINT_MAP } from "./http"
+import { robotCommandSchema } from "./schema"
+import type { RobotCommand } from "./types"
 
 /** 実機が無い間に叩けるモックサーバーの既定ポート */
 export const DEFAULT_MOCK_PORT = 8787

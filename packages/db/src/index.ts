@@ -1,11 +1,11 @@
 import type { RobotCommand, RobotResult } from "@workspace/robot"
 
-import type { Json } from "./database.types.js"
-import type { ServiceClient } from "./server.js"
+import type { Json } from "./database.types"
+import type { ServiceClient } from "./server"
 
-export type { Database, Json } from "./database.types.js"
-export type { ServiceClient } from "./server.js"
-export { createServiceClient } from "./server.js"
+export type { Database, Json } from "./database.types"
+export type { ServiceClient } from "./server"
+export { createServiceClient } from "./server"
 
 export interface RobotCommandLogEntry {
   threadId?: string

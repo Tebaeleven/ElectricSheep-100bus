@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { startRobotMockServer } from "./mock-server.js"
+import { startRobotMockServer } from "./mock-server"
 
 let baseUrl = ""
 let close: () => Promise<void>

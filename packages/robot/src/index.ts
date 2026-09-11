@@ -1,17 +1,17 @@
-import { createHttpRobotClient } from "./http.js"
-import { createMockRobotClient } from "./mock.js"
-import type { RobotClient } from "./types.js"
+import { createHttpRobotClient } from "./http"
+import { createMockRobotClient } from "./mock"
+import type { RobotClient } from "./types"
 
-export { robotCommandSchema } from "./schema.js"
-export { createMockRobotClient } from "./mock.js"
-export { createHttpRobotClient } from "./http.js"
+export { robotCommandSchema } from "./schema"
+export { createMockRobotClient } from "./mock"
+export { createHttpRobotClient } from "./http"
 export type {
   HttpRobotClientOptions,
   RobotClient,
   RobotCommand,
   RobotEndpointMap,
   RobotResult,
-} from "./types.js"
+} from "./types"
 
 /** ROBOT_MODE=http かつ ROBOT_BASE_URL があれば実機 HTTP、それ以外はモック */
 export function createRobotClient(env: NodeJS.ProcessEnv): RobotClient {

@@ -1,4 +1,4 @@
-import type { RobotClient, RobotCommand, RobotResult } from "./types.js"
+import type { RobotClient, RobotCommand, RobotResult } from "./types"
 
 export interface MockRobotClient extends RobotClient {
   /** 受け取ったコマンドの履歴（テスト用） */

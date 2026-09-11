@@ -32,6 +32,7 @@ export const config = [
       ".next/**",
       "**/.turbo/**",
       "**/coverage/**",
+      "**/.mastra/**",
       "**/.claude/worktrees/**",
     ],
   },

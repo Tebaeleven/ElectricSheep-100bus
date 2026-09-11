@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent"
 import { Memory } from "@mastra/memory"
 
-import { robotCommand, robotStatus } from "../tools/robot.js"
+import { robotCommand, robotStatus } from "../tools/robot"
 
 export const GHOST_AGENT_ID = "ghost-agent"
 
@@ -33,7 +33,7 @@ export const ghost = new Agent({
   id: GHOST_AGENT_ID,
   name: "Ghost Robot",
   instructions,
-  model: process.env.GHOST_MODEL ?? "anthropic/claude-sonnet-5",
+  model: process.env.GHOST_MODEL ?? "google/gemini-3.8-flash",
   // キー名がそのままストリームの toolName になるので変更しないこと
   tools: { robotCommand, robotStatus },
   memory: new Memory({

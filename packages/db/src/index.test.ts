@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
-// server.ts 経由で読み込まれる server-only は Node 実行では例外を投げるため無効化する
-vi.mock("server-only", () => ({}))
-
-import { logRobotCommand, type RobotCommandLogEntry } from "./index.js"
-import type { ServiceClient } from "./server.js"
+import { logRobotCommand, type RobotCommandLogEntry } from "./index"
+import type { ServiceClient } from "./server"
 
 const entry: RobotCommandLogEntry = {
   threadId: "thread-1",

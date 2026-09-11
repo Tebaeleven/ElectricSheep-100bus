@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "catalog:",
-    "@workspace/robot": "workspace:*",
-    "server-only": "catalog:"
+    "@workspace/robot": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22",

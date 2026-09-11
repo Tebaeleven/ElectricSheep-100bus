@@ -1,7 +1,7 @@
 import { Mastra } from "@mastra/core"
 
-import { ghost, GHOST_AGENT_ID } from "./agents/ghost.js"
-import { createStorage } from "./storage.js"
+import { ghost, GHOST_AGENT_ID } from "./agents/ghost"
+import { createStorage } from "./storage"
 
 export { GHOST_AGENT_ID, ghost }
 export { createStorage }

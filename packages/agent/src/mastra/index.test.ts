@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { GHOST_AGENT_ID, ghost, mastra } from "./index.js"
+import { GHOST_AGENT_ID, ghost, mastra } from "./index"
 
 describe("mastra", () => {
   it("GHOST_AGENT_ID でおばけエージェントを取得できる", () => {

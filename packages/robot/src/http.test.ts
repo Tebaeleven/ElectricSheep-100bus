@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { afterEach, describe, expect, it } from "vitest"
 
-import { createHttpRobotClient } from "./http.js"
+import { createHttpRobotClient } from "./http"
 
 interface Received {
   method: string

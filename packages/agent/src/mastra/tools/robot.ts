@@ -1,4 +1,5 @@
 import { createTool } from "@mastra/core/tools"
+import { createServiceClient, logRobotCommand } from "@workspace/db"
 import { createRobotClient, robotCommandSchema } from "@workspace/robot"
 import type { RobotClient, RobotCommand, RobotResult } from "@workspace/robot"
 import { z } from "zod"
@@ -31,7 +32,12 @@ export const robotCommandInputSchema = z.object({
     .describe("emote のときの感情（emote では必須）"),
   path: z.string().optional().describe("raw のときに叩くパス（raw では必須）"),
   method: z.enum(["GET", "POST"]).optional().describe("raw のときの HTTP メソッド（既定 POST）"),
-  body: z.record(z.string(), z.unknown()).optional().describe("raw のときのリクエストボディ"),
+  // Gemini の function declaration は任意キーの object（JSON Schema の additionalProperties）を
+  // SDK 側バリデーションで弾くことがあるため、LLM には JSON 文字列で受け取らせる
+  body: z
+    .string()
+    .optional()
+    .describe('raw のときのリクエストボディ（JSON 文字列。例: {"speed":2}）'),
 })
 
 export type RobotCommandInput = z.infer<typeof robotCommandInputSchema>
@@ -44,6 +50,16 @@ export const robotResultSchema = z.object({
   error: z.string().optional(),
   latencyMs: z.number(),
 })
+
+/** LLM が渡す JSON 文字列のボディをパースする。壊れていれば文字列のまま渡す */
+function parseRawBody(body: string | undefined): unknown {
+  if (body === undefined) return undefined
+  try {
+    return JSON.parse(body)
+  } catch {
+    return body
+  }
+}
 
 /** フラットな LLM 入力を正本の RobotCommand に変換する。欠けたフィールドはここで zod エラーになる */
 export function toRobotCommand(input: RobotCommandInput): RobotCommand {
@@ -65,7 +81,7 @@ export function toRobotCommand(input: RobotCommandInput): RobotCommand {
         type: "raw",
         path: input.path,
         method: input.method ?? "POST",
-        body: input.body,
+        body: parseRawBody(input.body),
       })
   }
 }
@@ -81,32 +97,12 @@ export function getRobotClient(): RobotClient {
   return cachedClient
 }
 
-/**
- * `@workspace/db` は `server-only` を読み込むため、素の Node では import 時に例外になる。
- * 静的 import にすると `mastra dev` が起動時点で落ちるので、動的 import + catch にして
- * 「ログが取れないだけ」で済ませる（Next.js の server 層では react-server 条件で解決され動く）。
- * なお `mastra dev` では動的 import がバンドルされず TS ソースを解決できないため、
- * Studio 経由の実行では常にログがスキップされる（想定どおり）。
- */
-type DbModule = typeof import("@workspace/db")
-let dbModulePromise: Promise<DbModule | null> | undefined
-
-function loadDb(): Promise<DbModule | null> {
-  dbModulePromise ??= import("@workspace/db").catch((cause: unknown) => {
-    console.warn("[agent] robot_commands ログを無効化します（@workspace/db を読み込めません）", cause)
-    return null
-  })
-  return dbModulePromise
-}
-
 async function logCommand(entry: {
   threadId?: string
   command: RobotCommand
   result: RobotResult
 }): Promise<void> {
-  const db = await loadDb()
-  if (!db) return
-  await db.logRobotCommand(db.createServiceClient(process.env), entry)
+  await logRobotCommand(createServiceClient(process.env), entry)
 }
 
 /** おばけロボットの実機を動かす tool */

@@ -4,7 +4,7 @@ import type {
   RobotCommand,
   RobotEndpointMap,
   RobotResult,
-} from "./types.js"
+} from "./types"
 
 /** 応答が返らないときに諦めるまでの既定時間 */
 const DEFAULT_TIMEOUT_MS = 3000

@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http"
 import { afterEach, describe, expect, it } from "vitest"
 
-import { createRobotClient } from "./index.js"
+import { createRobotClient } from "./index"
 
 let server: Server | undefined
 
