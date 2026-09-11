@@ -1,7 +1,7 @@
 # 会場ネットワーク runbook（ハッカソン当日の接続手順）
 
 > 詳細・図解・出典つきの正本は [`docs/reports/network-connectivity.html`](../reports/network-connectivity.html)。
-> 本書はその §0（結論）・§2（決定木）・§9（当日タイムライン）を、当日ブラウザを開かずに使えるよう Markdown 化したもの。
+> 本書はその §0（結論）・§2（決定木）・§7（クラウド中継）・§9（当日タイムライン）を、当日ブラウザを開かずに使えるよう Markdown 化したもの。
 > 金額は 1 ドル = 150 円で換算。
 
 ---
@@ -10,14 +10,20 @@
 
 会場で確実に動かす鍵は **「自分で AP（親機）を持つこと」** の 1 点。
 共用 WiFi と iPhone テザリングは、どちらも **端末同士の通信を遮断する**ため Mac ↔ ESP32 の LAN 通信に使えない。
+**本命は LAN 直結（トラベルルーター／Mac 共有）**。LAN が全滅したときの保険は、簡単な順に
+**保険 1 = Cloudflare Tunnel ＋ HTTPS ロングポーリング**、**保険 2 = MQTT（HiveMQ）**。
 
-### 推奨ベスト 3
+### 推奨ベスト 4（1〜2 位が本命 / 3〜4 位が保険）
 
 | 順位 | 構成 | なぜ | 準備 | 当日の切替 |
 |---|---|---|---|---|
 | **1 位** | **トラベルルーター**（GL.iNet 等） | 自分のサブネット `192.168.8.0/24` を持ち歩ける。SSID・パスワード・IP が会場によらず固定 = **焼き直し不要**。クライアント分離を自分で OFF にできる | GL-SFT1200 Opal 約 4,700〜5,100 円 / GL-MT3000 Beryl AX 9,500〜13,600 円を**今日発注**。前日に初期設定 10〜15 分 | **2〜3 分** |
 | **2 位** | **Mac インターネット共有**（元 = iPhone USB / 先 = Wi-Fi） | macOS は Wi-Fi→Wi-Fi 共有はできないが、**iPhone を USB テザリングにすれば Wi-Fi 側を AP にできる**。Mac が `192.168.2.1` 固定の GW になる。追加ハード 0 円 | USB ケーブル、**前日に自宅で通し検証** | **5 分** |
-| **3 位** | **MQTT クラウド中継**（HiveMQ 無料） | 外向き 443/8883 はほぼ確実に通る。Mac も ESP32 も**外へ出て行く**だけなので分離・IP 変動・AP 種別を一切気にしない。0 円 | HiveMQ Cloud Serverless 無料枠。ESP32 は PubSubClient + `setBufferSize(2048)` 必須。実装 1〜2h | **1 分（env 差替）** |
+| **3 位**<br>保険 1 | **Cloudflare Tunnel（Quick Tunnel）**<br>＋ 機器側は HTTPS ロングポーリング | `cloudflared tunnel --url http://localhost:3000` の **1 コマンド**で公開 URL が生える（アカウント不要）。Next の Route Handler `/api/devices/poll` を最大 20 秒 hold するだけなので **Next 側に新規ライブラリ不要**、ESP32 も**標準 HTTPS クライアント**で済む。0 円 | `brew install cloudflared` ＋ ロングポーリングの Route Handler（30〜60 行）。**ngrok 無料は 20,000 req/月**でポーリングには足りないので Cloudflare を使う | **2〜3 分（URL を env へ）** |
+| **4 位**<br>保険 2 | **MQTT クラウド中継**（HiveMQ 無料） | 外向き 443/8883 はほぼ確実に通り、分離・IP 変動を気にしない。ただしブローカーの契約と ESP32 側 MQTT ライブラリが増える。**採用は「ESP32 の WSS が不安定で WS を諦める場合」か「複数機器への一斉配信が要る場合」だけ** | HiveMQ Cloud Serverless 無料枠。ESP32 は PubSubClient + `setBufferSize(2048)` 必須。実装 1〜2h | **1 分（env 差替）** |
+
+**保険の順序を MQTT から入れ替えた理由は 3 つ。** ① Cloudflare Tunnel はブローカーという別サービスが要らず、アカウント作成もクレデンシャル管理も不要（1 コマンドで URL が生える）。② 既にある Next の Route Handler をそのまま外に公開するだけでサーバー側の新規実装が最小（MQTT はトピック設計・冪等化・LWT が付いてくる）。③ ESP32 側が標準 HTTPS クライアントだけで動く（MQTT ライブラリとバッファ設定の罠がない）。
+なお**保険 1・2 はどちらも「機器 → Mac」の向きに設計を反転する必要がある**（Mac から機器を叩けないため）。
 
 ### やってはいけない 2 つ
 
@@ -51,7 +57,7 @@
 - **Q4. Mac のインターネットが切れても良い？**
   - **YES → 構成 F：ESP32 SoftAP に Mac が接続**
     - LAN 通信だけは確実。ただし Mac がインターネットから切り離される。SoftAP 同時接続は既定 4 台。
-  - **NO → LAN を諦めて §7 のクラウド中継へ**（MQTT / BLE / 有線シリアル）
+  - **NO → LAN を諦めてクラウド中継へ**（保険 1: Cloudflare Tunnel + ロングポーリング → 保険 2: MQTT → BLE → 有線シリアル。詳細は [レポート §7](../reports/network-connectivity.html)）
     - 会場 WiFi（構成 D）や iPhone テザリング（構成 E）に LAN 通信を期待してはいけない。
 
 ### どの葉でも共通でやること
@@ -76,7 +82,8 @@
   - LCD に IP を表示する仕組みがあるか
 - [ ] **2 日前**: 決定した SSID で ESP32／スタックちゃんに焼き込み（または SD の `wifi.txt` を書く）
 - [ ] **2 日前**: 機器の LCD に IP・接続先 URL・接続状態を常時表示
-- [ ] **2 日前**: HiveMQ Cloud 無料アカウント作成 + MQTT 疎通（保険）
+- [ ] **2 日前**: **Cloudflare Quick Tunnel を手元で 1 回試す（保険 1）** — `brew install cloudflared` → `cloudflared tunnel --url http://localhost:3000` → 発行 URL をモバイル回線のスマホで開く
+- [ ] **2 日前**（任意）: HiveMQ Cloud 無料アカウント作成 + MQTT 疎通（保険 2。WSS を諦める場合・一斉配信が要る場合のみ）
 - [ ] **前日**: **構成 B（iPhone USB → Mac の Wi-Fi 共有）を自宅で通し検証**
 - [ ] **前日**: USB シリアル保険の実装と動作確認（給電ハブ・CP210x/CH340 ドライバ）
 - [ ] **前日**: Electron を**本番ビルド**で起動して画面収録権限を通す（開発バイナリとは別アプリ扱い）
@@ -116,12 +123,15 @@ arp -a
 dns-sd -B _services._dns-sd._udp
 dns-sd -G v4 esp32-obake.local
 
-# ⑥ 保険の疎通（LAN が死んでいてもこれが通れば MQTT に切り替えられる）
+# ⑥ 保険 1 の疎通（LAN が死んでいてもこれが通ればトンネル + ロングポーリングに切り替えられる）
+cloudflared tunnel --url http://localhost:3000   # 発行 URL をモバイル回線のスマホで開く
+
+# ⑥' 保険 2（MQTT）を使う予定があるときだけ
 nc -zv <broker-host> 8883
 nc -zv <broker-host> 8884
 ```
 
-**判定基準**: ③ で機器に ping が通れば LAN 構成（A/B/C）で進む。通らなければ**迷わず MQTT 中継へ切り替える**。
+**判定基準**: ③ で機器に ping が通れば LAN 構成（A/B/C）で進む。通らなければ**迷わず保険 1（Cloudflare Tunnel ＋ HTTPS ロングポーリング）へ切り替える**。
 ここで「なぜ通らないのか」を探り始めると 1 時間が溶ける。分離は AP 単位なので、席を移動すると結果が変わる点だけ覚えておく。
 
 ### 3-3. トラブル時の切り分け 8 ステップ
@@ -162,7 +172,7 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # スタックちゃん
 ```
 
 - デモ中に値を変えたいときは `.env.local` ではなく **`/dev` ダッシュボードから実行時上書き**する（`.env.local` の変更は `next dev` の再起動を伴う）
-- **`/dev` は認証なし・ローカル専用**。構成 B で `next dev -H 0.0.0.0` を使うときは、会場の他の参加者からも `/dev` と `/api/devices/*` が叩けてしまう。デモ本番は `-H 0.0.0.0` を外すか `DEVICE_AUTH_TOKEN` を設定する。トンネルで外に出すのは厳禁
+- **`/dev` は認証なし・ローカル専用**。構成 B で `next dev -H 0.0.0.0` を使うときは、会場の他の参加者からも `/dev` と `/api/devices/*` が叩けてしまう。デモ本番は `-H 0.0.0.0` を外すか `DEVICE_AUTH_TOKEN` を設定する。保険 1 でトンネルを張るときも、外に出してよいのは `/api/devices/poll` 系だけで **`/dev` をトンネル越しに公開するのは厳禁**
 - 詳細は [`docs/runbooks/devices.md`](devices.md)・[`docs/runbooks/dev-dashboard.md`](dev-dashboard.md)
 
 ## 5. 実装の落とし穴（抜粋）

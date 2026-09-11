@@ -104,6 +104,7 @@
   .fig{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px;
        overflow-x:auto}
   .fig .figttl{font-size:.82rem; font-weight:700; color:var(--muted); margin:0 0 10px}
+  .fig .figsub{font-size:.76rem; font-weight:700; color:var(--bad); text-align:center; margin:4px 0 10px}
   /* ===== ノード（箱） ===== */
   .n{border:1.5px solid var(--bs,var(--dg-ext-s)); background:var(--bf,var(--dg-ext-f));
      color:var(--bt,var(--dg-ext-t)); border-radius:9px; padding:7px 10px; min-width:0;
@@ -226,10 +227,11 @@
 <p class="summary">
   会場で確実に動かす鍵は <strong>「自分で AP（親機）を持つこと」</strong> の 1 点に尽きる。
   共用 WiFi と iPhone テザリングは、どちらも <strong>端末同士の通信を遮断する</strong>ため、Mac ↔ ESP32 の LAN 通信には使えない。
-  推奨は 1 位トラベルルーター、2 位 Mac のインターネット共有（元 = iPhone USB）、3 位 MQTT クラウド中継。
+  推奨は 1 位トラベルルーター、2 位 Mac のインターネット共有（元 = iPhone USB）。
+  <b>LAN が全滅した時の保険は、簡単な順に「保険 1 = Cloudflare Tunnel ＋ HTTPS ロングポーリング」「保険 2 = MQTT（HiveMQ）」</b>。
 </p>
 
-<h3>推奨構成 ベスト 3</h3>
+<h3>推奨構成 ベスト 4（1〜2 位が本命 / 3〜4 位が保険）</h3>
 <div class="cards">
   <div class="rc">
     <p class="rank">1 位 ／ 本命</p>
@@ -250,15 +252,31 @@
     <span class="time">当日の切替 5 分</span>
   </div>
   <div class="rc">
-    <p class="rank">3 位 ／ LAN が全滅した時の本命保険</p>
+    <p class="rank">3 位 ／ 保険 1（LAN 全滅時の第一手）</p>
+    <h3>Cloudflare Tunnel（Quick Tunnel）<br>＋ 機器側は HTTPS ロングポーリング</h3>
+    <dl>
+      <dt>なぜ</dt><dd><code>cloudflared tunnel --url http://localhost:3000</code> の <strong>1 コマンド</strong>で <code>https://&lt;ランダム&gt;.trycloudflare.com</code> が生える（アカウント作成すら不要）。Next の Route Handler <code>/api/devices/poll</code> を最大 20 秒 hold するだけなので、<strong>Next 側に新規ライブラリは不要</strong>、ESP32 も<strong>標準の HTTPS クライアント 1 本</strong>で済む。ブローカーも外部サービスの契約も要らない。コスト 0 円。</dd>
+      <dt>準備</dt><dd><code>brew install cloudflared</code> と、ロングポーリングの Route Handler（30〜60 行）。機器側は「20 秒 GET → コマンドが来たら実行 → 結果を POST」のループ。<strong>ngrok 無料は 20,000 リクエスト/月</strong>でポーリングだと 1 日で使い切るため、この用途は Cloudflare を使う。</dd>
+    </dl>
+    <span class="time">当日の切替 2〜3 分（URL を env に貼るだけ）</span>
+  </div>
+  <div class="rc">
+    <p class="rank">4 位 ／ 保険 2（条件が合うときだけ）</p>
     <h3>MQTT クラウド中継（HiveMQ 無料）</h3>
     <dl>
-      <dt>なぜ</dt><dd>会場の外向き 443/8883 はほぼ確実に通る。Mac も ESP32 も<strong>外へ出て行く</strong>だけなのでクライアント分離・IP 変動・AP の種類を一切気にしない。相手の IP を知る必要がない。コスト 0 円。</dd>
+      <dt>なぜ</dt><dd>外向き 443/8883 はほぼ確実に通り、Mac も ESP32 も<strong>外へ出て行く</strong>だけなのでクライアント分離・IP 変動を気にしない。ただしブローカーの契約とクレデンシャル、ESP32 側の MQTT ライブラリが増える。<strong>採用するのは「ESP32 の WSS が不安定で WS を諦める場合」か「複数機器への一斉配信（pub/sub）が要る場合」だけ</strong>。</dd>
       <dt>準備</dt><dd>HiveMQ Cloud Serverless 無料アカウント（100 接続 / 10GB 月）。ESP32 は PubSubClient + <code>WiFiClientSecure</code>、<strong><code>setBufferSize(2048)</code> 必須</strong>。実装 1〜2 時間。</dd>
     </dl>
     <span class="time">当日の切替 1 分（env 差替のみ）</span>
   </div>
 </div>
+
+<p class="summary">
+  <b>保険の順序を MQTT から入れ替えた理由は 3 つ。</b>
+  ① Cloudflare Tunnel はブローカーという別サービスを立てずに済み、アカウント作成もクレデンシャル管理も不要（1 コマンドで URL が生える）。
+  ② 既にある Next の Route Handler をそのまま外に公開するだけなので、サーバー側の新規実装が最小（MQTT はトピック設計・冪等化・LWT が付いてくる）。
+  ③ ESP32 側が標準 HTTPS クライアントだけで動く（MQTT ライブラリとバッファ設定の罠がない）。<b>本命が LAN 直結であることは変わらない</b>。
+</p>
 
 <h3>やってはいけない 2 つ</h3>
 <div class="cards">
@@ -344,7 +362,7 @@
 <h2 id="s2">§2 接続構成の決定木</h2>
 <p class="summary">
   上から順に答えていくと構成が 1 つに決まる。分岐の順番は「安定性 × 準備の少なさ」で並べてある。
-  どの葉に落ちても、<strong>MQTT クラウド中継（§7）は並行して用意しておく</strong>のが前提。
+  どの葉に落ちても、<strong>§7 の保険 1（Cloudflare Tunnel ＋ HTTPS ロングポーリング）は並行して用意しておく</strong>のが前提。
 </p>
 
 <figure>
@@ -386,7 +404,7 @@
                   <ul>
                     <li><span class="yes">YES</span><span class="leaf warn"><b>構成 F：ESP32 SoftAP に Mac が接続</b></span>
                       <p class="why2">LAN 通信だけは確実。ただし Mac がインターネットから切り離される。SoftAP の同時接続は既定 4 台。</p></li>
-                    <li><span class="no2">NO</span><span class="leaf bad"><b>LAN を諦めて §7 のクラウド中継へ</b>（MQTT / BLE / 有線シリアル）</span>
+                    <li><span class="no2">NO</span><span class="leaf bad"><b>LAN を諦めて §7 のクラウド中継へ</b>（Cloudflare Tunnel ＋ ロングポーリング → MQTT → BLE → 有線シリアル）</span>
                       <p class="why2">会場 WiFi（構成 D）や iPhone テザリング（構成 E）に LAN 通信を期待してはいけない。外向き通信だけで完結する設計に切り替える。</p></li>
                   </ul>
                 </li>
@@ -778,7 +796,7 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら
 <div class="danger">
   <b><code>/dev</code> は認証なし・ローカル専用</b>。<code>next dev -H 0.0.0.0</code> で LAN に公開する構成（構成 B で必要）を取るときは、
   会場の他の参加者からも <code>/dev</code> と <code>/api/devices/*</code> が叩けてしまう。
-  <b>デモ本番は <code>-H 0.0.0.0</code> を外す</b>か、<code>DEVICE_AUTH_TOKEN</code> を設定して機器側にも同じトークンを入れる。トンネル（ngrok 等）で外に出すのは厳禁。
+  <b>デモ本番は <code>-H 0.0.0.0</code> を外す</b>か、<code>DEVICE_AUTH_TOKEN</code> を設定して機器側にも同じトークンを入れる。§7 の保険 1 でトンネルを張るときも、外に出してよいのは <code>/api/devices/poll</code> 系だけで、<b><code>/dev</code> をトンネル越しに公開するのは厳禁</b>。
 </div>
 
 <!-- ================= 7. クラウド中継 ================= -->
@@ -786,48 +804,57 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら
 <p class="summary">
   会場の外向き 443/TLS はほぼ確実に通る。つまり <b>全員が外のサーバーへ「出て行く」形</b>にすれば、
   クライアント分離も IP 変動も AP の種類も一切関係なくなる。
-  本命は <b>MQTT（HiveMQ Cloud 無料）</b>、保険は <b>BLE</b> と <b>Tailscale</b>。いずれもコスト 0 円。
+  この中で<b>いちばん簡単なのは Cloudflare Tunnel（Quick Tunnel）＋ HTTPS ロングポーリング</b>（保険 1）で、
+  <b>MQTT（HiveMQ Cloud 無料）は保険 2</b>——ESP32 の WSS が不安定で WS を諦める場合や、複数機器への一斉配信が要る場合に使う。
+  さらに下の保険として <b>Tailscale</b>（ESP32 非対応）と <b>BLE</b>。いずれもコスト 0 円。
 </p>
 
 <h3>7-1. 比較マトリクス</h3>
 <div class="tablewrap">
 <table>
   <thead>
-    <tr><th>観点</th><th>LAN 直結</th><th><b>MQTT クラウド</b></th><th>Supabase ポーリング</th><th>トンネル</th><th>Tailscale</th><th>BLE</th></tr>
+    <tr><th>観点</th><th>LAN 直結</th><th><b>トンネル + ロングポーリング</b></th><th>MQTT クラウド</th><th>Tailscale</th><th>BLE</th><th>Supabase ポーリング</th></tr>
   </thead>
   <tbody>
-    <tr><td>準備時間</td><td class="ok">0</td><td>1〜2h</td><td>2〜3h</td><td>15 分（ESP32 込み 1h）</td><td>20 分</td><td>2〜3h</td></tr>
-    <tr><td><b>会場依存（分離）</b></td><td class="ng">✗ 致命的</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎ Wi-Fi 不要</td></tr>
+    <tr><td>準備時間</td><td class="ok">0</td><td class="ok">15 分（ESP32 込み 1h）</td><td>1〜2h</td><td>20 分</td><td>2〜3h</td><td>2〜3h</td></tr>
+    <tr><td><b>会場依存（分離）</b></td><td class="ng">✗ 致命的</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎ Wi-Fi 不要</td><td class="ok">◎</td></tr>
     <tr><td>IP 変動耐性</td><td class="ng">✗</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td><td class="ok">◎</td></tr>
-    <tr><td>遅延（往復）</td><td class="ok">5〜20ms</td><td>100〜350ms</td><td class="ng">1000ms 超</td><td>50〜150ms</td><td>5〜100ms</td><td>20〜100ms</td></tr>
-    <tr><td>ESP32 実装難度</td><td class="ok">低</td><td>低〜中</td><td>中</td><td>中（WSS の罠）</td><td class="ng">✗ 非対応</td><td>中</td></tr>
-    <tr><td>画像 / 音声</td><td class="ok">◎</td><td>△</td><td class="ng">✗</td><td>○</td><td class="ok">◎</td><td class="ng">✗</td></tr>
-    <tr><td>Electron</td><td>○</td><td>○</td><td>○</td><td>○</td><td class="ok">◎</td><td class="ok">◎</td></tr>
+    <tr><td>遅延（往復）</td><td class="ok">5〜20ms</td><td>50〜150ms</td><td>100〜350ms</td><td>5〜100ms</td><td>20〜100ms</td><td class="ng">1000ms 超</td></tr>
+    <tr><td>ESP32 実装難度</td><td class="ok">低</td><td class="ok">低（標準 HTTPS のみ）</td><td>低〜中</td><td class="ng">✗ 非対応</td><td>中</td><td>中</td></tr>
+    <tr><td>画像 / 音声</td><td class="ok">◎</td><td>○</td><td>△</td><td class="ok">◎</td><td class="ng">✗</td><td class="ng">✗</td></tr>
+    <tr><td>Electron</td><td>○</td><td>○</td><td>○</td><td class="ok">◎</td><td class="ok">◎</td><td>○</td></tr>
     <tr><td>コスト</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
   </tbody>
 </table>
 </div>
+<p class="note">
+  <b>トンネル案の注意</b>：Cloudflare Tunnel で公開するのは Mac 側の Next だけなので、
+  <b>機器 → Mac の向きに設計を反転する必要がある（MQTT と同じ）</b>。
+  Mac から機器を叩くのではなく、機器が <code>GET /api/devices/poll</code> を最大 20 秒 hold して待ち、
+  コマンドを受け取ったら実行結果を <code>POST /api/devices/result</code> で返す形にする。
+  <b>公開する URL には必ずトークンを付ける</b>（Quick Tunnel の URL は推測されないだけで誰でも叩ける。<code>/dev</code> は絶対に外へ出さない）。
+</p>
 
 <h3>7-2.「本命 + 保険」構成図</h3>
 <figure>
 <div class="fig">
-  <p class="figttl">図 5：本命 MQTT ＋ 3 段の保険</p>
+  <p class="figttl">図 5：本命は LAN 直結、保険は上から簡単な順</p>
   <div class="chain">
-    <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>外向き TLS のみ</span></div>
-    <div class="link"><span class="t">mqtts://<br>:8883</span><span class="bar both"></span></div>
-    <div class="n n-cloud"><b>HiveMQ Cloud Serverless</b><span>hack/&lt;team&gt;/&lt;deviceId&gt;/cmd｜res｜state｜lwt</span></div>
-    <div class="link"><span class="t">mqtts://<br>:8883</span><span class="bar both"></span></div>
-    <div class="n n-mac"><b>MacBook（Next.js）</b><span>mqtt.js / globalThis シングルトン</span></div>
+    <div class="n n-hw"><b>ESP32 / スタックちゃん</b><span>同じ LAN に居る</span></div>
+    <div class="link"><span class="t">HTTP / WS<br>LAN 直結</span><span class="bar both"></span></div>
+    <div class="n n-mac"><b>MacBook（Next.js :3000）</b><span>Mac が WS サーバー・自分のサブネット</span></div>
   </div>
-  <div class="stack"><div class="vline"></div></div>
+  <div class="stack"><div class="vline cut"></div></div>
+  <p class="figsub">↑ ここが死んだら、下へ順に落とす</p>
   <div class="branch">
-    <div class="n n-app"><b>保険 1：BLE</b><span>起動後 3 秒 MQTT に繋がらなければ自動で BLE へ<br>NimBLE-Arduino ⇄ @stoprocent/noble</span></div>
-    <div class="n n-app"><b>保険 2：Tailscale</b><span>Mac ⇄ Electron ⇄ スマホ。MagicDNS で名前固定<br>（ESP32 は非対応）</span></div>
-    <div class="n n-app"><b>保険 3：CF Quick Tunnel</b><span>+ HTTPS ロングポーリング（最大 20 秒 hold）<br>手順書だけ用意</span></div>
-    <div class="n n-app"><b>保険 4：USB シリアル（構成 G）</b><span>ネットワーク完全不要</span></div>
+    <div class="n n-cloud"><b>保険 1：Cloudflare Tunnel</b><span><code>cloudflared tunnel --url http://localhost:3000</code> の 1 コマンド<br>機器は HTTPS ロングポーリング（<code>/api/devices/poll</code> を 20 秒 hold）<br>ブローカー不要・Next に新規ライブラリ不要</span></div>
+    <div class="n n-app"><b>保険 2：MQTT（HiveMQ）</b><span>WSS が不安定で WS を諦めるとき / 複数機器への一斉配信が要るとき<br>mqtts://:8883（塞がれていたら WSS :8884）</span></div>
+    <div class="n n-app"><b>保険 3：Tailscale</b><span>Mac ⇄ Electron ⇄ スマホ。MagicDNS で名前固定<br>（ESP32 は非対応）</span></div>
+    <div class="n n-app"><b>保険 4：BLE</b><span>Wi-Fi 完全不要。NimBLE-Arduino ⇄ @stoprocent/noble</span></div>
+    <div class="n n-app"><b>保険 5：USB シリアル（構成 G）</b><span>ネットワーク完全不要</span></div>
   </div>
 </div>
-<figcaption>8883 が塞がれている会場に備えて、WSS 8884 も試す実装にしておく。会場到着後 5 分で両方の疎通を確認する。</figcaption>
+<figcaption>保険 1・2 はどちらも <b>機器 → Mac の向きに設計を反転する必要がある</b>（Mac から機器を叩けないため）。保険 1 は URL を env に貼るだけ、保険 2 は 8883 が塞がれている会場に備えて WSS 8884 も試す実装にしておく。会場到着後 5 分でどちらの疎通も確認する。</figcaption>
 </figure>
 
 <h3>7-3. MQTT の実装メモ（最頻出のハマりどころ）</h3>
@@ -846,7 +873,7 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら
   supabase.com の無料プロジェクト（Tokyo）へ <code>supabase link</code> → <code>db push</code> → env 差替 → anon key + RLS（<code>device_id</code>）が必要。
   ただし ESP32 から Realtime WS への直結は非推奨（<code>jhagas/ESPSupabase</code> は Broadcast 未実装、公式 Discussion に未解決の接続不可報告あり）で、
   現実解は PostgREST ポーリング（<code>robot_commands</code> を 500ms〜1s で GET、PATCH で done）。
-  <b>往復 1 秒超で体感が鈍い</b>ため、機器制御には MQTT を推す。
+  <b>往復 1 秒超で体感が鈍い</b>ため、機器制御には Cloudflare Tunnel ＋ ロングポーリング（保険 1）か MQTT（保険 2）を推す。
   <b>Supabase 無料プロジェクトは 1 週間無操作で一時停止する</b>ので、当日朝に必ず起こしておく。
 </p>
 
@@ -857,7 +884,7 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら
   具体的には <code>send(envelope) / onInbound(handler)</code> だけを持つ <code>Transport</code> 型を定義し、既存の <code>createRailClient</code> 等はその Transport を受け取る形に変える。
   <code>request_id</code> の採番（<code>createRequestId</code>）・タイムアウト・再送は既に <code>wire.ts</code> 側に集約されているので、トランスポートを差し替えても Route Handler と Mastra tool は無変更で済む。
   env は <code>DEVICE_TRANSPORT=http|ws|mqtt|ble|serial</code> を 1 本足し、<code>DEVICE_MODE=real</code> と組み合わせる。
-  これにより<b>当日「LAN 全滅」と判明しても、env 1 行の変更で MQTT 中継へ切り替わる</b>。
+  これにより<b>当日「LAN 全滅」と判明しても、env 1 行の変更で保険 1（トンネル + ロングポーリング）へ切り替わる</b>（保険 2 の MQTT も同じ口に載る）。
 </p>
 
 <!-- ================= 8. 落とし穴 ================= -->
@@ -902,7 +929,7 @@ STACKCHAN_WS_URL=ws://192.168.8.51       # ← （逆向き接続にするなら
     <tr><td>今日</td><td>機器チームに確認（ファーム種別・Wi-Fi 設定方法・IP 表示の有無）</td><td>§10 の質問に回答が揃う</td></tr>
     <tr><td>2 日前</td><td>決定した SSID で ESP32／スタックちゃんに焼き込み（または SD の <code>wifi.txt</code> を書く）</td><td>自宅の同名 SSID で自動接続する</td></tr>
     <tr><td>2 日前</td><td>ESP32 / スタックちゃんの LCD に <b>IP・接続先 URL・接続状態</b>を常時表示</td><td>電源を入れたら画面で IP が読める</td></tr>
-    <tr><td>2 日前</td><td>HiveMQ Cloud 無料アカウント作成 + MQTT 疎通（保険）</td><td>Mac ↔ ESP32 が MQTT で往復する</td></tr>
+    <tr><td>2 日前</td><td>Cloudflare Quick Tunnel を 1 回起動して疎通確認（保険 1）／ 必要なら HiveMQ 無料アカウント作成（保険 2・任意）</td><td>モバイル回線から <code>trycloudflare.com</code> の URL で Next が開ける</td></tr>
     <tr><td>前日</td><td><b>構成 B（Mac インターネット共有・元 = iPhone USB）を自宅で通し検証</b></td><td>ESP32 が <code>192.168.2.x</code> を取り、Mac の <code>:3000</code> に到達する</td></tr>
     <tr><td>前日</td><td>USB シリアル保険の実装と動作確認（給電ハブ・ドライバ CP210x/CH340）</td><td>ネットワークを切っても機器が動く</td></tr>
     <tr><td>前日</td><td>Electron を<b>本番ビルド</b>で起動して画面収録権限を通す</td><td>ダイアログが出て許可済みになっている</td></tr>
@@ -934,12 +961,15 @@ arp -a
 dns-sd -B _services._dns-sd._udp
 dns-sd -G v4 esp32-obake.local
 
-# ⑥ 保険の疎通（LAN が死んでいてもこれが通れば MQTT に切り替えられる）
+# ⑥ 保険 1 の疎通（LAN が死んでいてもこれが通ればトンネル + ロングポーリングに切り替えられる）
+cloudflared tunnel --url http://localhost:3000   # 発行 URL をモバイル回線のスマホで開く
+
+# ⑥' 保険 2（MQTT）を使う予定があるときだけ
 nc -zv &lt;broker-host&gt; 8883
 nc -zv &lt;broker-host&gt; 8884
 </code></pre>
 <div class="note">
-  <b>判定基準</b>：③ で機器に ping が通れば LAN 構成（A/B/C）で進む。通らなければ <b>迷わず §7 の MQTT 中継へ切り替える</b>。
+  <b>判定基準</b>：③ で機器に ping が通れば LAN 構成（A/B/C）で進む。通らなければ <b>迷わず §7 の保険 1（Cloudflare Tunnel ＋ HTTPS ロングポーリング）へ切り替える</b>。
   ここで「なぜ通らないのか」を探り始めると 1 時間が溶ける。<b>分離は AP 単位なので、席を移動すると結果が変わる</b>点だけ覚えておく。
 </div>
 
@@ -978,7 +1008,7 @@ nc -zv &lt;broker-host&gt; 8884
 <h2 id="s10">§10 次の一手（人間がやること）</h2>
 <p class="summary">
   着手順に並べてある。<b>①〜③ は今日中</b>（物理的な調達とチーム内の合意が必要なため）。
-  ④〜⑧ は前日までに順次。エージェントが代行できない理由も添えた。
+  ④〜⑩ は前日までに順次（⑥ は任意）。エージェントが代行できない理由も添えた。
 </p>
 
 <ul class="checks">
@@ -1012,35 +1042,42 @@ nc -zv &lt;broker-host&gt; 8884
   </li>
   <li>
     <input type="checkbox" id="c5"><div class="chk-body">
-    <div class="chk-title">⑤ HiveMQ Cloud の無料アカウントを作る（保険の本命）</div>
-    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 15 分</span><span class="tag">前日まで</span></div>
-    <p class="why"><b>なぜ人間か</b>：アカウント作成とクレデンシャル発行は本人確認・同意を伴うため。<a href="https://www.hivemq.com/pricing/fully-managed/">https://www.hivemq.com/pricing/fully-managed/</a> の Serverless 無料枠（100 接続 / 10GB 月）。発行したユーザー名・パスワードは <code>&lt;REPO_ROOT&gt;/.env.local</code> に置き、<b>リポジトリにコミットしない</b>。実装（mqtt.js / PubSubClient）はエージェントに委譲できる。</p>
+    <div class="chk-title">⑤ Cloudflare Quick Tunnel の起動手順を手元で 1 回試す（保険 1）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 10 分</span><span class="tag">前日まで</span><span class="tag">費用 0 円</span></div>
+    <p class="why"><b>なぜ人間か</b>：Homebrew でのインストールと、発行された URL をブラウザで踏んで実際に自分の Next に繋がるかの目視確認が要るため（会場と同じ経路を再現する必要がある）。<b>手順</b>：<code>brew install cloudflared</code> → 別ターミナルで <code>pnpm dev</code> → <code>cloudflared tunnel --url http://localhost:3000</code> → 表示された <code>https://&lt;ランダム&gt;.trycloudflare.com</code> をスマホ（Wi-Fi を切ってモバイル回線）から開いて表示されることを確認。<b>アカウント作成は不要</b>。URL は起動ごとに変わるので、当日は env に貼り直す前提で運用する。ロングポーリングの Route Handler 実装はエージェントに委譲できる。<b><code>/dev</code> をトンネル越しに公開しないこと</b>。</p>
     </div>
   </li>
   <li>
     <input type="checkbox" id="c6"><div class="chk-body">
-    <div class="chk-title">⑥ Tailscale を Mac とスマホに入れる</div>
+    <div class="chk-title">⑥ （任意）HiveMQ Cloud の無料アカウントを作る（保険 2）</div>
+    <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 15 分</span><span class="tag">任意・時間があれば</span></div>
+    <p class="why"><b>いつ要るか</b>：保険 1（Cloudflare Tunnel ＋ HTTPS ロングポーリング）で足りるなら<b>不要</b>。<b>ESP32 の WSS が不安定で WS を諦める</b>場合や、<b>複数機器への一斉配信（pub/sub）</b>が要る場合だけ用意する。<b>なぜ人間か</b>：アカウント作成とクレデンシャル発行は本人確認・同意を伴うため。<a href="https://www.hivemq.com/pricing/fully-managed/">https://www.hivemq.com/pricing/fully-managed/</a> の Serverless 無料枠（100 接続 / 10GB 月）。発行したユーザー名・パスワードは <code>&lt;REPO_ROOT&gt;/.env.local</code> に置き、<b>リポジトリにコミットしない</b>。実装（mqtt.js / PubSubClient）はエージェントに委譲できる。</p>
+    </div>
+  </li>
+  <li>
+    <input type="checkbox" id="c7"><div class="chk-body">
+    <div class="chk-title">⑦ Tailscale を Mac とスマホに入れる</div>
     <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 20 分</span><span class="tag">前日まで</span></div>
     <p class="why"><b>なぜ人間か</b>：アカウント作成と各端末での認証・権限許可が必要なため。<a href="https://tailscale.com/pricing">Personal 無料（6 ユーザー）</a>。<b>ESP32 は非対応</b>なので機器には効かないが、Mac ↔ Electron ↔ スマホの到達性が IP 変動と無関係になる（MagicDNS で名前固定）。<b>入れない理由がない</b>ので保険として導入する。Personal プランは非商用向けである点に注意。</p>
     </div>
   </li>
   <li>
-    <input type="checkbox" id="c7"><div class="chk-body">
-    <div class="chk-title">⑦ 会場で 8883 / 443 の疎通を確認する（到着直後）</div>
+    <input type="checkbox" id="c8"><div class="chk-body">
+    <div class="chk-title">⑧ 会場で保険の疎通を確認する（到着直後）</div>
     <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 2 分</span><span class="tag">当日</span></div>
-    <p class="why"><b>なぜ人間か</b>：会場に物理的にいないと実行できないため。<code>nc -zv &lt;broker-host&gt; 8883</code> と <code>nc -zv &lt;broker-host&gt; 8884</code>（WSS 保険）。8883 が塞がれている会場があるので両方試す。あわせて <a href="#s9">§9-2 の 5 分判定</a>を上から実行する。</p>
+    <p class="why"><b>なぜ人間か</b>：会場に物理的にいないと実行できないため。<b>まず保険 1</b>：<code>cloudflared tunnel --url http://localhost:3000</code> が URL を発行し、スマホのモバイル回線からその URL が開けるか。<b>次に保険 2 を使う予定なら</b>：<code>nc -zv &lt;broker-host&gt; 8883</code> と <code>nc -zv &lt;broker-host&gt; 8884</code>（WSS 保険）。8883 が塞がれている会場があるので両方試す。あわせて <a href="#s9">§9-2 の 5 分判定</a>を上から実行する。</p>
     </div>
   </li>
   <li>
-    <input type="checkbox" id="c8"><div class="chk-body">
-    <div class="chk-title">⑧ Supabase をクラウドに移すか決める</div>
+    <input type="checkbox" id="c9"><div class="chk-body">
+    <div class="chk-title">⑨ Supabase をクラウドに移すか決める</div>
     <div class="chk-tags"><span class="tag">担当: 本人（設計判断）</span><span class="tag">所要 10 分の判断</span><span class="tag">前日まで</span></div>
     <p class="why"><b>なぜ人間か</b>：アーキテクチャの方針決定であり、無料枠・停止リスク・移行コストのトレードオフ判断を伴うため。<b>判断材料</b>：機器を Supabase 経由で制御する設計にしないなら、ローカル Supabase のままで良い（Mastra Memory とログ用途のみ）。機器の中継に使うなら、クラウド移行が必須で、かつ<b>往復 1 秒超の遅延を受け入れることになる</b>（MQTT なら 100〜350ms）。<b>推奨は「Supabase はログ用途のみ・機器中継は MQTT」</b>。詳細は <a href="#s7">§7-4</a>。</p>
     </div>
   </li>
   <li>
-    <input type="checkbox" id="c9"><div class="chk-body">
-    <div class="chk-title">⑨ Electron を本番ビルドして画面収録権限を通す</div>
+    <input type="checkbox" id="c10"><div class="chk-body">
+    <div class="chk-title">⑩ Electron を本番ビルドして画面収録権限を通す</div>
     <div class="chk-tags"><span class="tag">担当: 本人</span><span class="tag">所要 15 分</span><span class="tag">前日まで</span></div>
     <p class="why"><b>なぜ人間か</b>：macOS の権限ダイアログは GUI での本人操作が必須（TCC はスクリプトから許可できない）。<b>開発バイナリと本番ビルドは別アプリ扱い</b>なので、当日配る本番ビルドで通しておくこと。権限変更後は<b>アプリ再起動が必要</b>（electron#36722）。詳細は <a href="#s6">§6-1</a>。</p>
     </div>
