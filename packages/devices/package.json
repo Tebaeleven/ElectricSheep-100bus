@@ -1,0 +1,33 @@
+{
+  "name": "@workspace/devices",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./schemas": "./src/schemas.ts",
+    "./types": "./src/types.ts",
+    "./wire": "./src/wire.ts",
+    "./constants": "./src/constants.ts",
+    "./mock": "./src/mock/index.ts",
+    "./mock-servers": "./src/mock-servers.ts"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "mock": "tsx src/mock-servers.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9",
+    "tsx": "catalog:",
+    "typescript": "^5",
+    "vitest": "catalog:"
+  }
+}
