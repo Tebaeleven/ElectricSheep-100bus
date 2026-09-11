@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalEnv": [
+    "ANTHROPIC_API_KEY",
+    "GHOST_MODEL",
+    "ROBOT_MODE",
+    "ROBOT_BASE_URL",
+    "ROBOT_MOCK_PORT",
+    "DATABASE_URL",
+    "SUPABASE_URL",
+    "SUPABASE_SECRET_KEY",
+    "PORT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "format": {
+      "dependsOn": ["^format"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

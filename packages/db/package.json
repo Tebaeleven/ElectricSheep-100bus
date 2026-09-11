@@ -1,0 +1,29 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./types": "./src/database.types.ts"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "catalog:",
+    "@workspace/robot": "workspace:*",
+    "server-only": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9",
+    "typescript": "^5",
+    "vitest": "catalog:"
+  }
+}

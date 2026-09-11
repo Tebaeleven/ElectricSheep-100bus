@@ -1,0 +1,27 @@
+packages:
+  - "client/*"
+  - "packages/*"
+  - "server/*"
+
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+  msw: false
+  supabase: true
+  esbuild: true
+
+catalog:
+  "@ai-sdk/react": "4.0.100"
+  "@mastra/ai-sdk": "1.10.2"
+  "@mastra/core": "1.66.0"
+  "@mastra/libsql": "1.22.5"
+  "@mastra/memory": "1.29.0"
+  "@mastra/pg": "1.24.0"
+  "@supabase/supabase-js": "2.116.0"
+  "ai": "7.0.97"
+  "mastra": "1.29.0"
+  "server-only": "0.0.1"
+  "supabase": "2.117.0"
+  "tsx": "4.23.13"
+  "vitest": "5.0.0"
+  "zod": "4.6.2"

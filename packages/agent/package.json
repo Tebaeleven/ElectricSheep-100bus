@@ -1,0 +1,36 @@
+{
+  "name": "@workspace/agent",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/mastra/index.ts",
+    "./mastra": "./src/mastra/index.ts"
+  },
+  "scripts": {
+    "dev": "mastra dev --dir src/mastra",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@mastra/ai-sdk": "catalog:",
+    "@mastra/core": "catalog:",
+    "@mastra/libsql": "catalog:",
+    "@mastra/memory": "catalog:",
+    "@mastra/pg": "catalog:",
+    "@workspace/db": "workspace:*",
+    "@workspace/robot": "workspace:*",
+    "ai": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9",
+    "mastra": "catalog:",
+    "typescript": "^5",
+    "vitest": "catalog:"
+  }
+}

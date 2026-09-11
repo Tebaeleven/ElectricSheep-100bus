@@ -1,0 +1,30 @@
+{
+  "name": "@workspace/robot",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./types": "./src/types.ts",
+    "./mock": "./src/mock.ts"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "mock": "tsx src/mock-server.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^9",
+    "tsx": "catalog:",
+    "typescript": "^5",
+    "vitest": "catalog:"
+  }
+}
