@@ -23,6 +23,8 @@ pnpm agent:studio     # = pnpm --filter @workspace/agent dev = mastra dev --dir 
 
 Studio は `DATABASE_URL` 無しでも動く（in-memory ストレージ）。Postgres への永続化を確認したいときだけ `pnpm db:start` してから起動する。
 
+**`DATABASE_URL` が設定されているのに Supabase を起動していないと、Studio は `MASTRA_STORAGE_PG_INIT_FAILED`（`ECONNREFUSED 127.0.0.1:54322`）で即落ちする。** `pnpm db:start` するか、`.env.local` の `DATABASE_URL` をコメントアウトして in-memory にする。
+
 ## tool を追加する
 
 1. `packages/agent/src/mastra/tools/` にファイルを足し、`createTool` で定義する

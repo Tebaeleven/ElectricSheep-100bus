@@ -1,3 +1,4 @@
+import { createServiceClient, logRobotCommand } from "@workspace/db"
 import { createRobotClient, robotCommandSchema } from "@workspace/robot"
 
 export const runtime = "nodejs"
@@ -28,5 +29,13 @@ export async function POST(request: Request) {
   }
 
   const result = await createRobotClient(process.env).sendCommand(parsed.data)
+
+  // 手動操作パネルからのコマンドも agent の tool 経由と同じく robot_commands に残す
+  // （SUPABASE_SECRET_KEY 未設定ならスキップされる）
+  await logRobotCommand(createServiceClient(process.env), {
+    command: parsed.data,
+    result,
+  })
+
   return Response.json(result, { status: 200 })
 }
