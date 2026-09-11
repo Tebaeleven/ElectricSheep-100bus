@@ -9,6 +9,14 @@
     --bg:#f7f7f5; --panel:#ffffff; --fg:#1b1b19; --muted:#5f6461; --line:#dfe0dc;
     --accent:#2f6f4f; --accent-soft:#e6f1ea; --warn:#8a5a12; --warn-soft:#fbf1de;
     --code-bg:#f1f2ef;
+    --dg-web-f:#EEF2FF; --dg-web-s:#4338CA; --dg-web-t:#1e1b4b;
+    --dg-ai-f:#F5F3FF;  --dg-ai-s:#7C3AED;  --dg-ai-t:#2e1065;
+    --dg-pkg-f:#F0F9FF; --dg-pkg-s:#0284C7; --dg-pkg-t:#07364f;
+    --dg-data-f:#ECFDF5;--dg-data-s:#059669; --dg-data-t:#043c2b;
+    --dg-hw-f:#FFF7ED;  --dg-hw-s:#EA580C;  --dg-hw-t:#4a1d05;
+    --dg-mock-f:#FEFCE8;--dg-mock-s:#CA8A04; --dg-mock-t:#42300a;
+    --dg-ext-f:#F1F5F9; --dg-ext-s:#64748B; --dg-ext-t:#1f2937;
+    --dg-line:#9aa3ad;
   }
   :root:not([data-theme="light"]){}
   @media (prefers-color-scheme: dark){
@@ -16,12 +24,28 @@
       --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
       --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
       --code-bg:#101210;
+      --dg-web-f:#1c1f3d; --dg-web-s:#8b8ff2; --dg-web-t:#dde0ff;
+      --dg-ai-f:#241a3d;  --dg-ai-s:#b58cf5;  --dg-ai-t:#ebdcff;
+      --dg-pkg-f:#0d2738; --dg-pkg-s:#54b6e8; --dg-pkg-t:#d5eefc;
+      --dg-data-f:#0d2b21; --dg-data-s:#45c493; --dg-data-t:#d6f6e8;
+      --dg-hw-f:#33200f;  --dg-hw-s:#f08a4b;  --dg-hw-t:#fde4cf;
+      --dg-mock-f:#2d2810;--dg-mock-s:#dbb247; --dg-mock-t:#f8eec8;
+      --dg-ext-f:#1d232b; --dg-ext-s:#93a1b1; --dg-ext-t:#e2e8f0;
+      --dg-line:#6b7480;
     }
   }
   :root[data-theme="dark"]{
     --bg:#141614; --panel:#1c1f1d; --fg:#e9eae6; --muted:#a0a6a1; --line:#2e332f;
     --accent:#7ec79c; --accent-soft:#1e2a23; --warn:#e0b467; --warn-soft:#2b2317;
     --code-bg:#101210;
+    --dg-web-f:#1c1f3d; --dg-web-s:#8b8ff2; --dg-web-t:#dde0ff;
+    --dg-ai-f:#241a3d;  --dg-ai-s:#b58cf5;  --dg-ai-t:#ebdcff;
+    --dg-pkg-f:#0d2738; --dg-pkg-s:#54b6e8; --dg-pkg-t:#d5eefc;
+    --dg-data-f:#0d2b21; --dg-data-s:#45c493; --dg-data-t:#d6f6e8;
+    --dg-hw-f:#33200f;  --dg-hw-s:#f08a4b;  --dg-hw-t:#fde4cf;
+    --dg-mock-f:#2d2810;--dg-mock-s:#dbb247; --dg-mock-t:#f8eec8;
+    --dg-ext-f:#1d232b; --dg-ext-s:#93a1b1; --dg-ext-t:#e2e8f0;
+    --dg-line:#6b7480;
   }
   *{box-sizing:border-box}
   body{
@@ -61,6 +85,52 @@
   .why{font-size:.86rem; color:var(--muted)}
   footer{margin-top:48px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.84rem}
   a{color:var(--accent)}
+  /* ===== 構成図（外部ライブラリ不要の HTML/CSS 版） ===== */
+  .arch{margin:16px 0 8px}
+  .arch .tier{border:1px dashed var(--line); border-radius:12px; padding:10px 12px 12px; background:var(--panel)}
+  .arch .tier-title{font-size:.8rem; font-weight:700; color:var(--muted); margin:0 0 8px;
+                    display:flex; flex-wrap:wrap; gap:6px; align-items:baseline}
+  .arch .tier-title .port{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:600;
+                          background:var(--code-bg); border-radius:4px; padding:0 5px; font-size:.94em}
+  .arch .row{display:flex; flex-wrap:wrap; gap:10px; align-items:stretch}
+  .arch .col{display:flex; flex-direction:column; gap:10px; flex:1 1 300px; min-width:0; align-content:flex-start}
+  .arch .col>.box{flex:0 0 auto}
+  .arch .box{flex:1 1 220px; min-width:0; border:1.5px solid var(--bs); background:var(--bf);
+             color:var(--bt); border-radius:10px; padding:9px 11px}
+  .arch .box>b{display:block; font-size:.88rem; line-height:1.45; border-bottom:1px solid var(--bs);
+               padding-bottom:4px; margin-bottom:5px}
+  .arch .box ul{margin:0; padding-left:1.05em; font-size:.79rem; line-height:1.6}
+  .arch .box li{margin:1px 0; overflow-wrap:anywhere}
+  .arch .box .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.95em;
+                   overflow-wrap:anywhere}
+  .arch .b-web {--bf:var(--dg-web-f);  --bs:var(--dg-web-s);  --bt:var(--dg-web-t)}
+  .arch .b-ai  {--bf:var(--dg-ai-f);   --bs:var(--dg-ai-s);   --bt:var(--dg-ai-t)}
+  .arch .b-pkg {--bf:var(--dg-pkg-f);  --bs:var(--dg-pkg-s);  --bt:var(--dg-pkg-t)}
+  .arch .b-data{--bf:var(--dg-data-f); --bs:var(--dg-data-s); --bt:var(--dg-data-t)}
+  .arch .b-hw  {--bf:var(--dg-hw-f);   --bs:var(--dg-hw-s);   --bt:var(--dg-hw-t)}
+  .arch .b-mock{--bf:var(--dg-mock-f); --bs:var(--dg-mock-s); --bt:var(--dg-mock-t); border-style:dashed}
+  .arch .b-ext {--bf:var(--dg-ext-f);  --bs:var(--dg-ext-s);  --bt:var(--dg-ext-t)}
+  .arch .box.sub{border-width:1px; border-radius:8px}
+  /* 矢印（縦線＋三角。ラベルは線の間に置く） */
+  .arch .arrow{display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0; flex:1 1 200px}
+  .arch .arrow::before{content:""; width:2px; height:12px; background:var(--dg-line); flex:0 0 auto}
+  .arch .arrow::after{content:""; width:0; height:0; flex:0 0 auto;
+                      border-left:6px solid transparent; border-right:6px solid transparent;
+                      border-top:8px solid var(--dg-line)}
+  .arch .arrow .lbl{font-size:.76rem; line-height:1.5; color:var(--muted); text-align:center;
+                    border-left:2px solid var(--dg-line); padding:2px 0 2px 8px; max-width:34em}
+  .arch .arrow .lbl b{color:var(--fg)}
+  .arch .arrows{display:flex; flex-wrap:wrap; gap:12px; justify-content:center}
+  .arch .legend{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.76rem; color:var(--muted); margin-top:12px}
+  .arch .legend span{display:inline-flex; align-items:center; gap:5px; border:0}
+  .arch .legend i{width:14px; height:14px; border-radius:4px; display:inline-block;
+                  background:var(--bf); border:1.5px solid var(--bs)}
+  .arch .legend .b-mock i{border-style:dashed}
+  .arch .legend .line i{width:20px; height:0; border-radius:0; border:0; border-top:2px solid var(--dg-line); background:none}
+  @media (max-width:520px){
+    .arch .box{flex:1 1 100%}
+    .arch .arrow .lbl{max-width:none}
+  }
 </style>
 </head>
 <body>
@@ -81,41 +151,189 @@
 <h2>① やったこと</h2>
 
 <h3>構成図</h3>
-<pre><code>┌──────────────────────── ブラウザ（localhost:3000） ────────────────────────┐
-│  /            チャット UI（@ai-sdk/react useChat）＋ device-panel          │
-│  /dev         開発者ダッシュボード（全 16 エンドポイントを手で実行）      │
-└───────────────────────────────┬───────────────────────────────────────────┘
-                                │ 同一オリジンの fetch のみ（LAN 直叩き禁止）
-┌───────────────────────────────▼───────────────────────────────────────────┐
-│  Next.js 16 App Router（client/web・runtime = nodejs・同一プロセス）      │
-│                                                                           │
-│   POST /api/chat ──► @mastra/ai-sdk handleChatStream({ version: 'v7' })   │
-│   POST/GET /api/robot/{command,status}        … 2 本                      │
-│   POST/GET /api/devices/**                    … 12 本                     │
-│   GET  /api/dev/env                           … 1 本（秘密は真偽値のみ）  │
-│                                                                           │
-│                    lib/devices.ts  getDevices()（globalThis シングルトン）│
-└───────┬───────────────────────────────────────────────┬───────────────────┘
-        │                                               │
-┌───────▼──────────────────────┐            ┌───────────▼───────────────────┐
-│ @workspace/agent（Mastra v1）│            │ @workspace/devices（機器 SDK）│
-│  ghost-agent / Gemini        │            │  createDevices(process.env)   │
-│  tools:                      │──────────► │  rail / desktop / stackchan   │
-│   robotCommand, robotStatus  │            │  camelCase ⇄ snake_case 変換  │
-│   railMove, railStop,        │            └───────────┬───────────────────┘
-│   handSet, cameraCapture,    │                        │
-│   desktopScreenshot,         │       DEVICE_MODE=mock │ DEVICE_MODE=real
-│   desktopOpenBrowser         │      （プロセス内モック）│（HTTP / WebSocket）
-│  Memory: lastMessages 20     │                        │
-└───────┬──────────────────────┘            ┌───────────▼───────────────────┐
-        │ Memory / robot_commands           │ 実機  or  モックサーバー 3 台 │
-┌───────▼──────────────────────┐            │  レール      :8791  HTTP      │
-│ Supabase ローカル（Docker）  │            │  デスクトップ:8792  HTTP      │
-│  54322 Postgres              │            │  スタックちゃん:8793 WebSocket│
-│   mastra.*（会話履歴）        │            │   /api/v1/**  /ws/v1/robot    │
-│   public.robot_commands      │            └───────────────────────────────┘
-│  54321 API / 54323 Studio    │
-└──────────────────────────────┘</code></pre>
+<div class="arch">
+
+  <!-- ① ブラウザ -->
+  <div class="tier">
+    <p class="tier-title">① 利用者ブラウザ <span class="port">http://localhost:3000</span></p>
+    <div class="row">
+      <div class="box b-web">
+        <b>チャット画面 <span class="mono">/</span></b>
+        <ul>
+          <li><span class="mono">useChat</span>（AI SDK 7）</li>
+          <li>SSE でトークンを逐次受信</li>
+        </ul>
+      </div>
+      <div class="box b-web">
+        <b>機器操作パネル</b>
+        <ul>
+          <li><span class="mono">device-panel.tsx</span></li>
+          <li>レール / ハンド / カメラを手動操作</li>
+        </ul>
+      </div>
+      <div class="box b-web">
+        <b>開発者ダッシュボード <span class="mono">/dev</span></b>
+        <ul>
+          <li>Route Handler 16 本を手で実行</li>
+          <li>env の真偽値と疎通結果を表示</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span class="lbl"><b>HTTP / SSE</b>（同一オリジンの <span class="mono">fetch</span> のみ）<br>ブラウザから LAN 機器を直叩きしない</span></div>
+
+  <!-- ② Next.js Route Handlers -->
+  <div class="tier">
+    <p class="tier-title">② Next.js 16 App Router（サーバー側） <span class="port">:3000</span> <span class="port">runtime = nodejs</span></p>
+    <div class="row">
+      <div class="box b-web">
+        <b><span class="mono">POST /api/chat</span></b>
+        <ul>
+          <li><span class="mono">handleChatStream</span>（v7・SSE）</li>
+          <li>Mastra の ghost-agent へ委譲</li>
+        </ul>
+      </div>
+      <div class="box b-web">
+        <b><span class="mono">/api/robot/*</span>（2 本）</b>
+        <ul>
+          <li><span class="mono">POST command</span> / <span class="mono">GET status</span></li>
+          <li>実行結果を DB にログ</li>
+        </ul>
+      </div>
+      <div class="box b-web">
+        <b><span class="mono">/api/devices/*</span>（12 本）</b>
+        <ul>
+          <li>rail 3 / desktop 3 / stackchan 6</li>
+          <li><span class="mono">GET /api/dev/env</span>（秘密は真偽値のみ）</li>
+        </ul>
+      </div>
+      <div class="box b-web">
+        <b><span class="mono">lib/devices.ts</span> getDevices()</b>
+        <ul>
+          <li>globalThis シングルトン</li>
+          <li>音声リングバッファを保持</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrows">
+    <div class="arrow"><span class="lbl">関数呼び出し（同一プロセス）<br>チャット経路 → Mastra</span></div>
+    <div class="arrow"><span class="lbl">Route Handler から SDK を直接呼ぶ<br>手動操作経路</span></div>
+  </div>
+
+  <!-- ③ Mastra と共有パッケージ -->
+  <div class="tier">
+    <p class="tier-title">③ Mastra エージェント と 共有パッケージ（Next と同一プロセス）</p>
+    <div class="row">
+      <div class="col">
+        <div class="box b-ai">
+          <b>@workspace/agent — Mastra v1</b>
+          <ul>
+            <li><span class="mono">ghost-agent</span> / model: <span class="mono">google/gemini-3.8-flash</span></li>
+            <li>tools 8 種：<span class="mono">robotCommand, robotStatus, railMove, railStop, handSet, cameraCapture, desktopScreenshot, desktopOpenBrowser</span></li>
+            <li>Memory：<span class="mono">lastMessages 20</span>（threadId / resourceId）</li>
+          </ul>
+        </div>
+        <div class="box b-ai sub">
+          <b>Mastra Studio（別プロセス）</b>
+          <ul>
+            <li><span class="mono">http://localhost:4111</span>（<span class="mono">pnpm agent:studio</span>）</li>
+            <li>tool 単体実行とトレース確認</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="row">
+          <div class="box b-pkg">
+            <b>@workspace/devices</b>
+            <ul>
+              <li><span class="mono">createDevices(env)</span></li>
+              <li>HTTP ＋ WebSocket SDK</li>
+              <li><span class="mono">/api/v1</span>・<span class="mono">/ws/v1</span> を付与</li>
+              <li>camelCase ⇄ snake_case 変換</li>
+            </ul>
+          </div>
+          <div class="box b-pkg">
+            <b>@workspace/robot</b>
+            <ul>
+              <li><span class="mono">createRobotClient(env)</span></li>
+              <li>コマンド語彙（zod）</li>
+              <li>mock サーバー <span class="mono">:8787</span> HTTP</li>
+            </ul>
+          </div>
+          <div class="box b-pkg">
+            <b>@workspace/db</b>
+            <ul>
+              <li><span class="mono">createServiceClient</span></li>
+              <li><span class="mono">logRobotCommand()</span></li>
+              <li>Supabase 生成型（サーバー専用）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrows">
+    <div class="arrow"><span class="lbl"><b>DEVICE_MODE=mock</b>（既定）<br>プロセス内モック／モックサーバー <span class="mono">:8791-8793</span>・<span class="mono">:8787</span></span></div>
+    <div class="arrow"><span class="lbl"><b>DEVICE_MODE=real</b><br>LAN の実機へ <b>HTTP / WS</b>（<span class="mono">Authorization: Bearer</span> 任意）</span></div>
+    <div class="arrow"><span class="lbl"><b>SQL / REST</b><br>会話履歴とコマンドログ</span></div>
+    <div class="arrow"><span class="lbl"><b>HTTPS</b><br>LLM 推論（唯一のインターネット通信）</span></div>
+  </div>
+
+  <!-- ④ 実行先 -->
+  <div class="tier">
+    <p class="tier-title">④ 接続先（モック・実機・データ・外部）</p>
+    <div class="row">
+      <div class="box b-mock">
+        <b>モックサーバー（<span class="mono">pnpm devices:mock</span>）</b>
+        <ul>
+          <li>レール <span class="mono">:8791</span> HTTP</li>
+          <li>デスクトップ <span class="mono">:8792</span> HTTP</li>
+          <li>スタックちゃん <span class="mono">:8793</span> WebSocket</li>
+          <li>ロボット <span class="mono">:8787</span> HTTP（<span class="mono">pnpm robot:mock</span>）</li>
+        </ul>
+      </div>
+      <div class="box b-hw">
+        <b>LAN 上の実機（IP / 認証は未確定）</b>
+        <ul>
+          <li>ESP32 レール — HTTP <span class="mono">/api/v1/rail/move|stop|status</span></li>
+          <li>スタックちゃん — WS <span class="mono">/ws/v1/robot</span></li>
+          <li>Electron デスクトップ — HTTP <span class="mono">/api/v1/desktop/*</span></li>
+        </ul>
+      </div>
+      <div class="box b-data">
+        <b>ローカル Supabase（Docker）</b>
+        <ul>
+          <li>Postgres <span class="mono">:54322</span> — SQL</li>
+          <li>REST API <span class="mono">:54321</span> — supabase-js</li>
+          <li>Studio <span class="mono">:54323</span> — テーブル確認</li>
+          <li><span class="mono">mastra.*</span>（会話履歴）／ <span class="mono">public.robot_commands</span></li>
+        </ul>
+      </div>
+      <div class="box b-ext">
+        <b>Google Gemini API</b>
+        <ul>
+          <li>HTTPS（外部サービス）</li>
+          <li><span class="mono">GHOST_MODEL=google/gemini-3.8-flash</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="b-web"><i></i>Web / クライアント</span>
+    <span class="b-ai"><i></i>AI / エージェント</span>
+    <span class="b-pkg"><i></i>共有パッケージ <span class="mono">@workspace/*</span></span>
+    <span class="b-data"><i></i>データ（Supabase / Postgres）</span>
+    <span class="b-hw"><i></i>物理機器（ESP32 / スタックちゃん / Electron）</span>
+    <span class="b-mock"><i></i>モック（枠線が破線）</span>
+    <span class="b-ext"><i></i>外部サービス</span>
+    <span class="line"><i></i>矢印＝呼び出し方向（ラベルはプロトコル・切替条件）</span>
+  </div>
+</div>
 
 <h3>パッケージ構成</h3>
 <div class="tablewrap">
