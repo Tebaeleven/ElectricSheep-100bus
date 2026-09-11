@@ -63,7 +63,8 @@ rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1
 ### SVG を足したとき / 更新したとき
 
 ```bash
-python3 /Users/nano/workspace/contest/hackathon/ElectricSheep-100bus/docs/diagrams/icons/build-styles.py
+# リポジトリルートで実行
+python3 docs/diagrams/icons/build-styles.py
 ```
 
 `icons/*.svg` を全部読んで `icons/styles.json` を作り直す（Python 標準ライブラリのみ）。SVG は **10KB 以下・`viewBox` 必須**（超えたり欠けたりすると警告が出る）。

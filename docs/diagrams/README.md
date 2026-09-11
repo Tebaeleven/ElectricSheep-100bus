@@ -2,115 +2,141 @@
 
 ハッカソン発表スライド・README・レビュー説明に使う draw.io 図の置き場。各図は `.drawio`（編集用の正本）と `.png`（貼り付け用の書き出し）の 2 点セットで管理する。
 
-内容は **develop @ 497e108（2026-09-12 時点）** の実装を読んで作成した実測ベース。図に書いてある数値（テスト件数・エンドポイント数・ライブラリのバージョン）は推測ではなく実行結果・ファイルの実値。
+図は **AWS 構成図の流儀＝アイコン中心・文字最小**で描く（スタイル規約は [`STYLE.md`](STYLE.md)）。ノードは「アイコン 64px ＋ 1〜3 語のラベル」だけ、箱の中に箇条書きを書かない、**凡例・出典・注釈は図に入れずこの README に置く**。図は 1600×900 固定。
 
-## 一覧
+内容は **develop @ 497e108（2026-09-12 時点）** の実装を読んで作成した実測ベース。図に書いてある数値（テスト件数・ライブラリのバージョン・ポート番号）は推測ではなくファイルの実値・実行結果。
 
-| ファイル | 図の内容 | スライドでの使い方 |
-|---|---|---|
-| [`usecase.drawio`](usecase.drawio) / [`usecase.png`](usecase.png) | おばけロボットシステムのユースケース図。アクター（来場者・開発者・LLM）と、会話・動作・撮影・開発者ダッシュボードのユースケース | **冒頭の「何ができるか」**。デモの前に 1 枚出して、これから見せる体験の全体像を共有する |
-| [`context.drawio`](context.drawio) / [`context.png`](context.png) | コンテキスト図。Next.js を中心にした外部システム・物理機器との接続と、全 API エンドポイント・ワイヤ形式・未確定事項 | **「外と何をやり取りしているか」**。機器チーム・審査員への仕様説明、受領した要件定義との突き合わせに使う |
-| [`architecture.drawio`](architecture.drawio) / [`architecture.png`](architecture.png) | システムアーキテクチャ図（物理配置）。ブラウザ / Next.js サーバー / LAN 上の機器 / Supabase / Gemini がどのマシン・どのポートに居るか | **「どこで何が動くか」**。当日の会場ネットワーク構成の説明、トラブル時の切り分け図 |
-| [`software.drawio`](software.drawio) / [`software.png`](software.png) | ソフトウェアアーキテクチャ図。モノレポ 4 レイヤ（プレゼンテーション / アプリケーション / ドメイン / インフラ）と契約・レイヤ境界ルール | **「コードの設計」**。技術審査・コードレビューの導入。レイヤ境界（赤線）が設計の主張 |
-| [`dependencies.drawio`](dependencies.drawio) / [`dependencies.png`](dependencies.png) | 依存関係図。`@workspace/*` 間の依存 DAG と、レイヤ別の主要外部依存（実インストール版） | **「依存が循環していないこと」**。設計の健全性を 1 枚で示す。バージョン一覧は質疑の回答用 |
-| [`quality.drawio`](quality.drawio) / [`quality.png`](quality.png) | こだわり図。3 段のモック戦略・テストピラミッド（91 件）・安全設計 5 点・並列開発プロセス 4 点 | **締めの「こだわり」**。実機ゼロで開発を回した工夫と安全側の設計をアピールする |
+## 一覧（発表推奨順）
 
-## 発表での推奨順
-
-1. **ユースケース**（`usecase.png`）— 誰が何をできるのか
-2. **コンテキスト**（`context.png`）— 外部システム・機器とのやり取り
-3. **システムアーキテクチャ**（`architecture.png`）— 物理配置・どこで動くか
-4. **ソフトウェアアーキテクチャ**（`software.png`）— コードのレイヤと契約
-5. **依存関係**（`dependencies.png`）— 依存 DAG と外部ライブラリ
-6. **こだわり**（`quality.png`）— モック・テスト・安全設計・並列開発
+| # | ファイル | 図の内容 | スライドでの使い方 |
+|---|---|---|---|
+| 1 | [`usecase.drawio`](usecase.drawio) / [`usecase.png`](usecase.png) | ユースケース図。アクター 3（利用者 / 家族 / 開発者）× ユースケース 8 | **冒頭の「何ができるか」**。デモの前に 1 枚出して体験の全体像を共有する |
+| 2 | [`context.drawio`](context.drawio) / [`context.png`](context.png) | コンテキスト図。Next.js を中心にした外部システム・LAN 機器との接続とプロトコル | **「外と何をやり取りしているか」**。機器チーム・審査員への仕様説明に使う |
+| 3 | [`architecture.drawio`](architecture.drawio) / [`architecture.png`](architecture.png) | システムアーキテクチャ図（物理配置）。どのマシン・どのポートで何が動くか | **「どこで何が動くか」**。会場ネットワーク構成の説明、トラブル時の切り分け図 |
+| 4 | [`software.drawio`](software.drawio) / [`software.png`](software.png) | ソフトウェアアーキテクチャ図。モノレポの 4 ブロック（`client/web` / `packages/*` / Infra / Tooling） | **「コードの設計」**。技術審査・コードレビューの導入 |
+| 5 | [`dependencies.drawio`](dependencies.drawio) / [`dependencies.png`](dependencies.png) | 依存関係図。`@workspace/*` の DAG（上段）と主要外部ライブラリ 10 件のバージョン（下段） | **「依存が循環していないこと」**。バージョン一覧は質疑の回答用 |
+| 6 | [`quality.drawio`](quality.drawio) / [`quality.png`](quality.png) | こだわり図。Mock の 3 段 / テスト / 安全設計の 3 カラム | **締めの「こだわり」**。実機ゼロで開発を回した工夫と安全側の設計 |
 
 「外側 → 内側 → 作り方」の順。1〜3 は非エンジニアにも通じる粒度、4〜6 は技術審査向け。時間が短いときは 1・3・6 の 3 枚で足りる。
 
-## 共通スタイルガイド
+## 各図の見方と出典
 
-新しい図を足すとき・既存の図を直すときはこの配色と線種に合わせる。
+図から説明文を外しているぶん、**話すことはここに書いてある**。スライドの読み原稿として使う。
 
-### 配色（役割で決める。見た目で選ばない）
+### 1. ユースケース図
 
-| 色 | 役割 | 塗り / 枠 |
-|---|---|---|
-| 青 | Web / クライアント（Next.js・ブラウザ・`/dev`） | `#EEF2FF` / `#4338CA` |
-| 紫 | AI / エージェント（Mastra・tool・Gemini 呼び出し） | `#F5F3FF` / `#7C3AED` |
-| 水色 | 共有パッケージ / 検証（`@workspace/*`・zod） | `#F0F9FF` / `#0284C7` |
-| 緑 | データ（Supabase / Postgres）・品質ゲート | `#ECFDF5` / `#059669` |
-| オレンジ | 物理機器・機器との通信（ESP32・スタックちゃん・Electron） | `#FFF7ED` / `#EA580C` |
-| 黄 | モック / 分岐（`DEVICE_MODE` の切替など） | `#FEFCE8` / `#CA8A04` |
-| 赤 | 安全機構・レイヤ境界・未確定事項（注意して読む場所） | `#FEF2F2` / `#DC2626` |
-| グレー | ツール / devDependency / 出典・凡例 | `#FAFAFA`・`#F1F5F9` / `#CBD5E1`・`#64748B` |
+![ユースケース図](usecase.png)
 
-矢印の線色は既定で `#475569`（スレート）。色は**役割で決める**。見た目の好みで選ばず、上の表に無い役割が出たら表ごと更新する。
+**見方**: 左右のアクター（利用者・家族・開発者）から中央のユースケース 8 個へ線が伸びる。利用者は会話・移動・手の開閉など体験側、開発者は `/dev` からの全 API 手動実行に繋がる。「会話する → 記憶する」だけが `«include»`（会話すると必ず記憶が走る）。右下の赤丸「緊急停止」は誰からでも到達できる安全装置。
 
-### 線種
+**出典**: `docs/specs/robot-api-requirements.md` ／ `README.md` ／ `packages/agent` ／ `client/web`
 
-- **実線の矢印** — 同期的な呼び出し・HTTP・`dependencies`（`workspace:*`）
-- **破線の矢印** — WebSocket / ストリーム（SSE・音声チャンク）
-- **薄い破線の矢印** — `devDependencies`（共有の eslint / tsconfig）
-- **破線の枠** — モック・テストコード・ツール（実機や本番の実体ではないもの）
-- **白抜きの矢頭** — 永続化（DB への書き込み）
-- 矢印の向きは**要求の向き**。双方向のやり取りは 1 本にせず 2 本で書く
+### 2. コンテキスト図
 
-### 共通の約束
+![コンテキスト図](context.png)
 
-- フォントは Helvetica、本文 11px / 見出し 13px。角丸は `rounded=1`
-- 各図の右下に**出典ボックス**（読んだファイル・実行したコマンド・基準コミット）を必ず置く。数値を書いたらその出所も書く
-- 左下に**凡例**を置く。色と線種の意味を毎回書く（単体で配れるようにする）
+**見方**: 中央が Next.js。左のブラウザとは `HTTP /api/*`、右上の Gemini とは HTTPS、右下の Supabase/Postgres とは REST で繋がる。下の「LAN 機器」コンテナ（API 版は `/api/v1`）に ESP32 レール（`POST /rail/move` 等）とスタックちゃん（`WS /ws/v1/robot`、`hand.set` / `camera.capture` / `audio.start,stop`）が入る。Electron は同一 Mac の `HTTP 127.0.0.1`。赤タグ「IP/認証 未確定」が当日までに詰める唯一の穴。
 
-## 編集手順
+**出典**: `docs/specs/robot-api-requirements.md` ／ `packages/devices/src/{wire,schemas,constants}.ts` ／ `packages/devices/src/http/*`・`src/ws/stackchan.ts` ／ `client/web/app/api/chat/route.ts` ／ `client/web/lib/devices.ts`・`app/api/devices/**`（12 ルート）／ `client/web/lib/dev/endpoints.ts` ／ `packages/robot/src/http.ts`（`DEFAULT_ENDPOINT_MAP`）／ `client/web/.env.example`
 
-1. draw.io デスクトップアプリで `.drawio` を開く（`open -a draw.io docs/diagrams/<name>.drawio`）
-2. 編集して保存する。XML が壊れていないかは `xmllint --noout docs/diagrams/<name>.drawio` で確認
-3. PNG を書き出す（リポジトリルートで実行）:
+### 3. システムアーキテクチャ図
+
+![システムアーキテクチャ図](architecture.png)
+
+**見方**: 大きな「ローカル PC」コンテナの中に Chat UI・Next.js `:3000`・Agent・Supabase `:54321` / Postgres `:54322`・Mastra Studio `:4111`・Electron が同居する。外に出るのは右の Gemini（HTTPS）と下の「LAN 機器」（ESP32 レールへ HTTP、スタックちゃんへ WS）だけ。Mock `:8791-8793` への破線は `DEVICE_MODE=mock` のときに機器の代わりに繋ぐ先。**トラブル時はこの図のポート番号から切り分ける**。
+
+**出典**: `README.md` ／ `client/web/.env.example`・`next.config.ts`・`app/api/**` ／ `packages/agent/src/mastra/**` ／ `packages/devices/src/{index,constants,mock-servers}.ts` ／ `packages/robot/src/{index,http,mock-server}.ts` ／ `packages/db/src/*.ts` ／ `server/supabase/config.toml` ／ `docs/runbooks/{mastra,devices,supabase}.md`
+
+### 4. ソフトウェアアーキテクチャ図
+
+![ソフトウェアアーキテクチャ図](software.png)
+
+**見方**: 上から `client/web`（UI・shadcn/ui・Route Handlers・`/dev`）→ `packages/*`（agent / devices / robot / db / ui）→ Infra（Gemini・Supabase・Postgres）、右に Tooling（pnpm・Turborepo・vitest・ESLint）。線は 4 本だけで、**`client/web` から `packages/*` への `import` は一方向**。機器アクセスは必ず `packages/devices` 経由で、UI が直接機器やモデルを叩かないのが設計の主張。
+
+**出典**: `pnpm-workspace.yaml`・`turbo.json`・`package.json` ／ `client/web/{next.config.ts,app,components,lib}/**` ／ `packages/{agent,devices,robot,db}/src/**` ／ `packages/ui/components.json` ／ `packages/{eslint-config,typescript-config}` ／ `server/supabase/**` ／ `scripts/wt-setup.sh` ／ `docs/development.md`・`.claude/rules/monorepo.md`・`CLAUDE.md`
+
+### 5. 依存関係図
+
+![依存関係図](dependencies.png)
+
+**見方**: 上段が `@workspace/*` の依存 DAG。左の `web` から右へ矢印が流れるだけで**逆流も循環も無い**（右上の「循環なし」タグ）。下段はアイコン＋「名前 バージョン」で主要外部ライブラリ 10 件。バージョンは `pnpm ls -r --depth 0 --json` の実インストール値。
+
+**出典**: `pnpm-workspace.yaml`（catalog の pin）／ ルートと `client/web`・`packages/*` の `package.json` ／ `pnpm ls -r --depth 0 --json`（表示バージョンの実測）／ `pnpm-lock.yaml` ／ `client/web/next.config.ts`（`serverExternalPackages` / `transpilePackages`）／ 基準: develop = 497e108
+
+### 6. こだわり図
+
+![こだわり図](quality.png)
+
+**見方**: 3 カラム構成。左「Mock の 3 段」はプロセス内モック → モックサーバー `:8791-93` → 実機で、`DEVICE_MODE` 1 つで段を切り替える。中央「テスト」は下から vitest 91 件 → 統合（実 HTTP/WS）→ 手動 `/dev` → E2E（Gemini）のピラミッド。右「安全」は 3000ms 上限・`move` 非再送・`http`/`https` のみ・緊急停止・サーバー経由のみの 5 点。**実機ゼロでも左の 3 段と中央のピラミッドで開発が回った**、が言いたいこと。
+
+**出典**: `packages/devices/src/**`（`{constants,schemas,wire,index,mock-servers}.ts`・`http/rail.ts`・`mock/*`・`{http,ws}/*.test.ts`）／ `packages/robot/src/{mock,mock-server,index}.ts` ／ `packages/agent/src/mastra/storage.ts`・`tools/devices.ts` ／ `packages/db/src/{index,server}.ts` ／ `client/web/app/api/devices/**`（12 ルート）・`client/web/{app/dev,components/dev,lib/dev}/**`（16 エンドポイント）／ `docs/runbooks/{devices,mastra}.md`・`docs/development.md`・`turbo.json`・`package.json`。テスト件数は各パッケージで `pnpm vitest run` を実行した実測値
+
+## 凡例（全図共通）
+
+図の中には凡例を描かないので、単体で配るときはこの節を添える。
+
+### 線
+
+| 見た目 | 意味 |
+|---|---|
+| 実線・スレート `#475569` | 同期呼び出し（HTTP / REST / 関数呼び出し / `import`） |
+| 破線・青 `#2563EB` | ストリーム・双方向（WebSocket・音声チャンク・モックへの接続） |
+| 実線・赤 `#DC2626` | 停止・異常系・緊急停止 |
+
+矢印の向きは**要求の向き**。双方向のやり取りは 1 本にせず 2 本で書く。線は orthogonal で、交差ゼロになるよう `exitX/entryX` と waypoint で整形する。
+
+### 塗り
+
+| 色 | 意味 |
+|---|---|
+| 薄いグレー `#F8FAFC` 枠 `#CBD5E1` | コンテナ（グループの箱）。左上に 20px アイコン＋名前だけ |
+| 薄い青 `#EFF6FF` | 強調したいノード・小さな角丸タグ（プロトコル名・API パス・バージョン） |
+| グレー `#F1F5F9` | 補助的なタグ・ツール類 |
+| 赤 `#DC2626` / 薄赤 `#FEF2F2` | 緊急停止・未確定事項（当日までに詰める場所） |
+
+ノードの色分けは最小限で、**識別はアイコンで行う**（Next.js・Supabase・ESP32 などは公式ロゴ）。アイコンの出典とライセンスは [`STYLE.md`](STYLE.md) の「アイコン一覧」を参照。
+
+## 新しい図を足す・既存の図を直す
+
+1. **[`STYLE.md`](STYLE.md) を読む** — アイコン 64px＋1〜3 語ラベル、箱の中に箇条書きを書かない、線ラベルは 1〜2 語、余白 120px 以上、キャンバス 1600×900、といった規約が全部ここにある
+2. **[`_template.drawio`](_template.drawio) をコピーして描き始める** — コンテナ・ノード・3 種の線の見本が入った雛形（書き出し見本は `icons/_template.png`）
+3. **アイコンは [`icons/styles.json`](icons/styles.json) から貼る** — アイコン名 → draw.io スタイル文字列（SVG を data URI で埋め込み済み）の辞書。値をそのまま `mxCell` の `style=` に貼り、後ろに `fontSize=12;fontFamily=Helvetica;fontColor=#0F172A;spacingTop=4;` を足すとラベル書式が揃う。サイズは通常ノード 64×64、コンテナ左上アイコン 20×20
+4. SVG を足したら `icons/build-styles.py` で `styles.json` を作り直す（リポジトリルートで `python3 docs/diagrams/icons/build-styles.py`）
+5. 編集は draw.io デスクトップアプリ（`open -a draw.io docs/diagrams/<name>.drawio`）。保存後 `xmllint --noout docs/diagrams/<name>.drawio` で XML の健全性を確認する
+
+### PNG の再出力
+
+リポジトリルートで実行する。
 
 ```bash
-/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -o docs/diagrams/<name>.png docs/diagrams/<name>.drawio
+/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png --scale 1 \
+  -o docs/diagrams/<name>.png docs/diagrams/<name>.drawio
 ```
 
-`architecture` だけは細かい文字が多いため 2 倍解像度で書き出す:
+6 図まとめて出し直すとき:
 
 ```bash
-/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -s 2 -o docs/diagrams/architecture.png docs/diagrams/architecture.drawio
+for n in usecase context architecture software dependencies quality; do
+  /Applications/draw.io.app/Contents/MacOS/draw.io -x -f png --scale 1 \
+    -o "docs/diagrams/$n.png" "docs/diagrams/$n.drawio"
+done
 ```
 
-4. PNG が 1MB を超えたら `sips` で縮小する（GitHub 上の表示が重くなるため。1MB 未満が目安）:
+PNG が 1MB を超えたら縮小する（GitHub 上の表示が重くなるため。現状は全て 1MB 未満）:
 
 ```bash
 sips -s format png --resampleWidth 2000 docs/diagrams/<name>.png --out docs/diagrams/<name>.png
 ```
 
-5. `.drawio` と `.png` を**必ずセットでコミット**する（PNG だけ古い状態にしない）
+書き出した PNG は目視で「アイコンが出ているか」「線が要素を貫通していないか」を確認し、`.drawio` と `.png` を**必ずセットでコミット**する（PNG だけ古い状態にしない）。
 
 ### 実装を変えたら図も直す
 
-図は実装のスナップショットなので、次を変えたら該当図を更新して PNG を出し直す。
+図は実装のスナップショットなので、次を変えたら該当図を更新して PNG を出し直し、この README の「見方」「出典」も合わせて直す。
 
 - API エンドポイントの追加・削除 → `context` / `software`
 - パッケージ追加・`workspace:*` 依存の変更 → `dependencies` / `software`
 - ポート・env・機器の追加 → `architecture` / `context`
 - テストの増減・安全上限の変更 → `quality`
 
-出典ボックスの「基準: develop = <sha>」も同時に更新する。
-
-## プレビュー
-
-### ユースケース図
-![ユースケース図](usecase.png)
-
-### コンテキスト図
-![コンテキスト図](context.png)
-
-### システムアーキテクチャ図
-![システムアーキテクチャ図](architecture.png)
-
-### ソフトウェアアーキテクチャ図
-![ソフトウェアアーキテクチャ図](software.png)
-
-### 依存関係図
-![依存関係図](dependencies.png)
-
-### こだわり図
-![こだわり図](quality.png)
+冒頭の「基準: develop @ ◯◯」も同時に更新する。
