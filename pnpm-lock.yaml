@@ -83,6 +83,9 @@ importers:
       '@ai-sdk/react':
         specifier: 'catalog:'
         version: 4.0.100(react@19.2.4)(zod@4.6.2)
+      '@mastra/ai-sdk':
+        specifier: 'catalog:'
+        version: 1.10.2(@mastra/core@1.66.0(ai@7.0.97(zod@4.6.2))(express@5.2.1)(zod@4.6.2))(zod@4.6.2)
       '@workspace/agent':
         specifier: workspace:*
         version: link:../../packages/agent
