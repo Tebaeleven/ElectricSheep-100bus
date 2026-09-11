@@ -1,8 +1,10 @@
+import { createHttpRobotClient } from "./http.js"
 import { createMockRobotClient } from "./mock.js"
-import type { HttpRobotClientOptions, RobotClient } from "./types.js"
+import type { RobotClient } from "./types.js"
 
 export { robotCommandSchema } from "./schema.js"
 export { createMockRobotClient } from "./mock.js"
+export { createHttpRobotClient } from "./http.js"
 export type {
   HttpRobotClientOptions,
   RobotClient,
@@ -11,12 +13,10 @@ export type {
   RobotResult,
 } from "./types.js"
 
-/** HTTP 実装。B レーンで実装する */
-export function createHttpRobotClient(_options: HttpRobotClientOptions): RobotClient {
-  throw new Error("not implemented yet")
-}
-
-/** ROBOT_MODE による分岐。実機実装が入るまでは常にモック */
-export function createRobotClient(_env: NodeJS.ProcessEnv): RobotClient {
+/** ROBOT_MODE=http かつ ROBOT_BASE_URL があれば実機 HTTP、それ以外はモック */
+export function createRobotClient(env: NodeJS.ProcessEnv): RobotClient {
+  if (env.ROBOT_MODE === "http" && env.ROBOT_BASE_URL) {
+    return createHttpRobotClient({ baseUrl: env.ROBOT_BASE_URL })
+  }
   return createMockRobotClient()
 }
