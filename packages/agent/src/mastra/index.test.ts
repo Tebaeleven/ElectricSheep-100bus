@@ -13,6 +13,15 @@ describe("mastra", () => {
   it("おばけエージェントが robotCommand / robotStatus を持つ", async () => {
     const tools = await ghost.listTools()
 
-    expect(Object.keys(tools).sort()).toEqual(["robotCommand", "robotStatus"])
+    expect(Object.keys(tools).sort()).toEqual([
+      "cameraCapture",
+      "desktopOpenBrowser",
+      "desktopScreenshot",
+      "handSet",
+      "railMove",
+      "railStop",
+      "robotCommand",
+      "robotStatus",
+    ])
   })
 })
