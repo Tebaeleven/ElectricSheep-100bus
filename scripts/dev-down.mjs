@@ -5,7 +5,12 @@
  *   pnpm down            台帳の app / mock / real ポートを掴んでいる**このリポジトリの**プロセスを止める
  *   pnpm down --all      上に加えて Supabase（Docker）も止める
  *   pnpm down --yes      確認プロンプトを出さない
+ *   pnpm down --dry-run  止める対象を一覧するだけ（何も止めない）
  *   pnpm down --help     ヘルプ
+ *
+ * ポートを LISTEN していない**残骸プロセス**（前のセッションの mastra dev / next dev
+ * など）も掃除する。Mastra と Next はシングルインスタンスのロックを持つので、
+ * これが残っていると次の起動が失敗する。
  *
  * **他プロジェクトのプロセスは絶対に触らない。** `ps -p <pid> -o command` にこのリポジトリの
  * フルパスが含まれるか、プロセスの cwd がこのリポジトリ配下のものだけを対象にする
@@ -19,9 +24,12 @@ import { createInterface } from "node:readline/promises"
 import { resolve } from "node:path"
 import {
   COLOR,
+  MAIN_REPO_ROOT,
   REPO_ROOT,
   commandLineOf,
   cwdOf,
+  findStaleProcesses,
+  isRepoFamilyPath,
   listenersOf,
   loadLedger,
   paint,
@@ -41,7 +49,7 @@ const KILL_GRACE_MS = 3000
 
 /** 開発ビルドの Electron.app（フルパスで指定する。名前だけの pkill はしない） */
 const ELECTRON_APP = resolve(
-  REPO_ROOT,
+  MAIN_REPO_ROOT,
   "client/desktop/node_modules/electron/dist/Electron.app"
 )
 
@@ -61,26 +69,31 @@ function printHelp() {
   pnpm down [オプション]
 
 オプション:
-  --all    Supabase（Docker）も止める（pnpm db:stop）
-  --yes    確認プロンプトを出さない（TTY でなければ自動で yes）
-  --help   このヘルプ
+  --all      Supabase（Docker）も止める（pnpm db:stop）
+  --yes      確認プロンプトを出さない（TTY でなければ自動で yes）
+  --dry-run  止める対象を一覧するだけ（何も止めない）
+  --help     このヘルプ
 
 対象: scripts/ports.json の app / mock / real のポートを LISTEN していて、かつ
-      コマンドラインか cwd が ${REPO_ROOT} 配下のプロセスだけ。
+      コマンドラインか cwd が ${MAIN_REPO_ROOT} 配下
+      （.claude/worktrees/* を含む）のプロセスだけ。
       加えて、ポートを持たない偽スタックちゃん（packages/stackchan-bridge の
-      mock-device）も同じリポジトリ配下のものだけ停止する。
+      mock-device）と、ポートを掴んでいない残骸プロセス（mastra dev / next dev /
+      next-server / モックサーバー / bridge）も止める。残骸の探索範囲は
+      ${MAIN_REPO_ROOT} とその配下の .claude/worktrees/* だけ。
       他プロジェクトのプロセスには触らない。詳細は docs/runbooks/launch.md`)
 }
 
 /**
- * このリポジトリのプロセスか（他プロジェクトを巻き込まないための判定）。
- * コマンドラインにリポジトリのフルパスが出るもの（Electron・tsx・pnpm）はそれで、
- * プロセス名を書き換えてしまう Next の dev サーバーは cwd で判定する。
+ * このリポジトリ（メインチェックアウトと .claude/worktrees/* 配下）のプロセスか。
+ * 他プロジェクトを巻き込まないための判定で、コマンドラインにリポジトリのフルパスが
+ * 出るもの（Electron・tsx・pnpm）はそれで、プロセス名を書き換えてしまう Next の
+ * dev サーバーは cwd で判定する。
+ * worktree から実行しても同じ範囲を見る（ロックやポートはリポジトリ一家で共有のため）。
  */
 function belongsToRepo(pid, commandLine) {
-  if (commandLine.includes(REPO_ROOT)) return true
-  const cwd = cwdOf(pid)
-  return cwd !== "" && (cwd === REPO_ROOT || cwd.startsWith(`${REPO_ROOT}/`))
+  if (commandLine.includes(`${MAIN_REPO_ROOT}/`)) return true
+  return isRepoFamilyPath(cwdOf(pid))
 }
 
 /** 台帳のうち infra（Docker）以外のポートを見て、止める対象を集める */
@@ -157,6 +170,22 @@ function collectPortlessTargets(knownPids) {
   return found
 }
 
+/**
+ * ポートを掴んでいない残骸プロセス（前のセッションの mastra dev / next dev など）。
+ * 判定は dev-common の detectStaleProcesses（メインチェックアウトと
+ * .claude/worktrees/* 配下のものだけ。他プロジェクトは対象外）。
+ */
+function collectStaleTargets(knownPids) {
+  return findStaleProcesses(loadLedger(), [...knownPids])
+    .filter((item) => !knownPids.has(item.pid))
+    .map((item) => ({
+      pid: item.pid,
+      command: "node",
+      commandLine: item.commandLine,
+      ports: [`（残骸）${item.label}`],
+    }))
+}
+
 /** プロセスが生きているか */
 function isAlive(pid) {
   try {
@@ -176,7 +205,7 @@ function stopElectron() {
 
 /** コマンドラインを表示用に切り詰める */
 function shorten(commandLine) {
-  const relative = commandLine.split(`${REPO_ROOT}/`).join("")
+  const relative = commandLine.split(`${MAIN_REPO_ROOT}/`).join("")
   return relative.length > 70 ? `${relative.slice(0, 69)}…` : relative
 }
 
@@ -198,9 +227,10 @@ async function main() {
     return 0
   }
   const stopAll = args.includes("--all")
+  const dryRun = args.includes("--dry-run")
   const assumeYes = args.includes("--yes") || args.includes("-y")
   const unknown = args.filter(
-    (arg) => !["--all", "--yes", "-y", "--help", "-h"].includes(arg)
+    (arg) => !["--all", "--yes", "-y", "--dry-run", "--help", "-h"].includes(arg)
   )
   if (unknown.length > 0) {
     fail(`不明なオプションです: ${unknown.join(" ")}`)
@@ -210,6 +240,7 @@ async function main() {
   const ledger = loadLedger()
   const { targets, foreign } = collectTargets(ledger)
   targets.push(...collectPortlessTargets(new Set(targets.map((t) => t.pid))))
+  targets.push(...collectStaleTargets(new Set(targets.map((t) => t.pid))))
 
   for (const item of foreign) {
     warn(
@@ -232,6 +263,10 @@ async function main() {
       )
     )
     console.log("")
+    if (dryRun) {
+      info("--dry-run のため何も止めませんでした")
+      return 0
+    }
     if (
       !assumeYes &&
       !(await confirm(
@@ -266,6 +301,13 @@ async function main() {
         // 既に終了している
       }
     }
+  }
+
+  if (dryRun) {
+    info(
+      `--dry-run のため Electron${stopAll ? " と Supabase" : ""}にも触りませんでした`
+    )
+    return 0
   }
 
   stopElectron()

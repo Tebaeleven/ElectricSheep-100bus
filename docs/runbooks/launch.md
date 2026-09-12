@@ -14,7 +14,8 @@ pnpm run up            # モック構成（既定）
 pnpm run up real       # Electron 実機構成
 pnpm run up demo       # 本番デモ構成
 pnpm run up web        # Web 3000 だけ
-pnpm down              # 起動したものを止める
+pnpm down              # 起動したものを止める（残骸プロセスの掃除も含む）
+pnpm down --dry-run    # 止める対象を一覧するだけ（何も止めない）
 pnpm down --all        # Supabase（Docker）も止める
 ```
 
@@ -35,8 +36,26 @@ pnpm down --all        # Supabase（Docker）も止める
 | `--no-studio` | Mastra Studio を起動しない（`demo` は元から起動しない） |
 | `--no-bridge` | スタックちゃん bridge（8030）と偽スタックちゃんを起動しない（`real` / `demo` では `STACKCHAN_BRIDGE_URL` の上書きも外れる） |
 | `--mock-device` | 偽スタックちゃんも起動する（`real` / `demo` で**実機が無いとき**の確認用。`mock` は既定で起動する） |
-| `--dry-run` | 起動計画（役割・ポート・コマンド・env 上書き）だけ表示して終わる |
+| `--dry-run` | 起動計画（役割・**重要度**・ポート・コマンド・env 上書き）だけ表示して終わる |
+| `--strict` | 「任意」サービスの失敗でも全部止める（後述の重要度を全て「必須」にする） |
+| `--force-stale` | 残骸プロセスの検出を無視して起動する |
 | `--help` | ヘルプ |
+
+### サービスの重要度（必須 / 任意）
+
+**任意サービスが 1 つ落ちただけで全部止まる、ということはもう起きない。**
+起動計画とサマリー表に「重要度」が出る。
+
+| 重要度 | サービス | 失敗したときの挙動 |
+|---|---|---|
+| **必須** | Supabase / Web 3000 / Ghost Companion の Next 3100 / Electron 8801 / **`real`・`demo` の bridge 8030** | 赤字でエラーを出し、**このスクリプトが起動した子プロセスを全部止めて exit 1** |
+| **任意** | Mastra Studio 4111 / 機器モック（8791-8793）/ ロボットモック 8787 / 偽スタックちゃん / **`mock` の bridge 8030** | 赤字で警告し、**そのサービスだけ飛ばして起動を続ける**。サマリー表に `失敗（理由）` と出る。**終了コードは 0 のまま** |
+
+- 「任意」の判定は事前チェック・ポート衝突・起動コマンドの失敗・readiness 未達・依存サービスの失敗のすべてに効く。
+  readiness 未達で中途半端に生き残った子プロセスは、そのサービスの分だけ SIGTERM で止める。
+- `--strict` を付けると全部「必須」になる（CI や「全部揃っていないと困る」確認用）。
+- 例: `pnpm run up real` で Studio が「別の `mastra dev` が動いている」で落ちても、
+  bridge / Next 3100 / Electron / Web は**そのまま起動して使える**。
 
 ### `real` / `demo` の env 上書きについて
 
@@ -69,17 +88,24 @@ pnpm down --all        # Supabase（Docker）も止める
 2. **`.env.local` の用意** — `client/web/.env.local` が無ければ `client/web/.env.example` からコピーし
    「キーを入れてください」と警告する。`GOOGLE_GENERATIVE_AI_API_KEY` が空なら**太字で警告して起動は続ける**
    （会話 `/api/chat` だけが失敗する。それ以外の起動確認はできる）。
-3. **事前チェック** — `real` / `demo` は `client/desktop/node_modules/electron/dist/Electron.app` の有無を見る
+3. **残骸プロセスの検出** — ポートを LISTEN していない `mastra dev` / `next dev` / `next-server` /
+   モックサーバー / bridge が残っていたら、**起動せずに一覧を出して exit 1**（`pnpm down` を案内する）。
+   Mastra と Next は**シングルインスタンスのロック**を持つので、残骸があると新しい Studio / Next が起動できない。
+   探索範囲は**メインチェックアウトと `.claude/worktrees/*` 配下だけ**（他プロジェクトは対象外）。
+   無視して起動したいときは `--force-stale`。
+4. **事前チェック** — `real` / `demo` は `client/desktop/node_modules/electron/dist/Electron.app` の有無を見る
    （`client/desktop` はルート workspace 外なので `pnpm --dir client/desktop install` が別途必要）。
-4. **ポートの取り合いを検出** — [`scripts/check-ports.mjs`](../../scripts/check-ports.mjs) `--json` を呼び、
+5. **ポートの取り合いを検出** — [`scripts/check-ports.mjs`](../../scripts/check-ports.mjs) `--json` を呼び、
    使うポートを**別のプロセス**が掴んでいたら**起動せずに終了（exit 1）**。`pnpm down` か `pnpm ports:free <名前>` を案内する。
+   ただし**「任意」サービスのポート衝突は警告だけ**でそのサービスを飛ばす。
    **同じ役割のプロセスが既に動いていれば「再利用」**してそのまま使う（判定は下の readiness）。
-5. **起動** — `child_process.spawn` で子プロセスとして起動し、標準出力・標準エラーに
+6. **起動** — `child_process.spawn` で子プロセスとして起動し、標準出力・標準エラーに
    `[web]` `[studio]` `[robot]` `[devices]` `[bridge]` `[mock-device]` `[desk-next]` `[electron]` の色付きプレフィックスを付けて
    **1 つのターミナルに流す**。Electron は Next 3100 が応答してから `electron:open` で起動する。
-6. **readiness をポーリング** — 下表の URL が応答したら Ready。全部 Ready になったら**サマリー表**（役割・URL・状態）を出す。
-7. **ブラウザを開く** — `--no-open` でなければ `open` で `http://localhost:3000` と `http://localhost:3000/dev`（`demo` は前者だけ）。
-8. **Ctrl+C で子プロセスを全部停止** — SIGTERM → 3 秒待って SIGKILL。
+7. **readiness をポーリング** — 下表の URL が応答したら Ready。**サマリー表**（役割・URL・状態）に
+   `Ready` / `再利用` / `失敗（理由）` が並ぶ。「任意」サービスの失敗があっても終了コードは 0。
+8. **ブラウザを開く** — `--no-open` でなければ `open` で `http://localhost:3000` と `http://localhost:3000/dev`（`demo` は前者だけ）。
+9. **Ctrl+C で子プロセスを全部停止** — SIGTERM → 3 秒待って SIGKILL。
    **Supabase と Electron は止めない**（Electron は `open` で起動した別プロセスなので `pnpm down` で止める）。
 
 ### readiness の見方
@@ -115,19 +141,33 @@ pnpm down --all        # Supabase（Docker）も止める
    対象は「node の実行で」「コマンドラインに `mock-device` を含み」「コマンドラインか cwd がこのリポジトリ配下」で、
    さらに `stackchan:mock-device` かパッケージ名 `stackchan-bridge`（コマンドラインまたは cwd）に当たるものだけ。
    文字列を含むだけのシェル（`zsh -c ...`）や他チェックアウトのプロセスは対象外。bridge 本体は 8030 を持つので台帳で拾える。
-6. Electron は `pkill -f <repo>/client/desktop/node_modules/electron/dist/Electron.app` で
+6. **残骸プロセスの掃除** — `ps -Ao pid=,ppid=,command=` から、コマンドラインまたは cwd が
+   **メインチェックアウトか `.claude/worktrees/*` 配下**で、`mastra/dist/index.js dev` /
+   `next dev` / `next-server` / `tsx src/mock-servers.ts` / `tsx src/mock-server.ts` /
+   `stackchan-bridge` に当たるプロセスを拾い、同じ一覧に `（残骸）` として並べて止める。
+   **台帳のポートを LISTEN しているプロセスとその親は「稼働中」なので残骸にしない**
+   （`mastra dev` → `.mastra/output/index.mjs`、`next dev` → `next-server` のような親子で
+   実際に待ち受けているのは子だけ、というケースを取りこぼさないため）。
+   cwd は `lsof -a -d cwd -p <pid>` で**1 プロセスずつ**引く（まとめて渡すと 1 件の失敗で全部落ちるため）。
+   他プロジェクトのパスは絶対に対象外。判定は [`scripts/lib/dev-common.mjs`](../../scripts/lib/dev-common.mjs) の
+   `detectStaleProcesses`（純関数。テストは `scripts/lib/dev-common.test.mjs` / `pnpm test:scripts`）。
+7. Electron は `pkill -f <repo>/client/desktop/node_modules/electron/dist/Electron.app` で
    **フルパス指定**で止める（ポートを持たない補助プロセスも含めて落とすため）。
-7. `--all` を付けたときだけ `pnpm db:stop`（Supabase / Docker）も実行する。
+8. `--all` を付けたときだけ `pnpm db:stop`（Supabase / Docker）も実行する。
+9. `--dry-run` を付けると**一覧を出すだけで何も止めない**（Electron・Supabase にも触らない）。
 
 ```bash
 pnpm down            # 対象を表示して確認プロンプト → 停止（Supabase は残す）
+pnpm down --dry-run  # 何が止まるかだけ見る
 pnpm down --yes      # 確認なし
 pnpm down --all      # Supabase も止める
 pnpm ports:check     # 止まったか確認する
 ```
 
-> `pnpm down` は**スクリプトのあるチェックアウト（worktree 含む）のパス**を基準に対象を選ぶ。
-> worktree で起動したものは同じ worktree の `pnpm down` で止める。
+> `pnpm down` の対象は**メインチェックアウトと `.claude/worktrees/*` 配下のプロセス全部**。
+> worktree から実行しても同じ範囲を見る（ポートと Mastra / Next のロックはチェックアウトを跨いで共有されるため、
+> 「worktree で起動したものが残っていてメインが起動できない」を `pnpm down` 一発で直せるようにしている）。
+> 他プロジェクトのプロセスには絶対に触らない。
 
 ## よくある失敗と対処
 
@@ -135,6 +175,9 @@ pnpm ports:check     # 止まったか確認する
 |---|---|---|
 | `pnpm up` を叩いたら依存の更新が走った | `up` は pnpm 組み込みの `update` | **`pnpm run up`**（または `pnpm start`）と書く |
 | `ポート 3000（...）を別のプロセスが掴んでいます` | 別プロジェクトの Next（例: Ghost Companion の旧設定）が 3000 に居る | `pnpm ports:free web` で PID を確認し、そのアプリを自分で止める。このリポジトリのものなら `pnpm down` |
+| `残骸プロセスがあります` と一覧が出て起動しない | 前のセッションの `mastra dev` / `next dev` がポートを持たずに生き残っている（Mastra / Next のシングルインスタンスロック） | `pnpm down`（先に `pnpm down --dry-run` で何が消えるか確認できる）。どうしても無視するなら `pnpm run up --force-stale` |
+| `Another next dev server is already running` / `別の mastra dev が動いています` | 同上 | `pnpm down` で掃除してから起動し直す |
+| サマリー表に `失敗（…）` が出たが起動は続いた | 「任意」サービスの失敗（Studio・モック系・`mock` の bridge） | そのサービスが要るなら理由を直して `pnpm run up` をやり直す。全部揃わないと困るときは `--strict` |
 | `3000 の Web は DEVICE_MODE=mock で動いています` | 別プロファイルの Web が残っている | `pnpm down` して起動し直す |
 | `client/desktop の依存が未インストールです` | `client/desktop` はルート workspace 外 | `pnpm --dir client/desktop install` |
 | `Electron.app が見つかりません` | pnpm が古く electron の install スクリプトが走っていない | `pnpm --dir client/desktop install`（それでも駄目なら [`desktop.md`](desktop.md) の該当行） |
