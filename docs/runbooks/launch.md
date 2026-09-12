@@ -22,9 +22,9 @@ pnpm down --all        # Supabase（Docker）も止める
 
 | プロファイル | 起動するもの | Web の env 上書き | 起動後に開くページ |
 |---|---|---|---|
-| `mock`（既定） | Supabase → 機器モック 3 台（8791-8793）→ ロボットモック（8787）→ Web 3000 → Mastra Studio 4111 | `DEVICE_MODE=mock` | `/` と `/dev` |
-| `real` | Supabase → Ghost Companion の Next 3100 → Electron（`electron:open`、Desktop API 8801）→ Web 3000 → Studio 4111 | `DEVICE_MODE=real` / `DESKTOP_BASE_URL=http://127.0.0.1:8801` | `/` と `/dev` |
-| `demo` | `real` から **Studio とモックを外した**構成（Supabase → Next 3100 → Electron → Web 3000） | `real` と同じ | `/` だけ |
+| `mock`（既定） | Supabase → **スタックちゃん bridge 8030 → 偽スタックちゃん** → 機器モック 3 台（8791-8793）→ ロボットモック（8787）→ Web 3000 → Mastra Studio 4111 | `DEVICE_MODE=mock` | `/` と `/dev` |
+| `real` | Supabase → **スタックちゃん bridge 8030** → Ghost Companion の Next 3100 → Electron（`electron:open`、Desktop API 8801）→ Web 3000 → Studio 4111 | `DEVICE_MODE=real` / `DESKTOP_BASE_URL=http://127.0.0.1:8801` / `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` | `/` と `/dev` |
+| `demo` | `real` から **Studio とモックを外した**構成（Supabase → bridge 8030 → Next 3100 → Electron → Web 3000） | `real` と同じ | `/` だけ |
 | `web` | Web 3000 のみ（Supabase は**起動していればそのまま**使う。起動はしない） | なし（`.env.local` のまま） | `/` と `/dev` |
 
 オプション:
@@ -33,15 +33,35 @@ pnpm down --all        # Supabase（Docker）も止める
 |---|---|
 | `--no-open` | 起動後にブラウザを開かない |
 | `--no-studio` | Mastra Studio を起動しない（`demo` は元から起動しない） |
+| `--no-bridge` | スタックちゃん bridge（8030）と偽スタックちゃんを起動しない（`real` / `demo` では `STACKCHAN_BRIDGE_URL` の上書きも外れる） |
+| `--mock-device` | 偽スタックちゃんも起動する（`real` / `demo` で**実機が無いとき**の確認用。`mock` は既定で起動する） |
 | `--dry-run` | 起動計画（役割・ポート・コマンド・env 上書き）だけ表示して終わる |
 | `--help` | ヘルプ |
 
 ### `real` / `demo` の env 上書きについて
 
-**`.env.local` は書き換えない。** `DEVICE_MODE=real` と `DESKTOP_BASE_URL=http://127.0.0.1:8801` は
-Web の子プロセスに**環境変数として渡すだけ**なので、`RAIL_BASE_URL` / `STACKCHAN_WS_URL` は
-`.env.local` の値がそのまま使われる（レールとスタックちゃんはモック 8791 / 8793 のまま、
-デスクトップだけ Electron 実機に向く）。`pnpm down` 後に `.env.local` を直す必要はない。
+**`.env.local` は書き換えない。** `DEVICE_MODE=real` / `DESKTOP_BASE_URL=http://127.0.0.1:8801` /
+`STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` は Web の子プロセスに**環境変数として渡すだけ**なので、
+`RAIL_BASE_URL` は `.env.local` の値がそのまま使われる（レールはモック 8791 のまま、
+デスクトップは Electron 実機、スタックちゃんは PC 側 bridge に向く）。`pnpm down` 後に `.env.local` を直す必要はない。
+
+`DEVICE_MODE=real` で `STACKCHAN_BRIDGE_URL` があると、`createDevices` は旧契約の `STACKCHAN_WS_URL` ではなく
+**bridge クライアント（B 方式）** を使う（[`devices.md`](devices.md) §4.3）。機器（M5Stack）は bridge の
+`ws://<PC の IP>:8030/obake/media` に自分から繋ぎに来る。
+
+### スタックちゃん bridge と偽スタックちゃん
+
+| プロファイル | bridge 8030 | 偽スタックちゃん（ポート無し） |
+|---|---|---|
+| `mock` | 起動する | **起動する**（`/dev` でカメラ画像と首制御を確認できるようにするため） |
+| `real` / `demo` | 起動する | 起動しない（`--mock-device` を付けたときだけ起動） |
+| `web` | 起動しない | 起動しない |
+
+- 偽スタックちゃん（`pnpm stackchan:mock-device`）は **bridge に WS クライアントとして繋ぎに行くだけ**でポートを持たない。
+  そのため readiness は**プロセスが起動直後に落ちていないこと**で判定する。起動順は必ず **bridge → 偽機器**。
+- `mock` プロファイルでも **Web は `DEVICE_MODE=mock` のまま**（プロセス内モック）。bridge と偽機器は
+  `/dev` から実際の JPEG / 首制御を触るための実物で、Web の機器呼び出し経路とは独立している。
+- 8030 は**ファーム側の接続先に合わせた固定ポート**なのでずらせない（`scripts/ports.json` の `reserved` 参照）。
 
 ## `pnpm run up` の内部動作
 
@@ -55,7 +75,7 @@ Web の子プロセスに**環境変数として渡すだけ**なので、`RAIL_
    使うポートを**別のプロセス**が掴んでいたら**起動せずに終了（exit 1）**。`pnpm down` か `pnpm ports:free <名前>` を案内する。
    **同じ役割のプロセスが既に動いていれば「再利用」**してそのまま使う（判定は下の readiness）。
 5. **起動** — `child_process.spawn` で子プロセスとして起動し、標準出力・標準エラーに
-   `[web]` `[studio]` `[robot]` `[devices]` `[desk-next]` `[electron]` の色付きプレフィックスを付けて
+   `[web]` `[studio]` `[robot]` `[devices]` `[bridge]` `[mock-device]` `[desk-next]` `[electron]` の色付きプレフィックスを付けて
    **1 つのターミナルに流す**。Electron は Next 3100 が応答してから `electron:open` で起動する。
 6. **readiness をポーリング** — 下表の URL が応答したら Ready。全部 Ready になったら**サマリー表**（役割・URL・状態）を出す。
 7. **ブラウザを開く** — `--no-open` でなければ `open` で `http://localhost:3000` と `http://localhost:3000/dev`（`demo` は前者だけ）。
@@ -70,6 +90,8 @@ Web の子プロセスに**環境変数として渡すだけ**なので、`RAIL_
 | Mastra Studio 4111 | `http://127.0.0.1:4111/` | 応答すれば Ready |
 | 機器モック | `http://127.0.0.1:8791/api/v1/rail/status` | 本文に `state` / `position` |
 | ロボットモック | `http://127.0.0.1:8787/status` | 本文に `commandCount` |
+| スタックちゃん bridge | `http://127.0.0.1:8030/obake/status` | 本文に `connected` |
+| 偽スタックちゃん | （ポート無し） | 起動から 1.5 秒後にプロセスが生きていれば Ready |
 | Ghost Companion の Next | `http://127.0.0.1:3100/` | 応答すれば Ready |
 | Desktop API（Electron） | `http://127.0.0.1:8801/api/v1/desktop/status` | 本文に `running` |
 | Supabase | `http://127.0.0.1:54321/rest/v1/` | 応答すれば Ready（401 でもよい） |
@@ -89,9 +111,13 @@ Web の子プロセスに**環境変数として渡すだけ**なので、`RAIL_
    どちらにも当てはまらないものは「触りません」と表示して**そのまま残す**（名前だけの `pkill` はしない）。
 3. 対象の一覧（PID・ポート・コマンド）を表示し、`--yes` が無ければ確認プロンプト（TTY でなければ自動で yes）。
 4. SIGTERM → 3 秒待って SIGKILL。
-5. Electron は `pkill -f <repo>/client/desktop/node_modules/electron/dist/Electron.app` で
+5. ポートを持たない**偽スタックちゃん**は `ps -Ao pid=,command=` から拾う。
+   対象は「node の実行で」「コマンドラインに `mock-device` を含み」「コマンドラインか cwd がこのリポジトリ配下」で、
+   さらに `stackchan:mock-device` かパッケージ名 `stackchan-bridge`（コマンドラインまたは cwd）に当たるものだけ。
+   文字列を含むだけのシェル（`zsh -c ...`）や他チェックアウトのプロセスは対象外。bridge 本体は 8030 を持つので台帳で拾える。
+6. Electron は `pkill -f <repo>/client/desktop/node_modules/electron/dist/Electron.app` で
    **フルパス指定**で止める（ポートを持たない補助プロセスも含めて落とすため）。
-6. `--all` を付けたときだけ `pnpm db:stop`（Supabase / Docker）も実行する。
+7. `--all` を付けたときだけ `pnpm db:stop`（Supabase / Docker）も実行する。
 
 ```bash
 pnpm down            # 対象を表示して確認プロンプト → 停止（Supabase は残す）
@@ -129,6 +155,8 @@ pnpm ports:check     # 止まったか確認する
 - [ ] `pnpm run up demo` を実行する
 - [ ] サマリー表が全部 **Ready** になったことを確認する
 - [ ] Electron のウィンドウが出て、`curl -s http://127.0.0.1:8801/api/v1/desktop/status` が `running` を返す
+- [ ] スタックちゃんの電源を入れ、`curl -s http://127.0.0.1:8030/obake/status` が `"connected":true` を返す（機器が bridge に繋いだ合図。実機が無い日は `pnpm run up demo --mock-device` で偽機器を代わりに繋ぐ）
+- [ ] `http://localhost:3000/dev` でスタックちゃんのカメラ画像が更新され、首制御（yaw / pitch）が効く
 - [ ] ブラウザの `http://localhost:3000` でおばけに話しかけ、返事が返る
 - [ ] （必要なら）画面収録・マイクの権限ダイアログに許可を出す（[`desktop.md`](desktop.md)）
 - [ ] デモ終了後に `pnpm down --all` で全部止める

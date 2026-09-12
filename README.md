@@ -69,7 +69,7 @@ cp client/web/.env.example client/web/.env.local
 #    GOOGLE_GENERATIVE_AI_API_KEY を書き込む（下の「環境変数」参照）
 
 # 3. 必要なものを 1 コマンドで全部起動
-pnpm run up          # モック構成（Supabase + モック + Web 3000 + Studio 4111）
+pnpm run up          # モック構成（Supabase + モック + スタックちゃん bridge 8030 + 偽機器 + Web 3000 + Studio 4111）
 pnpm run up real     # Electron 実機（Ghost Companion）に繋ぐ構成
 pnpm run up demo     # 本番デモ構成（Studio とモックを外し、チャット画面だけ開く）
 pnpm run up web      # Web 3000 だけ
@@ -82,6 +82,10 @@ pnpm down --all      # Supabase（Docker）も止める
 > **`pnpm up` ではなく `pnpm run up`。** `up` は pnpm 自身のコマンド（`pnpm update` の別名）なので、
 > `pnpm up` と書くと依存の更新が走ってしまう。`pnpm run up`（または同じものを指す `pnpm start`）と書くこと。
 > 停止の `pnpm down` はそのままで問題ない。
+
+どのプロファイルでも**スタックちゃん bridge（8030）を一緒に起動する**（`real` / `demo` は Web に
+`STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` を渡す。`mock` は `/dev` で触れるよう**偽スタックちゃん**も起動する）。
+実機が無い日に `real` で試すなら `pnpm run up real --mock-device`、bridge ごと外すなら `--no-bridge`。
 
 `pnpm run up` は起動前に `pnpm ports:check` 相当の確認を行い、**使うポートを別のプロセスが掴んでいたら
 起動せずに止まる**（同じ役割のものが既に動いていれば再利用する）。全サービスの readiness を HTTP で確認して
