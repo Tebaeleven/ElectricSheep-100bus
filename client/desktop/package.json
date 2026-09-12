@@ -15,7 +15,8 @@
     "electron:stop": "node electron/with-node22.js electron/stop.js",
     "dev:desktop": "concurrently -k \"npm run dev\" \"npm run electron\"",
     "dev:pet": "concurrently -k \"npm run dev\" \"npm run electron\"",
-    "dist": "node electron/dist.mjs"
+    "dist": "node electron/dist.mjs",
+    "electron:open": "node electron/open-app.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.23",
@@ -71,7 +72,12 @@
       "target": [{ "target": "zip", "arch": ["arm64"] }],
       "identity": null,
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "お化けちゃんとの会話に使うため、マイクへのアクセスを許可してください。",
+        "NSCameraUsageDescription": "カメラを使う機能のためにアクセスを許可してください。",
+        "NSAudioCaptureUsageDescription": "会話の音声を取り込むためにアクセスを許可してください。"
+      }
     },
     "win": {
       "target": [{ "target": "zip", "arch": ["x64"] }]

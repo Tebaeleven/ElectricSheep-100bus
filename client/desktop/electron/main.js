@@ -963,20 +963,100 @@ function allowDeskMedia() {
   });
 }
 
+/** macOS のマイク設定パネル */
+const MIC_SETTINGS_URL =
+  "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone";
+
+/**
+ * ターミナルから `electron .` で起動すると、TCC（権限）の要求は
+ * **親プロセス（ターミナル）に帰属**するため許可ダイアログが出ず、
+ * askForMediaAccess が即 false を返して一覧にも Electron が載らない。
+ * その場合の案内文（bundle id は開発ビルドだと com.github.Electron）。
+ */
+const MIC_TERMINAL_HINT =
+  "許可ダイアログが出ない場合は、ターミナルからではなくアプリバンドルから起動してください（pnpm run electron:open）。" +
+  "一覧に Electron が残っていて直らないときは `tccutil reset Microphone com.github.Electron` を実行してから再起動してください。";
+
+/**
+ * マイク権限を要求する。
+ * ダイアログを確実に出すため、要求の直前にアプリを前面に出す。
+ * @returns {Promise<{ ok: boolean, status: string, prompted: boolean, hint?: string }>}
+ */
+async function requestMicAccess() {
+  if (process.platform !== "darwin") {
+    return { ok: true, status: "granted", prompted: false };
+  }
+  let status = systemPreferences.getMediaAccessStatus("microphone");
+  if (status === "granted") return { ok: true, status, prompted: false };
+
+  if (status === "denied" || status === "restricted") {
+    // すでに拒否済み。askForMediaAccess はダイアログを出さないので設定画面へ誘導する
+    try {
+      await shell.openExternal(MIC_SETTINGS_URL);
+    } catch (err) {
+      console.error("[ghost-companion] open mic settings", err);
+    }
+    return {
+      ok: false,
+      status,
+      prompted: false,
+      hint: `システム設定 > プライバシーとセキュリティ > マイク で Electron（または Ghost Companion）を ON にして、アプリを再起動してください。${MIC_TERMINAL_HINT}`,
+    };
+  }
+
+  // not-determined / unknown — OS のダイアログを出す
+  try {
+    app.focus({ steal: true });
+  } catch {
+    /* 前面化に失敗しても要求自体は試す */
+  }
+  const allowed = await systemPreferences.askForMediaAccess("microphone");
+  status = systemPreferences.getMediaAccessStatus("microphone");
+  const ok = allowed || status === "granted";
+  if (!ok && status === "not-determined") {
+    // ダイアログが出ずに即 false = TCC がターミナルに帰属している
+    console.warn(`[ghost-companion] mic prompt did not appear. ${MIC_TERMINAL_HINT}`);
+    return { ok: false, status, prompted: false, hint: MIC_TERMINAL_HINT };
+  }
+  return { ok, status, prompted: true };
+}
+
 async function ensureMicAccess() {
   if (process.platform !== "darwin") return true;
   try {
-    const status = systemPreferences.getMediaAccessStatus("microphone");
-    console.log(`[ghost-companion] mic status → ${status}`);
-    if (status === "granted") return true;
-    if (status === "denied" || status === "restricted") {
-      // Already blocked in System Settings — askForMediaAccess won't show a prompt.
-      return false;
+    const before = systemPreferences.getMediaAccessStatus("microphone");
+    console.log(`[ghost-companion] mic status → ${before}`);
+    const result = await requestMicAccess();
+    if (result.status !== before) {
+      console.log(`[ghost-companion] mic status → ${result.status}`);
     }
-    return await systemPreferences.askForMediaAccess("microphone");
+    return result.ok;
   } catch (err) {
     console.error("[ghost-companion] mic permission", err);
     return false;
+  }
+}
+
+/**
+ * 画面収録の TCC 登録を促す。
+ * getMediaAccessStatus を読むだけでは一覧に載らないので、
+ * 1x1 の getSources を 1 回だけ空打ちして OS に要求を届ける。
+ */
+async function warmUpScreenAccess() {
+  if (process.platform !== "darwin") return;
+  try {
+    const status = systemPreferences.getMediaAccessStatus("screen");
+    console.log(`[ghost-companion] screen status → ${status}`);
+    if (status === "granted") return;
+    await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: 1, height: 1 },
+    });
+    console.log(
+      `[ghost-companion] screen status → ${systemPreferences.getMediaAccessStatus("screen")}`
+    );
+  } catch (err) {
+    console.error("[ghost-companion] screen permission warm-up", err);
   }
 }
 
@@ -989,23 +1069,13 @@ ipcMain.handle("desk:micStatus", async () => {
 });
 
 ipcMain.handle("desk:requestMic", async () => {
-  if (process.platform !== "darwin") {
-    return { ok: true, status: "granted" };
-  }
   try {
-    let status = systemPreferences.getMediaAccessStatus("microphone");
-    if (status === "granted") return { ok: true, status };
-    if (status === "not-determined" || status === "unknown") {
-      const allowed = await systemPreferences.askForMediaAccess("microphone");
-      status = systemPreferences.getMediaAccessStatus("microphone");
-      return { ok: allowed || status === "granted", status };
-    }
-    // denied / restricted — user must flip System Settings
-    return { ok: false, status };
+    return await requestMicAccess();
   } catch (err) {
     return {
       ok: false,
       status: "error",
+      prompted: false,
       error: err instanceof Error ? err.message : "mic request failed",
     };
   }
@@ -1013,9 +1083,7 @@ ipcMain.handle("desk:requestMic", async () => {
 
 ipcMain.handle("desk:openMicSettings", async () => {
   if (process.platform === "darwin") {
-    await shell.openExternal(
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-    );
+    await shell.openExternal(MIC_SETTINGS_URL);
     return true;
   }
   return false;
@@ -1044,8 +1112,6 @@ app.whenReady().then(async () => {
   if (!gotLock) return;
   installPageHmrMute();
   allowDeskMedia();
-  const micOk = await ensureMicAccess();
-  console.log(`[ghost-companion] microphone → ${micOk ? "ok" : "denied"}`);
   if (app.isPackaged) {
     const origin = startPackagedDesk();
     if (origin) {
@@ -1065,6 +1131,10 @@ app.whenReady().then(async () => {
     console.error("[ghost-companion] desktop api failed to start", err);
   }
   createMainWindow();
+  // 権限ダイアログはウィンドウを出してから要求する（前面のアプリとして扱わせるため）
+  const micOk = await ensureMicAccess();
+  console.log(`[ghost-companion] microphone → ${micOk ? "ok" : "denied"}`);
+  await warmUpScreenAccess();
   // One Obake sticky only — never pin the old Petassist six.
   const pos = defaultPinPos("ghost");
   placeSticky("ghost", pos.x, pos.y);

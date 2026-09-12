@@ -34,14 +34,19 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-/** macOS の画面収録権限。他 OS では常に granted 扱い */
-function screenPermission() {
+/** macOS のメディア権限。他 OS では常に granted 扱い */
+function mediaPermission(kind) {
   if (process.platform !== "darwin") return "granted";
   try {
-    return systemPreferences.getMediaAccessStatus("screen");
+    return systemPreferences.getMediaAccessStatus(kind);
   } catch {
     return "unknown";
   }
+}
+
+/** 画面収録権限 */
+function screenPermission() {
+  return mediaPermission("screen");
 }
 
 function isSafeHttpUrl(raw) {
@@ -110,6 +115,8 @@ async function startDesktopApiServer({ capturePng }) {
             version: app.getVersion(),
             uptime_ms: Date.now() - startedAt,
             screen_permission: screenPermission(),
+            // 権限の切り分け用（マイクは Desktop API では使わないが状態を出す）
+            microphone_permission: mediaPermission("microphone"),
           });
           return;
         }

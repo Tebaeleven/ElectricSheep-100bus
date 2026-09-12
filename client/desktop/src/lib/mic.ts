@@ -21,8 +21,11 @@ export async function readyMicStream(): Promise<MicReady> {
     const bridge = window.petassist;
     if (bridge?.requestMic) {
       const res = await bridge.requestMic();
-      if (!res?.ok) {
-        return { ok: false, reason: "denied", detail: res?.status };
+      // システム設定で明示的に拒否されているときだけ即座に諦める。
+      // not-determined / unknown（＝ダイアログが出なかった）ときは
+      // getUserMedia 自体が OS へ要求を出せることがあるので先へ進む
+      if (!res?.ok && (res?.status === "denied" || res?.status === "restricted")) {
+        return { ok: false, reason: "denied", detail: res?.hint || res?.status };
       }
     }
   } catch {

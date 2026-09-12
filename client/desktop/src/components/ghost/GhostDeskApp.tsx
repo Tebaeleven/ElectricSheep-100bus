@@ -817,13 +817,22 @@ export function GhostDeskApp({
                   </div>
                 ) : null}
                 {micBlocked ? (
-                  <Button
-                    variant="careSoft"
-                    className="w-full"
-                    onClick={() => void window.petassist?.openMicSettings?.()}
-                  >
-                    マイク設定を開く
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="careSoft"
+                      className="w-full"
+                      onClick={() => void window.petassist?.openMicSettings?.()}
+                    >
+                      マイク設定を開く
+                    </Button>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      一覧に Electron が見つからないときは、ターミナルで{" "}
+                      <code className="rounded bg-black/5 px-1">
+                        tccutil reset Microphone com.github.Electron
+                      </code>{" "}
+                      を実行してからアプリを再起動してね。
+                    </p>
+                  </div>
                 ) : null}
               </div>
 

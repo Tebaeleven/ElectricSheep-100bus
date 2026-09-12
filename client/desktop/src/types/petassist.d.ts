@@ -38,7 +38,15 @@ export type DeskApi = {
     error?: string;
   }>;
   micStatus?: () => Promise<{ ok: boolean; status: string }>;
-  requestMic?: () => Promise<{ ok: boolean; status: string; error?: string }>;
+  requestMic?: () => Promise<{
+    ok: boolean;
+    status: string;
+    /** 実際に OS のダイアログを出せたか */
+    prompted?: boolean;
+    /** ダイアログが出せなかった場合の案内文 */
+    hint?: string;
+    error?: string;
+  }>;
   openMicSettings?: () => Promise<boolean>;
   onPinned: (cb: (state: DeskPins) => void) => () => void;
 };
