@@ -118,10 +118,10 @@ inline constexpr uint32_t kMediaReconnectMs = 5000;
 // open/close の2パターンのみ。pitch は現状維持。
 // =============================================================================
 
-/** hand.set open=true のとき首 yaw（度。+12〜+52 の開側） */
-inline constexpr int kHandOpenYawDeg = 52;
-/** hand.set open=false のとき首 yaw（度。同じ範囲の閉側＝逆） */
-inline constexpr int kHandCloseYawDeg = 12;
+/** hand.set open=true のとき首 yaw（度。実測: 開く=+12） */
+inline constexpr int kHandOpenYawDeg = 12;
+/** hand.set open=false のとき首 yaw（度。実測: 閉じる=+52） */
+inline constexpr int kHandCloseYawDeg = 52;
 /** hand.set 時の yaw 移動速度（Motion moveWithSpeed。100〜1000） */
 inline constexpr int kHandYawSpeed = 150;
 
