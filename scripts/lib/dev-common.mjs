@@ -203,3 +203,188 @@ export async function waitUntil(check, { timeoutMs, intervalMs = 400 }) {
     await sleep(intervalMs)
   }
 }
+
+// ---------------------------------------------------------------- 残骸プロセス検出
+
+/** worktree は `<メインチェックアウト>/.claude/worktrees/<名前>` に作る */
+const WORKTREE_SEGMENT = "/.claude/worktrees/"
+
+/**
+ * メインチェックアウトのルート。
+ * このスクリプトが worktree から動いている場合でも、掃除の対象は
+ * 「メインチェックアウトとその配下の worktree 全部」なので親をたどって戻す。
+ */
+export const MAIN_REPO_ROOT = (() => {
+  const index = REPO_ROOT.indexOf(WORKTREE_SEGMENT)
+  return index === -1 ? REPO_ROOT : REPO_ROOT.slice(0, index)
+})()
+
+/** パスがこのリポジトリ一家（メイン + worktree）の中か。他プロジェクトは false */
+export function isRepoFamilyPath(path, repoRoot = MAIN_REPO_ROOT) {
+  if (typeof path !== "string" || path === "") return false
+  return path === repoRoot || path.startsWith(`${repoRoot}/`)
+}
+
+/**
+ * 掃除の対象にする開発プロセスの種類。
+ * needle はコマンドライン（または cwd）に出る目印。
+ */
+export const STALE_KINDS = [
+  {
+    id: "mastra-dev",
+    label: "Mastra Studio（mastra dev）",
+    needles: ["mastra/dist/index.js dev"],
+  },
+  { id: "next-dev", label: "Next dev サーバー", needles: ["next dev"] },
+  { id: "next-server", label: "Next dev サーバー（next-server）", needles: ["next-server"] },
+  { id: "devices-mock", label: "機器モック 3 台", needles: ["src/mock-servers.ts"] },
+  { id: "robot-mock", label: "ロボットモック", needles: ["src/mock-server.ts"] },
+  {
+    id: "stackchan-bridge",
+    label: "スタックちゃん bridge",
+    needles: ["stackchan-bridge"],
+  },
+]
+
+/**
+ * 目印に当たっても掃除の対象にしないもの。
+ * 偽スタックちゃん（mock-device）はポートを持たない正規の常駐プロセスで、
+ * dev-down の collectPortlessTargets が別途面倒を見る。
+ */
+const STALE_EXCLUDE_NEEDLES = ["mock-device"]
+
+/** シェルや検索コマンドを巻き込まないための除外 */
+const NON_TARGET_EXECUTABLES = new Set([
+  "sh", "bash", "zsh", "grep", "rg", "ps", "tail", "less", "vim", "code",
+])
+
+/** ps の 1 行（`pid ppid command`）を分解する */
+function parsePsLine(line) {
+  const match = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)
+  if (!match) return null
+  const commandLine = match[3].trim()
+  if (commandLine === "") return null
+  return {
+    pid: Number(match[1]),
+    ppid: Number(match[2]),
+    commandLine,
+  }
+}
+
+function executableNameOf(commandLine) {
+  const first = commandLine.split(" ")[0] ?? ""
+  return first.slice(first.lastIndexOf("/") + 1)
+}
+
+/** この 2 本のスクリプト自身（と pnpm ラッパー）は対象外 */
+function isOwnTooling(commandLine) {
+  return (
+    commandLine.includes("scripts/dev-up.mjs") ||
+    commandLine.includes("scripts/dev-down.mjs") ||
+    commandLine.includes("scripts/check-ports.mjs")
+  )
+}
+
+function matchStaleKind(commandLine, cwd) {
+  const haystack = `${commandLine} ${cwd}`
+  if (STALE_EXCLUDE_NEEDLES.some((needle) => haystack.includes(needle))) return null
+  return (
+    STALE_KINDS.find((kind) => kind.needles.some((n) => commandLine.includes(n))) ??
+    null
+  )
+}
+
+/**
+ * 残骸プロセスを見つける（純関数。テストから偽の ps 出力を渡せる）。
+ *
+ * 「残骸」= このリポジトリ一家のプロセスで、掃除対象の種類に当たり、
+ * かつ台帳のポートを LISTEN していない（親をたどっても LISTEN 側に繋がらない）もの。
+ * LISTEN 中のプロセスとその親は「正常稼働中」なので残骸にはしない。
+ *
+ * @param {object} params
+ * @param {string} params.psOutput `ps -Ao pid=,ppid=,command=` の出力
+ * @param {number[]} [params.listeningPids] 台帳ポートを LISTEN している PID
+ * @param {(pid: number) => string} [params.cwdLookup] PID の cwd（1 プロセスずつ引く）
+ * @param {string} [params.repoRoot] メインチェックアウトのルート
+ * @param {number[]} [params.ignorePids] 自分自身など除外する PID
+ * @returns {{ pid: number, ppid: number, commandLine: string, kind: string, label: string }[]}
+ */
+export function detectStaleProcesses({
+  psOutput,
+  listeningPids = [],
+  cwdLookup = () => "",
+  repoRoot = MAIN_REPO_ROOT,
+  ignorePids = [],
+}) {
+  const rows = []
+  for (const line of String(psOutput).split("\n")) {
+    const parsed = parsePsLine(line)
+    if (parsed) rows.push(parsed)
+  }
+  const byPid = new Map(rows.map((row) => [row.pid, row]))
+
+  // LISTEN しているプロセスとその祖先は「稼働中」とみなす
+  const active = new Set()
+  for (const pid of listeningPids) {
+    let current = pid
+    for (let depth = 0; depth < 32; depth += 1) {
+      if (active.has(current)) break
+      active.add(current)
+      const row = byPid.get(current)
+      if (!row || row.ppid <= 1) break
+      current = row.ppid
+    }
+  }
+
+  const ignore = new Set(ignorePids)
+  const found = []
+  for (const row of rows) {
+    if (ignore.has(row.pid) || active.has(row.pid)) continue
+    if (row.pid <= 1) continue
+    if (NON_TARGET_EXECUTABLES.has(executableNameOf(row.commandLine))) continue
+    if (isOwnTooling(row.commandLine)) continue
+    if (!STALE_KINDS.some((kind) => kind.needles.some((n) => row.commandLine.includes(n)))) {
+      continue
+    }
+    // 他プロジェクトを巻き込まないための持ち主判定。
+    // コマンドラインにパスが出ないもの（next-server）だけ cwd を引く。
+    const fromCommandLine = row.commandLine.includes(`${repoRoot}/`)
+    const cwd = fromCommandLine ? "" : cwdLookup(row.pid)
+    if (!fromCommandLine && !isRepoFamilyPath(cwd, repoRoot)) continue
+    const kind = matchStaleKind(row.commandLine, cwd)
+    if (!kind) continue
+    found.push({
+      pid: row.pid,
+      ppid: row.ppid,
+      commandLine: row.commandLine,
+      kind: kind.id,
+      label: kind.label,
+      cwd,
+    })
+  }
+  return found
+}
+
+/** 実環境の ps / lsof を使って残骸プロセスを探す */
+export function findStaleProcesses(ledger, extraIgnorePids = []) {
+  let psOutput = ""
+  try {
+    psOutput = execFileSync("ps", ["-Ao", "pid=,ppid=,command="], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+  } catch {
+    return []
+  }
+  const listeningPids = []
+  for (const entry of Object.values(ledger.ports)) {
+    for (const listener of listenersOf(entry.port)) listeningPids.push(listener.pid)
+  }
+  return detectStaleProcesses({
+    psOutput,
+    listeningPids,
+    // lsof は 1 プロセスずつ引く（まとめて渡すと 1 つ失敗しただけで全部落ちる）
+    cwdLookup: (pid) => cwdOf(pid),
+    ignorePids: [process.pid, process.ppid ?? 0, ...extraIgnorePids],
+  })
+}
