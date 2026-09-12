@@ -81,16 +81,20 @@ describe("railStop", () => {
 })
 
 describe("headSet", () => {
-  // TODO(P5 統合): P5-A がモックに headSet を実装したら ok:true と
-  // 送られた角度（yaw / pitch / speed）まで検証する
-  it("可動範囲内の角度なら例外を投げずに結果を返す", async () => {
-    const result = await run(headSet, { yaw: 30, pitch: -10, speed: 50 })
+  it("可動範囲内の角度ならモックへ送られ ok が返る", async () => {
+    const result = await run(headSet, { yaw: 30, pitch: 60, speed: 200 })
 
+    expect(result.ok).toBe(true)
     expect(typeof result.latencyMs).toBe("number")
+
+    const stackchan = getDevices().stackchan as unknown as {
+      headAngles?: { yaw: number; pitch: number; speed?: number }
+    }
+    expect(stackchan.headAngles).toEqual({ yaw: 30, pitch: 60, speed: 200 })
   })
 
   it("可動範囲外の角度は inputSchema で弾かれ、機器へ送らない", async () => {
-    const result = await run(headSet, { yaw: 200, pitch: 0 })
+    const result = await run(headSet, { yaw: 999, pitch: 0 })
 
     expect(result.ok).not.toBe(true)
     expect(result.error ?? result.message).toBeTruthy()

@@ -99,7 +99,9 @@ secret key（`sb_secret_...`）を `SUPABASE_SECRET_KEY` に入れておく（�
 ```bash
 pnpm db:start       # ローカル Supabase（初回は Docker イメージの pull で数分）
 pnpm robot:mock     # ロボットモック 8787
-pnpm devices:mock   # 機器モック 3 台 8791 / 8792 / 8793
+pnpm devices:mock   # 機器モック 3 台 8791 / 8792 / 8793（スタックちゃん 8793 は旧契約）
+pnpm stackchan:bridge      # スタックちゃん B 方式の PC 側ブリッジ 8030（機器が繋ぎに来る）
+pnpm stackchan:mock-device # 実機の代わりに bridge へ繋ぐ偽スタックちゃん
 pnpm dev            # web 3000
 pnpm agent:studio   # Mastra Studio 4111
 ```
@@ -112,7 +114,7 @@ pnpm agent:studio   # Mastra Studio 4111
 DEVICE_MODE=real \
 RAIL_BASE_URL=http://127.0.0.1:8791 \
 DESKTOP_BASE_URL=http://127.0.0.1:8792 \
-STACKCHAN_WS_URL=ws://127.0.0.1:8793 \
+STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030 \
 PORT=3000 pnpm --filter web dev
 ```
 
@@ -136,7 +138,9 @@ Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` を�
 | `pnpm db:types` | 生成型を `packages/db/src/database.types.ts` に出力 |
 | `pnpm agent:studio` | Mastra Studio（http://localhost:4111） |
 | `pnpm robot:mock` | ロボットモックサーバー（既定 8787） |
-| `pnpm devices:mock` | 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793） |
+| `pnpm devices:mock` | 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793・旧契約） |
+| `pnpm stackchan:bridge` | スタックちゃん B 方式の PC 側ブリッジ（8030。機器が WS で繋ぎに来る受け口 + HTTP API） |
+| `pnpm stackchan:mock-device` | 実機なしで bridge を動かす偽スタックちゃん（JPEG / PCM を送り `set_head` をログ） |
 | `pnpm ports:check` | ポート台帳と実際の LISTEN を突き合わせる（[`docs/ports.md`](docs/ports.md)） |
 | `pnpm wt setup <task> [base]` | 並列開発用の worktree を作る |
 
@@ -161,6 +165,7 @@ pnpm ports:free 8792      # そのポートを掴んでいる PID を表示（--
 | 3100 | Next.js（`client/desktop` の Electron 表示用 UI、`DESKTOP_NEXT_PORT`） |
 | 4111 | Mastra Studio（`pnpm agent:studio`） |
 | 8787 | ロボットモックサーバー（`ROBOT_MOCK_PORT`） |
+| **8030** | スタックちゃん bridge（`pnpm stackchan:bridge`、`STACKCHAN_BRIDGE_PORT`）。ファームに焼かれた接続先なので動かせない |
 | 8791-8793 | 機器モック 3 台（`pnpm devices:mock`。レール / デスクトップ / スタックちゃん） |
 | **8801** | Desktop API: Electron 実機（`client/desktop`、`DESKTOP_API_PORT`）。**使用中でもずらさず警告して API だけ無効**。8802 以降は将来のローカルブリッジ用に予約 |
 | 54321-54323 | Supabase（API / Postgres / Studio） |

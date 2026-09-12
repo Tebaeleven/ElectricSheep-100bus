@@ -8,7 +8,16 @@ import type {
   RailAxis,
   RailDirection,
 } from "@workspace/devices"
-import { RAIL_MAX_DURATION_MS } from "@workspace/devices"
+import {
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_DEFAULT,
+  HEAD_SPEED_MAX as SDK_HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
+  RAIL_MAX_DURATION_MS,
+} from "@workspace/devices"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -23,22 +32,28 @@ import { Input } from "@workspace/ui/components/input"
 /** レール移動の既定駆動時間（ミリ秒） */
 const DEFAULT_DURATION_MS = 500
 
-/** 首の可動範囲（度）と既定速度。正本は @workspace/devices の headSetSchema */
-const HEAD_YAW_MIN = -90
-const HEAD_YAW_MAX = 90
-const HEAD_PITCH_MIN = -45
-const HEAD_PITCH_MAX = 45
-const HEAD_SPEED_MAX = 100
-const DEFAULT_HEAD_SPEED = 50
+/**
+ * 首の可動範囲（度）と既定速度。正本は `@workspace/devices` の `headSetSchema`
+ * （ファーム実測: `obake_servo_api.cpp:21-25` / `hal_servo.cpp:340,349`）
+ */
+const HEAD_YAW_MIN = HEAD_YAW_MIN_DEG
+const HEAD_YAW_MAX = HEAD_YAW_MAX_DEG
+const HEAD_PITCH_MIN = HEAD_PITCH_MIN_DEG
+const HEAD_PITCH_MAX = HEAD_PITCH_MAX_DEG
+const HEAD_SPEED_MIN = SDK_HEAD_SPEED_MIN
+const HEAD_SPEED_MAX = SDK_HEAD_SPEED_MAX
+const DEFAULT_HEAD_SPEED = HEAD_SPEED_DEFAULT
+/** 水平（正面）のおよその pitch。0=最も下 / 90=最も上 */
+const HEAD_PITCH_LEVEL = 45
 
 /** 首の向きのプリセット（5 ボタン） */
 const HEAD_PRESETS: { id: string; label: string; yaw: number; pitch: number }[] =
   [
-    { id: "head-left", label: "⬅ 左", yaw: -30, pitch: 0 },
-    { id: "head-up", label: "⬆ 上", yaw: 0, pitch: 20 },
-    { id: "head-center", label: "⏺ 正面", yaw: 0, pitch: 0 },
-    { id: "head-down", label: "⬇ 下", yaw: 0, pitch: -20 },
-    { id: "head-right", label: "➡ 右", yaw: 30, pitch: 0 },
+    { id: "head-left", label: "⬅ 左", yaw: -30, pitch: HEAD_PITCH_LEVEL },
+    { id: "head-up", label: "⬆ 上", yaw: 0, pitch: 70 },
+    { id: "head-center", label: "⏺ 正面", yaw: 0, pitch: HEAD_PITCH_LEVEL },
+    { id: "head-down", label: "⬇ 下", yaw: 0, pitch: 20 },
+    { id: "head-right", label: "➡ 右", yaw: 30, pitch: HEAD_PITCH_LEVEL },
   ]
 
 /** レール移動ボタンの並び（軸 × 方向） */
@@ -112,7 +127,7 @@ export function DevicePanel() {
   const [railStatus, setRailStatus] = useState<unknown>(null)
 
   const [headYaw, setHeadYaw] = useState(0)
-  const [headPitch, setHeadPitch] = useState(0)
+  const [headPitch, setHeadPitch] = useState(HEAD_PITCH_LEVEL)
   const [headSpeed, setHeadSpeed] = useState(DEFAULT_HEAD_SPEED)
 
   const [cameraImage, setCameraImage] = useState<ImagePayload | null>(null)
@@ -378,12 +393,12 @@ export function DevicePanel() {
                   htmlFor="head-speed"
                   className="text-xs text-muted-foreground"
                 >
-                  speed（0〜{HEAD_SPEED_MAX}）
+                  speed（{HEAD_SPEED_MIN}〜{HEAD_SPEED_MAX}）
                 </label>
                 <Input
                   id="head-speed"
                   type="number"
-                  min={0}
+                  min={HEAD_SPEED_MIN}
                   max={HEAD_SPEED_MAX}
                   value={headSpeed}
                   onChange={(event) => setHeadSpeed(Number(event.target.value))}

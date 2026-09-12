@@ -44,7 +44,7 @@ pnpm down --all      # Supabase（Docker）も停止
 - readiness は HTTP で確認する（web は `/api/dev/env`、Electron は `/api/v1/desktop/status` 等）。全て Ready でサマリー表を出す
 - **Ctrl+C で自分が起動した子プロセスだけ停止**。Supabase と Electron は残るので `pnpm down --all`
 - `real` / `demo` は **`.env.local` を書き換えず**、`DEVICE_MODE=real` と `DESKTOP_BASE_URL=http://127.0.0.1:8801` を環境変数で渡すだけ
-- 個別に起動したいとき（`pnpm db:start` / `pnpm robot:mock` / `pnpm devices:mock` / `pnpm dev` / `pnpm agent:studio`）は README を参照。**A レーン以外は `pnpm db:start` を直接叩かない**（`pnpm run up` の再利用判定で既存の Supabase をそのまま使う）
+- 個別に起動したいとき（`pnpm db:start` / `pnpm robot:mock` / `pnpm devices:mock` / `pnpm stackchan:bridge` / `pnpm stackchan:mock-device` / `pnpm dev` / `pnpm agent:studio`）は README を参照。**A レーン以外は `pnpm db:start` を直接叩かない**（`pnpm run up` の再利用判定で既存の Supabase をそのまま使う）
 
 ## 納品ゲート
 
@@ -58,7 +58,7 @@ green にしてからコミット（日本語メッセージ）。**push / PR / 
 
 **起動前に `pnpm ports:check`**（台帳 `scripts/ports.json` と実際の LISTEN・`.env.local` を突き合わせ、衝突なら終了コード 1）。詳細は `docs/ports.md`。
 
-3000 web（`/dev` は開発者ダッシュボード）/ **3100 `client/desktop` の Next**（`DESKTOP_NEXT_PORT`。3000 を取り合わない）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / 8791-8793 機器モック（`pnpm devices:mock`）/ **8801 Electron 実機の Desktop API**（`DESKTOP_API_PORT`。8802 以降は将来のローカルブリッジ用に予約）。
+3000 web（`/dev` は開発者ダッシュボード）/ **3100 `client/desktop` の Next**（`DESKTOP_NEXT_PORT`。3000 を取り合わない）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / **8030 スタックちゃん bridge**（`pnpm stackchan:bridge`。機器が繋ぎに来る WS 受け口 + HTTP。実機なしの確認は `pnpm stackchan:mock-device`）/ 8791-8793 機器モック（`pnpm devices:mock`。8793 のスタックちゃんは旧契約）/ **8801 Electron 実機の Desktop API**（`DESKTOP_API_PORT`。8802 以降は将来のローカルブリッジ用に予約）。
 モック 8792 と実機 8801 は別帯なので同時起動してよい。Electron はポートが埋まっていても**自動でずらさず**警告して Desktop API だけ無効にする。
 並列レーンでは web は `PORT=3001..`、モックは `ROBOT_MOCK_PORT` でずらす（割当表は `docs/development.md`）。
 

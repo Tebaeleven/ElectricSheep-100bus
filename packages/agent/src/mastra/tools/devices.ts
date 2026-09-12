@@ -1,6 +1,12 @@
 import { createTool } from "@mastra/core/tools"
 import {
   createDevices,
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_MAX as SDK_HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
   openUrlSchema,
   railAxisSchema,
   railMoveSchema,
@@ -11,7 +17,6 @@ import type {
   DeviceResult,
   ImagePayload,
   RailDirection,
-  StackchanClient,
 } from "@workspace/devices"
 import { z } from "zod"
 
@@ -169,28 +174,22 @@ export const railStop = createTool({
   },
 })
 
-/** 首の可動範囲（度）と速度。正本は @workspace/devices の headSetSchema */
-export const HEAD_YAW_MIN = -90
-export const HEAD_YAW_MAX = 90
-export const HEAD_PITCH_MIN = -45
-export const HEAD_PITCH_MAX = 45
-export const HEAD_SPEED_MAX = 100
-
-type HeadSetInput = { yaw: number; pitch: number; speed?: number }
-
-// TODO(P5 統合): headSet は @workspace/devices に正式追加（P5-A 担当）。
-// 統合後はこの型と ?. 分岐を消し、stackchan.headSet(input) を直接呼ぶ。
-type StackchanWithHeadSet = StackchanClient & {
-  headSet?: (
-    input: HeadSetInput,
-    opts?: { timeoutMs?: number }
-  ) => Promise<DeviceResult>
-}
+/**
+ * 首の可動範囲（度）と速度。正本は `@workspace/devices` の `headSetSchema`
+ * （実測値の根拠: ファーム `obake_servo_api.cpp:21-25` と `hal_servo.cpp:340,349`）。
+ * pitch は 0=最も下 / 90=最も上で、水平はおよそ 45
+ */
+export const HEAD_YAW_MIN = HEAD_YAW_MIN_DEG
+export const HEAD_YAW_MAX = HEAD_YAW_MAX_DEG
+export const HEAD_PITCH_MIN = HEAD_PITCH_MIN_DEG
+export const HEAD_PITCH_MAX = HEAD_PITCH_MAX_DEG
+export const HEAD_SPEED_MIN = SDK_HEAD_SPEED_MIN
+export const HEAD_SPEED_MAX = SDK_HEAD_SPEED_MAX
 
 /** 首を指定角度へ向ける tool */
 export const headSet = createTool({
   id: "head-set",
-  description: `スタックちゃんの首を向ける。yaw は左右（${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度。マイナスが自分から見て左）、pitch は上下（${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度。プラスが上）。正面に戻すときは yaw=0, pitch=0。`,
+  description: `スタックちゃんの首を向ける。yaw は左右（${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度。マイナスが自分から見て左）、pitch は上下（${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度。0 が最も下、90 が最も上、水平はおよそ 45）。正面に戻すときは yaw=0, pitch=45。`,
   inputSchema: z.object({
     yaw: z
       .number()
@@ -201,24 +200,22 @@ export const headSet = createTool({
       .number()
       .min(HEAD_PITCH_MIN)
       .max(HEAD_PITCH_MAX)
-      .describe(`上下の角度。${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度`),
+      .describe(
+        `上下の角度。${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度（水平はおよそ 45）`
+      ),
     speed: z
       .number()
-      .min(0)
+      .min(HEAD_SPEED_MIN)
       .max(HEAD_SPEED_MAX)
       .optional()
-      .describe(`首を動かす速さ。0〜${HEAD_SPEED_MAX}。省略可`),
+      .describe(
+        `首を動かす速さ。${HEAD_SPEED_MIN}〜${HEAD_SPEED_MAX}（省略時はファーム既定の 150）`
+      ),
   }),
   outputSchema: deviceResultSchema,
   execute: async (input) => {
-    const stackchan = getDevices().stackchan as StackchanWithHeadSet
-    const result = await runDeviceCall(
-      async () =>
-        (await stackchan.headSet?.(input)) ?? {
-          ok: false,
-          error: "headSet not available",
-          latencyMs: 0,
-        }
+    const result = await runDeviceCall(() =>
+      getDevices().stackchan.headSet(input)
     )
     return toLlmResult(result)
   },

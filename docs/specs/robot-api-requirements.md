@@ -111,8 +111,9 @@
 | `DesktopClient.screenshot()` | `POST /api/v1/desktop/screenshot` | なし | `{ mime_type, image_base64 }` → `{ mimeType, imageBase64 }` |
 | `DesktopClient.openBrowser(input)` | `POST /api/v1/desktop/browser/open` | `{ url }` | `{ url }` |
 | `DesktopClient.status()` | `GET /api/v1/desktop/status` | なし | `{ state, ... }` |
-| `StackchanClient.handSet(state)` | WS `hand.set` → `ack` | `"open" \| "closed"` | `{ type, request_id, data: { state } }` |
-| `StackchanClient.cameraCapture()` | WS `camera.capture` → `camera.frame` | なし | `data: { mime_type, image_base64 }` → `{ mimeType, imageBase64 }` |
+| `StackchanClient.headSet(input)` **（B 方式・現行）** | ブリッジ `POST /obake/head` → 機器へ `{"cmd":"set_head",...}` | `{ yaw, pitch, speed? }` | `{ cmd:"set_head", yaw, pitch, speed }` |
+| `StackchanClient.handSet(state)` **（廃止）** | 送信しない。`{ok:false, error:"unsupported: hand servo not present"}` | `"open" \| "closed"` | — |
+| `StackchanClient.cameraCapture()` | B 方式: ブリッジ `GET /obake/latest.json` ／ 旧契約: WS `camera.capture` → `camera.frame` | なし | `{ mime_type, image_base64 }` → `{ mimeType, imageBase64 }` |
 | `StackchanClient.audioStart()` | WS `audio.start` → `ack` | なし | `{ type, request_id }` |
 | `StackchanClient.audioStop()` | WS `audio.stop` → `ack` | なし | `{ type, request_id }` |
 | `StackchanClient.onAudioChunk(h)` | WS `audio.chunk`（継続受信） | - | `data: { mime_type, audio_base64, seq }` → `{ mimeType, audioBase64, seq, receivedAt }` |
@@ -137,8 +138,31 @@
 
 §6 の未確定事項のうち「`rail/status` の追加フィールド」はこれで解消した。認証は HTTP API では**不要**（ファームが `http_auth_required:false` を返す）。
 
-### 8.2 スタックちゃん（`firmware/stackchan`）— 未一致・SDK は未変更
+### 8.2 スタックちゃん（`firmware/stackchan`）— **採用: B 方式**（2026-09-12 決定・実装済み）
 
-§3.3 の `/ws/v1/robot` は**実装されていない**（元リポで廃止済み）。端末は WS **クライアント**として PC の Media サーバー `ws://<PC>:8030/obake/media` へ接続し、JPEG / PCM をバイナリフレーム `[type:1][len:4 BE][payload]` で push する。`request_id` / `ack` の要求応答は無く、`hand.set` は現行ハードでは実現できない（手のサーボが無く、首 yaw/pitch の `{"cmd":"set_head",...}` のみ）。
+§3.3 の `/ws/v1/robot` は**実装されていない**（元リポで廃止済み）。端末は WS **クライアント**として PC の Media サーバー `ws://<PC>:8030/obake/media` へ接続し、JPEG / PCM をバイナリフレーム `[type:1][len:4 BE][payload]`（`0x02`=JPEG / `0x20`=PCM）で push する。`request_id` / `ack` の要求応答は無い。
 
-向き・要求応答・音声形式という**設計に関わる差分**のため SDK（`packages/devices/src/ws/stackchan.ts`）は変更していない。全項目の差分表と推奨対応（PC 側 Media サーバーをアダプタ化するのが第一候補）は [`firmware/stackchan/README.md`](../../firmware/stackchan/README.md)。
+**採用: B 方式（PC 側ブリッジをアダプタにする。ファーム無改修）**。`firmware/stackchan/README.md` の選択肢 1 を採り、メンバー実装 `homelab/obake_media/server.py` と同じプロトコル・同じパスの受け口を `packages/stackchan-bridge`（`@workspace/stackchan-bridge`、`pnpm stackchan:bridge`、ポート 8030）として TypeScript で実装した。
+
+#### 契約の更新
+
+| # | 項目 | 本書（§3.3） | 採用後 |
+| --- | --- | --- | --- |
+| 1 | 手の開閉 | `hand.set` `{state:"open"\|"closed"}` → `ack` | **`head.set` に置換**。手のサーボは現行ハードに無い。首の `{yaw,pitch,speed}` を `POST /obake/head` → 機器へ `{"cmd":"set_head",...}`。`StackchanClient.handSet` は残すが実機向けクライアントは `{ok:false, error:"unsupported: hand servo not present"}` を返す |
+| 2 | 画像取得 | `camera.capture` → `camera.frame` | 機器が 400ms 間隔で push。取得はブリッジの `GET /obake/latest.json`（`cameraCapture` の実装がこれに変わる） |
+| 3 | 音声取得 | `audio.start` / `audio.stop` → `audio.chunk` | 機器は常時 push。`audioStart/Stop` は SDK 内のフラグで、`onAudioChunk` はブリッジの `GET /obake/audio/recent` を 500ms ポーリングして配る |
+| 4 | 接続の向き | Next がクライアント | **機器がクライアント**。PC 側（ブリッジ）がサーバー。env は `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030`（`DEVICE_MODE=real` で `STACKCHAN_WS_URL` より優先） |
+| 5 | 機器の宛先設定 | 機器の IP を Next に設定 | **PC の IP を機器に設定**（ファーム定数 `obake_config.h` の `kMediaWsLanIp` / `kMediaWsPort`）。PC の IP が変わったら再ビルド・再書き込みが要る |
+
+#### 首の可動範囲（ファーム実測・`headSetSchema` の正本）
+
+| 項目 | 実測 | 根拠（ファイル:行） |
+| --- | --- | --- |
+| `yaw` | **-128 〜 128 度**（既定 0） | `firmware/stackchan/firmware/main/stackchan/custom/obake/obake_servo_api.cpp:21-22`、`firmware/stackchan/firmware/main/hal/hal_servo.cpp:340`（`-1280..1280` = 0.1° 単位） |
+| `pitch` | **0 〜 90 度**（0 が最も下・90 が最も上・水平はおよそ 45） | `obake_servo_api.cpp:23-24`、`hal_servo.cpp:349`（`30..870` = 3.0°〜87.0°）、`stackchan/motion/motion.h:120`（+ が上） |
+| `speed` | **100 〜 1000**（既定 **150**）。deg/s ではなく、ばね剛性・減衰へ写される速さの抽象値 | `obake_servo_api.cpp:25,52-60`、`stackchan/motion/servo.cpp:91`（`map_speed_to_spring_options`） |
+
+単位は度（ファーム内部は 0.1° 単位。`obake_servo_api.cpp:20` の `kDegToInternal = 10`）。
+この値は `@workspace/devices` の `headSetSchema`（`packages/devices/src/schemas.ts`）と `HEAD_*` 定数に写してあり、Web・Mastra tool・`/dev` はそこから import する（各所で数値を再定義しない）。
+
+旧契約（`/ws/v1/robot` の要求応答）は `createStackchanClient` と 8793 のモックとして残す。全項目の差分表は [`firmware/stackchan/README.md`](../../firmware/stackchan/README.md)、運用手順は [`docs/runbooks/devices.md`](../runbooks/devices.md) §4.3。

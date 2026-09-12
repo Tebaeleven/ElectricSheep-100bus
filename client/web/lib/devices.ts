@@ -1,10 +1,17 @@
 import { z, type ZodType } from "zod"
 import {
   createDevices,
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_DEFAULT,
+  HEAD_SPEED_MAX as SDK_HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
+  headSetSchema,
   type AudioChunk,
   type DeviceResult,
   type Devices,
-  type StackchanClient,
 } from "@workspace/devices"
 
 /** 直近の音声チャンクを保持するリングバッファの容量 */
@@ -57,43 +64,29 @@ export function getDevices(): Devices {
 // 現行ハードに手のサーボは無く、動かせるのは首の yaw / pitch だけ。
 // 下り指令は bridge 経由で `{"cmd":"set_head","yaw","pitch","speed"}` になる。
 
-/** 首の可動範囲（度）。正本は @workspace/devices の headSetSchema */
-export const HEAD_YAW_MIN = -90
-export const HEAD_YAW_MAX = 90
-export const HEAD_PITCH_MIN = -45
-export const HEAD_PITCH_MAX = 45
-/** 速度。0=最遅 / 100=最速（ファームの既定値は 150 だが契約上は 0..100 で受ける） */
-export const HEAD_SPEED_MIN = 0
-export const HEAD_SPEED_MAX = 100
+/**
+ * 首の可動範囲（度）と速度。正本は `@workspace/devices` の `headSetSchema`
+ * （実測値はファーム `obake_servo_api.cpp:21-25` / `hal_servo.cpp:340,349`）。
+ * pitch は 0=最も下 / 90=最も上で、水平はおよそ 45
+ */
+export const HEAD_YAW_MIN = HEAD_YAW_MIN_DEG
+export const HEAD_YAW_MAX = HEAD_YAW_MAX_DEG
+export const HEAD_PITCH_MIN = HEAD_PITCH_MIN_DEG
+export const HEAD_PITCH_MAX = HEAD_PITCH_MAX_DEG
+/** 速度はファームの spring パラメータに写される抽象値（100=遅い / 1000=速い・既定 150） */
+export const HEAD_SPEED_MIN = SDK_HEAD_SPEED_MIN
+export const HEAD_SPEED_MAX = SDK_HEAD_SPEED_MAX
+export const HEAD_SPEED_FALLBACK = HEAD_SPEED_DEFAULT
 
-/** `POST /api/devices/stackchan/head` のボディ */
-export const headSetRequestSchema = z.object({
-  yaw: z.number().min(HEAD_YAW_MIN).max(HEAD_YAW_MAX),
-  pitch: z.number().min(HEAD_PITCH_MIN).max(HEAD_PITCH_MAX),
-  speed: z.number().min(HEAD_SPEED_MIN).max(HEAD_SPEED_MAX).optional(),
-})
+/** `POST /api/devices/stackchan/head` のボディ（SDK の contract をそのまま使う） */
+export const headSetRequestSchema = headSetSchema
 
 export type HeadSetInput = z.infer<typeof headSetRequestSchema>
 
-// TODO(P5 統合): headSet は @workspace/devices に正式追加（P5-A 担当）。
-// 統合後はこの型と ?. 分岐を消し、stackchan.headSet(input) を直接呼ぶ。
-type StackchanWithHeadSet = StackchanClient & {
-  headSet?: (
-    input: HeadSetInput,
-    opts?: { timeoutMs?: number }
-  ) => Promise<DeviceResult>
-}
-
 /** 首を指定角度へ向ける */
 export async function setHead(input: HeadSetInput): Promise<DeviceResult> {
-  const stackchan = (await getStackchan()) as StackchanWithHeadSet
-  return (
-    (await stackchan.headSet?.(input)) ?? {
-      ok: false,
-      error: "headSet not available",
-      latencyMs: 0,
-    }
-  )
+  const stackchan = await getStackchan()
+  return stackchan.headSet(input)
 }
 
 /** 直近の音声チャンクを新しい順で返す */

@@ -25,14 +25,15 @@ flowchart LR
 
   subgraph Real["実機（DEVICE_MODE=real）"]
     ESP["ESP32 レール<br/>HTTP /api/v1/rail/*"]
-    STK["スタックちゃん<br/>WS /ws/v1/robot"]
+    STK["スタックちゃん（M5Stack CoreS3）<br/>WS クライアント → PC:8030/obake/media"]
     ELE["Electron デスクトップ<br/>HTTP /api/v1/desktop/*"]
   end
 
   subgraph Mock["モックサーバー（DEVICE_MODE=mock・既定）"]
     MR["rail mock :8791"]
     MD["desktop mock :8792"]
-    MS["stackchan mock :8793"]
+    MS["stackchan mock :8793（旧契約）"]
+    MDEV["偽機器 mock-device<br/>pnpm stackchan:mock-device"]
   end
 
   UI --> RH
@@ -42,12 +43,15 @@ flowchart LR
   RH --> LIB
   LIB --> SDK
   SDK -->|"DEVICE_MODE=real"| ESP
-  SDK -->|"DEVICE_MODE=real"| STK
+  SDK -->|"DEVICE_MODE=real<br/>STACKCHAN_BRIDGE_URL"| BR
+  BR["stackchan bridge :8030<br/>pnpm stackchan:bridge"]
+  STK -.->|"JPEG / PCM を常時 push"| BR
   SDK -->|"DEVICE_MODE=real"| ELE
   SDK -.->|"DEVICE_MODE=mock<br/>プロセス内モッククライアント"| Mock
   MR -.-> ESP
   MD -.-> ELE
   MS -.-> STK
+  MDEV -.->|"実機の代わりに bridge へ接続"| BR
 ```
 
 ポイント:
@@ -67,7 +71,8 @@ flowchart LR
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。`mock` は全機器をプロセス内モックにする。`real` でも URL 未設定の機器はモックのまま |
 | `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32（レール）の `http://host:port`。**`/api/v1` は付けない**（SDK が付与） |
 | `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | デスクトップの `http://host:port`。同上。**モックは 8792・Electron 実機は 8801**（[`docs/ports.md`](../ports.md)） |
-| `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`。**`/ws/v1/robot` は付けない**（SDK が付与） |
+| `STACKCHAN_BRIDGE_URL` | `http://127.0.0.1:8030` | **スタックちゃん B 方式（本命）**。PC 側ブリッジ（`pnpm stackchan:bridge`）の `http://host:port`。`/obake/*` は付けない（SDK が付与）。`DEVICE_MODE=real` でこの値があれば `STACKCHAN_WS_URL` より優先される |
+| `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | **旧契約**。スタックちゃんの `ws://host:port`。現行ファームは `/ws/v1/robot` を実装していないのでモック確認用 |
 | `DEVICE_AUTH_TOKEN` | 空 | 認証方式は未確定。設定されていれば全機器に `Authorization: Bearer <token>` を付与する |
 | `DEVICE_RAIL_MAX_DURATION_MS` | `3000` | `rail/move` の `durationMs` 上限（安全要件）。`railMoveSchema` の `max()` に効くので、**変更したら dev を再起動**する |
 
@@ -76,6 +81,9 @@ flowchart LR
 | env | 既定値 | 意味 |
 | --- | --- | --- |
 | `DEVICE_TIMEOUT_MS` | `5000`（`DEFAULT_TIMEOUT_MS`） | HTTP 応答待ち・WS の `ack` / `camera.frame` 待ちのタイムアウト |
+| `STACKCHAN_BRIDGE_PORT` | `8030` | ブリッジの待ち受けポート。**ファームに焼かれた接続先なので基本は変えない** |
+| `STACKCHAN_BRIDGE_HOST` | `0.0.0.0` | ブリッジの待ち受けアドレス（機器が LAN から繋ぐので 0.0.0.0 のまま） |
+| `STACKCHAN_BRIDGE_PCM_BUFFER_MS` | `10000` | ブリッジが保持する PCM の長さ（ミリ秒） |
 
 これらは `client/web/.env.example` と `turbo.json` の `globalEnv` に**登録済み**。`.env.example` をコピーすればそのまま使える。
 
@@ -89,6 +97,9 @@ DEVICE_MODE=mock
 RAIL_BASE_URL=http://127.0.0.1:8791
 # モックサーバーなら 8792、Electron 実機なら 8801
 DESKTOP_BASE_URL=http://127.0.0.1:8792
+# スタックちゃん B 方式: PC 側ブリッジ（pnpm stackchan:bridge）
+STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030
+# 旧契約（現行ファームは未実装。モック確認用）
 STACKCHAN_WS_URL=ws://127.0.0.1:8793
 
 # 認証方式未確定。値があれば Authorization: Bearer で全機器に付与される
@@ -109,7 +120,8 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
    DEVICE_MODE=real
    RAIL_BASE_URL=http://<ESP32_IP>:8080        # ← 実機の IP:ポート（例: 192.168.x.x）
    DESKTOP_BASE_URL=http://<ELECTRON_IP>:8080
-   STACKCHAN_WS_URL=ws://<STACKCHAN_IP>:8080
+   # スタックちゃんは「機器の IP」ではなく「この PC で動かすブリッジ」を指す（B 方式・§4.3）
+   STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030
    DEVICE_AUTH_TOKEN=<配布されたトークン。無ければ空のまま>
    ```
 
@@ -222,7 +234,111 @@ curl -sS http://127.0.0.1:8792/api/v1/desktop/status
 # => {"state":"running", ...}
 ```
 
-### 4.3 スタックちゃん（WebSocket・8793 / パス `/ws/v1/robot`）
+### 4.3 スタックちゃん（B 方式・PC 側ブリッジ 8030）
+
+現行ファーム（`firmware/stackchan` = Obake_device / M5Stack CoreS3）は **`/ws/v1/robot` を実装していない**。
+機器が **WS クライアント**として PC の `ws://<PC の IP>:8030/obake/media` に繋ぎに来て、JPEG と PCM を**常時 push** する。
+PC 側の受け口が `packages/stackchan-bridge`（`pnpm stackchan:bridge`）で、メンバー実装の
+[`firmware/stackchan/homelab/obake_media/server.py`](../../firmware/stackchan/homelab/obake_media/server.py) と同じプロトコル・同じパスで喋る。
+
+#### プロトコル（正本: `server.py` と `obake_robot_ws.cpp`）
+
+| 向き | 形式 | 中身 |
+| --- | --- | --- |
+| 機器 → PC（接続直後） | テキスト JSON | `{"type":"hello","pcm_rate":24000}` |
+| 機器 → PC（映像） | バイナリ `[type:1][len:4 BE][payload]` | `type=0x02` … JPEG（既定 400ms 間隔） |
+| 機器 → PC（音声） | 同上 | `type=0x20` … PCM 16-bit LE モノラル（既定 200ms 間隔・レートは hello の値） |
+| PC → 機器（首） | テキスト JSON | `{"cmd":"set_head","yaw":<int>,"pitch":<int>,"speed":<int>}` |
+
+`request_id` / `ack` の要求応答は無い。`hand.set`・`camera.capture`・`audio.start/stop` は**機器側に存在しない**。
+
+#### 首の可動範囲（ファーム実測）
+
+| 項目 | 範囲 | 既定 | 根拠 |
+| --- | --- | --- | --- |
+| `yaw`（左右・度） | **-128 〜 128** | 0 | `firmware/stackchan/firmware/main/stackchan/custom/obake/obake_servo_api.cpp:21-22`（clamp）、`firmware/stackchan/firmware/main/hal/hal_servo.cpp:340`（サーボ角度リミット `-1280..1280` = 0.1° 単位） |
+| `pitch`（上下・度） | **0 〜 90**（0 が最も下・90 が最も上・水平はおよそ 45） | 0 | `obake_servo_api.cpp:23-24`、`hal_servo.cpp:349`（`30..870` = 3.0°〜87.0°）、`motion.h:120`（+ が上） |
+| `speed` | **100 〜 1000**（deg/s ではなく、ばね剛性・減衰に写される「速さ」の抽象値） | **150** | `obake_servo_api.cpp:25,52-60`（clamp と既定値）、`motion/servo.cpp:91`（`map_speed_to_spring_options`） |
+
+単位は度。ファーム内部は 0.1° 単位（`obake_servo_api.cpp:20` の `kDegToInternal = 10`）。
+この実測値が `@workspace/devices` の `headSetSchema` の正本で、Web / Mastra / `/dev` の角度定数はすべてそこから import している。
+
+#### 1. ブリッジを起動する
+
+```bash
+pnpm stackchan:bridge
+# [bridge] ws:     ws://0.0.0.0:8030/obake/media（機器が接続）
+# [bridge] status: http://127.0.0.1:8030/obake/status
+```
+
+#### 2. 機器側に PC の IP を教える（ファーム定数・要再ビルド）
+
+Media サーバーの宛先は**ファームの定数**なので、PC の IP が変わったら再ビルド・再書き込みが要る
+（`firmware/stackchan/README.md` の「Wi-Fi 設定」節）。
+
+1. PC の LAN IP を調べる（例: `ipconfig getifaddr en0`）。
+2. `firmware/stackchan/firmware/main/stackchan/custom/obake/obake_config.h` を機器担当が編集する。
+   - `kMediaWsLanIp` … PC の IP（例 `"172.16.0.66"`）。空なら `kMediaWsHost`（`obake.media.stackchan`）を DNS 解決する
+   - `kMediaWsPort` … `8030`（このリポジトリのブリッジと同じ）
+   - `kMediaWsPath` … `/obake/media`
+3. ESP-IDF で build / flash（`firmware/stackchan/引き継ぎ.md` 7 節）。**このリポジトリからファームは触らない**。
+4. 機器を起動すると、ブリッジのログに `[bridge] device connected` → `[bridge] hello pcm_rate=...` が出る。
+
+> 繋がらないときは、PC のファイアウォールが 8030 の受信を塞いでいないか、機器と PC が同じ LAN にいるかを先に見る。
+
+#### 3. 実機なしで動かす（偽機器）
+
+```bash
+# 端末 1
+pnpm stackchan:bridge
+# 端末 2（64x64 の色が変わる JPEG と 440Hz の PCM を送り続ける）
+pnpm stackchan:mock-device
+# 接続先を変える場合: pnpm stackchan:mock-device -- --url ws://192.168.0.5:8030/obake/media
+```
+
+#### 4. curl で確認する
+
+```bash
+# 状態（connected / pcm_rate / フレーム数・バイト数）
+curl -sS 127.0.0.1:8030/obake/status
+
+# 最新フレーム（image/jpeg。未受信なら 404）
+curl -sS -o /tmp/latest.jpg 127.0.0.1:8030/obake/latest.jpg && file /tmp/latest.jpg
+
+# 最新フレームを base64 JSON で（SDK の cameraCapture はこれを使う）
+curl -sS 127.0.0.1:8030/obake/latest.json | head -c 120
+
+# 直近 2 秒ぶんの PCM
+curl -sS '127.0.0.1:8030/obake/audio/recent?ms=2000' | head -c 160
+
+# 首を向ける（機器未接続なら 503 {"ok":false,"sent":false}）
+curl -sS -X POST 127.0.0.1:8030/obake/head \
+  -H 'content-type: application/json' \
+  -d '{"yaw":20,"pitch":45,"speed":150}'
+# => {"ok":true,"sent":{"cmd":"set_head","yaw":20,"pitch":45,"speed":150}}
+
+# 接続・フレーム・PCM の通知（SSE・UI 用）
+curl -sS -N 127.0.0.1:8030/obake/events
+```
+
+| メソッド | パス | 返すもの |
+| --- | --- | --- |
+| GET | `/obake/status` | `{connected, pcm_rate, last_frame_at, last_pcm_at, frames, bytes, ...}`（`server.py` 互換フィールドも含む） |
+| GET | `/obake/latest.jpg` | 最新 JPEG（`image/jpeg`。無ければ 404） |
+| GET | `/obake/latest.json` | `{mime_type:"image/jpeg", image_base64}` |
+| GET | `/obake/audio/recent?ms=2000` | `{pcm_rate, mime_type:"audio/pcm", audio_base64, bytes}` |
+| POST | `/obake/head` | 機器へ `set_head` を送る。`{ok, sent}`（未接続は 503）。`/obake/servo` は `server.py` 互換の別名 |
+| GET | `/obake/events` | SSE（`connected` / `disconnected` / `frame` / `pcm`） |
+
+範囲外の `yaw` / `pitch` / `speed` はブリッジがファームと同じ clamp で丸めてから送る（`packages/stackchan-bridge/src/protocol.ts`）。
+SDK（`createStackchanBridgeClient`）側は `headSetSchema` で**送る前に 400 相当で弾く**。
+
+### 4.4 スタックちゃん（旧契約・WebSocket 8793）— 現行ファームには無い
+
+> **旧契約**。`/ws/v1/robot` の要求応答モデル（`hand.set` / `camera.capture` / `audio.start`）は
+> 現行ファームに実装されていない。`pnpm devices:mock` の 8793 モックと `createStackchanClient` は、
+> 将来ファーム側が実装した場合と SDK の回帰確認のために残してある。
+> `hand.set` は**手のサーボが無いため恒久的に使えない**（`handSet` は `{ok:false, error:"unsupported: hand servo not present"}` を返す）。
 
 `websocat` があるなら:
 
@@ -230,32 +346,16 @@ curl -sS http://127.0.0.1:8792/api/v1/desktop/status
 # インストール: brew install websocat
 websocat ws://127.0.0.1:8793/ws/v1/robot
 # 接続後、1 行ずつ JSON を貼って Enter
-{"type":"hand.set","request_id":"req-001","data":{"state":"open"}}
+{"type":"head.set","request_id":"req-001","data":{"yaw":20,"pitch":45}}
 {"type":"camera.capture","request_id":"req-002"}
 {"type":"audio.start","request_id":"req-003"}
 {"type":"audio.stop","request_id":"req-004"}
 ```
 
-Node 22+ のグローバル `WebSocket` を使うワンライナー（追加インストール不要）:
-
-```bash
-node -e '
-const ws = new WebSocket("ws://127.0.0.1:8793/ws/v1/robot");
-ws.onopen = () => {
-  console.log("open");
-  ws.send(JSON.stringify({ type: "hand.set", request_id: "req-001", data: { state: "open" } }));
-  ws.send(JSON.stringify({ type: "camera.capture", request_id: "req-002" }));
-};
-ws.onmessage = (e) => console.log("recv", String(e.data).slice(0, 200));
-ws.onerror = (e) => console.error("error", e.message ?? e);
-setTimeout(() => ws.close(), 3000);
-'
-```
-
 期待する受信（`request_id` が送信と一致すること）:
 
 ```json
-{"type":"ack","request_id":"req-001","data":{}}
+{"type":"ack","request_id":"req-001","data":{"yaw":20,"pitch":45}}
 {"type":"camera.frame","request_id":"req-002","data":{"mime_type":"image/png","image_base64":"iVBORw0..."}}
 ```
 
@@ -293,7 +393,8 @@ interface DeviceResult<T = unknown> {
 | POST | `/api/devices/desktop/screenshot` | なし | `{"mimeType":"image/png","imageBase64":"..."}` |
 | POST | `/api/devices/desktop/browser/open` | `{"url":"https://example.com"}` | 受理結果 |
 | GET | `/api/devices/desktop/status` | なし | `{"state":"running", ...}` |
-| POST | `/api/devices/stackchan/hand` | `{"state":"open"}` / `{"state":"closed"}` | `ack` の内容 |
+| POST | `/api/devices/stackchan/head` | `{"yaw":20,"pitch":45,"speed":150}`（yaw -128..128 / pitch 0..90 / speed 100..1000・省略時 150） | ブリッジの `{ok, sent}` |
+| POST | `/api/devices/stackchan/hand` | — | **廃止**。手のサーボが無いので `ok:false`（`unsupported: hand servo not present`） |
 | POST | `/api/devices/stackchan/camera` | なし | `{"mimeType":"image/png","imageBase64":"..."}` |
 | POST | `/api/devices/stackchan/audio/start` | なし | 受理結果 |
 | POST | `/api/devices/stackchan/audio/stop` | なし | 受理結果 |
@@ -329,7 +430,12 @@ curl -sS -X POST http://localhost:3000/api/devices/desktop/browser/open \
 curl -sS -i -X POST http://localhost:3000/api/devices/desktop/browser/open \
   -H 'content-type: application/json' -d '{"url":"file:///etc/passwd"}'   # => 400
 
-# 手を開く / 閉じる
+# 首を向ける（B 方式。正面はおよそ pitch 45）
+curl -sS -X POST http://localhost:3000/api/devices/stackchan/head \
+  -H 'content-type: application/json' \
+  -d '{"yaw":20,"pitch":45,"speed":150}'
+
+# 旧・手の開閉（現行ハードに手は無いので ok:false）
 curl -sS -X POST http://localhost:3000/api/devices/stackchan/hand \
   -H 'content-type: application/json' -d '{"state":"open"}'
 
@@ -355,8 +461,8 @@ curl -sS http://localhost:3000/api/devices/stackchan/status
 | --- | --- | --- | --- |
 | `railMove` | `{ axis: 'x'\|'y'\|'z', direction: 'plus'\|'minus', durationMs }` | `DeviceResult`（`data` 抜き） | `POST /rail/move` |
 | `railStop` | なし | `DeviceResult` | `POST /rail/stop` |
-| `handSet` | `{ state: 'open'\|'closed' }` | `DeviceResult` | WS `hand.set` → `ack` |
-| `cameraCapture` | なし | **画像 base64 は返さない**。撮影成否とサイズだけ | WS `camera.capture` → `camera.frame` |
+| `headSet` | `{ yaw: -128..128, pitch: 0..90, speed?: 100..1000 }` | `DeviceResult` | ブリッジ `POST /obake/head` → 機器へ `{"cmd":"set_head",...}` |
+| `cameraCapture` | なし | **画像 base64 は返さない**。撮影成否とサイズだけ | ブリッジ `GET /obake/latest.json`（機器は常時 push） |
 | `desktopScreenshot` | なし | 同上（成否・サイズのみ） | `POST /desktop/screenshot` |
 | `desktopOpenBrowser` | `{ url }`（http/https のみ） | `DeviceResult` | `POST /desktop/browser/open` |
 
@@ -372,13 +478,13 @@ curl -sS http://localhost:3000/api/devices/stackchan/status
 | --- | --- |
 | 「ちょっと右に動いて」 | `railMove { axis:'x', direction:'plus', durationMs:500 }` |
 | 「止まって！」 | `railStop` |
-| 「手を開いてみて」 | `handSet { state:'open' }` |
-| 「手を握って」 | `handSet { state:'closed' }` |
+| 「こっち向いて」 | `headSet { yaw:0, pitch:45 }` |
+| 「うなずいて」 | `headSet { yaw:0, pitch:25 }` → `headSet { yaw:0, pitch:45 }` |
 | 「今なにが見えてる？」 | `cameraCapture` → 「撮れたよ！画面に出したね」 |
 | 「私の PC の画面見て」 | `desktopScreenshot` |
 | 「Google 開いて」 | `desktopOpenBrowser { url:'https://www.google.com' }` |
 
-UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが動いています」を演出する（`client/web/app/page.tsx`）。part 名は `ghost.ts` の `tools: { ... }` のキー名（`railMove` / `railStop` / `handSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser`）。
+UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが動いています」を演出する（`client/web/app/page.tsx`）。part 名は `ghost.ts` の `tools: { ... }` のキー名（`railMove` / `railStop` / `headSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser`）。
 
 ---
 
@@ -401,11 +507,14 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 
 回答が得られたら `docs/specs/robot-api-requirements.md` の「未確定事項」と本書を更新する。
 
+- [x] **スタックちゃんの接続方式**: B 方式で確定（2026-09-12）。機器が PC の `ws://<PC>:8030/obake/media` に繋ぎに来る。PC の IP はファーム定数（`obake_config.h` の `kMediaWsLanIp`）なので、**PC の IP が変わったら機器の再ビルド・再書き込みが要る**（§4.3）
+- [x] **首の可動範囲**: yaw -128..128 度 / pitch 0..90 度（水平はおよそ 45）/ speed 100..1000（既定 150）。ファーム実測（§4.3 の表）
 - [ ] **IP アドレス**: ESP32 / スタックちゃん / Electron のそれぞれの IP は？ DHCP か固定か（DHCP なら mDNS 名 `xxx.local` はあるか）
 - [ ] **ポート番号**: 各機器の待ち受けポートは？（HTTP 2 台と WS 1 台。SDK 既定はモックの 8791/8792/8793。実機ブリッジは 8801 以降＝[`docs/ports.md`](../ports.md)）
 - [ ] **認証方式**: 認証はあるか。あるなら `Authorization: Bearer <token>` でよいか、別ヘッダ・クエリ・mTLS か。トークンの配布方法と有効期限は？
 - [ ] **軸方向**: `axis` の `x` / `y` / `z` はそれぞれ物理的にどの向きか。`direction: 1` はどちら向きか（右/左、前/後、上/下）。原点・可動範囲・リミットスイッチの有無は？
 - [ ] **速度**: 速度は固定か指定できるか。`duration_ms` 500 で実際に何 cm 動くか。安全な上限（現在の既定 3000ms）は妥当か
+- [x] **スタックちゃんの音声形式**: PCM 16-bit LE モノラル、レートは接続直後の `hello.pcm_rate`（実測 24000）。200ms 間隔で push
 - [ ] **音声形式**: `audio.chunk` のコーデック・サンプリングレート・チャンネル数・1 チャンクの長さ。`seq` の採番規則（0 始まりか 1 始まりか、欠番はあるか）。`audio_base64` は生 PCM か圧縮済みか
 - [ ] **対象ディスプレイ**: `desktop/screenshot` はどのディスプレイを撮るか（マルチモニタ時）。指定できるか。解像度・画像形式（PNG 固定か）。`desktop/browser/open` はどのブラウザで開くか、既存ウィンドウを再利用するか
 - [ ] **`ack` / `error` の詳細スキーマ**: `error.code` の体系（値の一覧）と `ack.data` に入る内容

@@ -9,6 +9,7 @@ import {
   parseHello,
   pcmBytesToMs,
 } from "./protocol"
+import { bridgeOptionsFromEnv } from "./server"
 
 describe("フレーム", () => {
   it("encode したフレームを decode できる", () => {
@@ -70,5 +71,19 @@ describe("buildSetHeadCommand", () => {
 describe("pcmBytesToMs", () => {
   it("16-bit モノラルとして時間に換算する", () => {
     expect(pcmBytesToMs(24000 * 2, 24000)).toBe(1000)
+  })
+})
+
+describe("bridgeOptionsFromEnv", () => {
+  it("未設定・空文字なら既定ポート 8030", () => {
+    expect(bridgeOptionsFromEnv({}).port).toBe(8030)
+    expect(bridgeOptionsFromEnv({ STACKCHAN_BRIDGE_PORT: "  " }).port).toBe(8030)
+  })
+
+  it("設定されていればその値を使う（0 も許す）", () => {
+    expect(bridgeOptionsFromEnv({ STACKCHAN_BRIDGE_PORT: "9000" }).port).toBe(
+      9000
+    )
+    expect(bridgeOptionsFromEnv({ STACKCHAN_BRIDGE_PORT: "0" }).port).toBe(0)
   })
 })

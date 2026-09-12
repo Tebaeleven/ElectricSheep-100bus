@@ -307,7 +307,9 @@ export function createBridge(options: BridgeOptions = {}): Bridge {
 
 /** env から bridge の設定を読む */
 export function bridgeOptionsFromEnv(env: NodeJS.ProcessEnv): BridgeOptions {
-  const port = Number(env.STACKCHAN_BRIDGE_PORT ?? "")
+  // 空文字・未設定は Number() が 0（= OS 任せのポート）になるので既定値へ倒す
+  const rawPort = env.STACKCHAN_BRIDGE_PORT?.trim()
+  const port = rawPort ? Number(rawPort) : Number.NaN
   const pcmBufferMs = Number(env.STACKCHAN_BRIDGE_PCM_BUFFER_MS ?? "")
   return {
     port: Number.isFinite(port) && port >= 0 ? port : BRIDGE_PORT_DEFAULT,

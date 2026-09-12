@@ -1,3 +1,12 @@
+import {
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_MAX as SDK_HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
+  headSetSchema,
+} from "@workspace/devices"
 import { z } from "zod"
 
 // ポート台帳（scripts/ports.json）が正本。ここでは表示用に読み込むだけ
@@ -121,18 +130,20 @@ const openUrlInputSchema = z.object({
   url: z.url(),
 })
 
-/** 首の可動範囲（度）と速度。正本は @workspace/devices の headSetSchema */
-export const HEAD_YAW_MIN = -90
-export const HEAD_YAW_MAX = 90
-export const HEAD_PITCH_MIN = -45
-export const HEAD_PITCH_MAX = 45
-export const HEAD_SPEED_MAX = 100
+/**
+ * 首の可動範囲（度）と速度。正本は `@workspace/devices` の `headSetSchema`
+ * （ファーム実測: `obake_servo_api.cpp:21-25` / `hal_servo.cpp:340,349`）
+ */
+export const HEAD_YAW_MIN = HEAD_YAW_MIN_DEG
+export const HEAD_YAW_MAX = HEAD_YAW_MAX_DEG
+export const HEAD_PITCH_MIN = HEAD_PITCH_MIN_DEG
+export const HEAD_PITCH_MAX = HEAD_PITCH_MAX_DEG
+export const HEAD_SPEED_MIN = SDK_HEAD_SPEED_MIN
+export const HEAD_SPEED_MAX = SDK_HEAD_SPEED_MAX
+/** 水平（正面）のおよその pitch。0=最も下 / 90=最も上 */
+export const HEAD_PITCH_LEVEL = 45
 
-const headInputSchema = z.object({
-  yaw: z.number().min(HEAD_YAW_MIN).max(HEAD_YAW_MAX),
-  pitch: z.number().min(HEAD_PITCH_MIN).max(HEAD_PITCH_MAX),
-  speed: z.number().min(0).max(HEAD_SPEED_MAX).optional(),
-})
+const headInputSchema = headSetSchema
 
 const audioRecentInputSchema = z.object({
   limit: z.number().int().min(1).max(200).optional(),
@@ -288,14 +299,15 @@ export const DEV_ENDPOINTS: DevEndpoint[] = [
     group: "stackchan",
     method: "POST",
     path: "/api/devices/stackchan/head",
-    description: `首を向ける。yaw ${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度（マイナスが左）、pitch ${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度（プラスが上）、speed は 0〜${HEAD_SPEED_MAX}`,
+    description: `首を向ける。yaw ${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度（マイナスが左）、pitch ${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度（0 が最も下・90 が最も上・水平はおよそ ${HEAD_PITCH_LEVEL}）、speed は ${HEAD_SPEED_MIN}〜${HEAD_SPEED_MAX}（省略時 150）`,
     inputSchema: headInputSchema,
-    defaultInput: { yaw: 0, pitch: 0 },
+    defaultInput: { yaw: 0, pitch: HEAD_PITCH_LEVEL },
     presets: [
-      { label: "正面", input: { yaw: 0, pitch: 0 } },
-      { label: "左", input: { yaw: -30, pitch: 0 } },
-      { label: "右", input: { yaw: 30, pitch: 0 } },
-      { label: "上", input: { yaw: 0, pitch: 20 } },
+      { label: "正面", input: { yaw: 0, pitch: HEAD_PITCH_LEVEL } },
+      { label: "左", input: { yaw: -30, pitch: HEAD_PITCH_LEVEL } },
+      { label: "右", input: { yaw: 30, pitch: HEAD_PITCH_LEVEL } },
+      { label: "上", input: { yaw: 0, pitch: 70 } },
+      { label: "下", input: { yaw: 0, pitch: 20 } },
     ],
     responseKind: "json",
   },

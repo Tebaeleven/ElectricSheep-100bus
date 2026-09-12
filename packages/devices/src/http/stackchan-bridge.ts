@@ -7,7 +7,6 @@ import { headSetSchema } from "../schemas"
 import type {
   AudioChunk,
   DeviceResult,
-  HandState,
   HeadSet,
   ImagePayload,
   StackchanBridgeOptions,
@@ -251,7 +250,7 @@ export function createStackchanBridgeClient(
     /**
      * @deprecated 現行ハード（Obake_device）に手のサーボは無い
      */
-    async handSet(_state: HandState): Promise<DeviceResult> {
+    async handSet(): Promise<DeviceResult> {
       return {
         ok: false,
         error: "unsupported: hand servo not present",

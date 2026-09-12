@@ -2,7 +2,6 @@ import { DEFAULT_TIMEOUT_MS, STACKCHAN_WS_PATH } from "../constants"
 import type {
   AudioChunk,
   DeviceResult,
-  HandState,
   HeadSet,
   ImagePayload,
   StackchanClient,
@@ -382,7 +381,7 @@ export function createStackchanClient(
      * @deprecated 現行ハード（Obake_device）に手のサーボは無い。
      * 送信せずに unsupported を返す（首は headSet）
      */
-    async handSet(_state: HandState): Promise<DeviceResult> {
+    async handSet(): Promise<DeviceResult> {
       return {
         ok: false,
         error: "unsupported: hand servo not present",
