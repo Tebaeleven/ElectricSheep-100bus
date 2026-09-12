@@ -17,20 +17,34 @@ description: ElectricSheep-100bus（おばけロボット会話アプリ）で�
 | DB スキーマ変更・RLS | `docs/runbooks/supabase.md` |
 | Agent / tool / Memory | `docs/runbooks/mastra.md` |
 | ロボット実仕様の差し替え | `docs/runbooks/robot.md` |
+| 起動 / 停止（`pnpm run up` / `pnpm down`） | `docs/runbooks/launch.md` |
 | 常時守る規約 | `.claude/rules/monorepo.md` |
 
 ## 起動
 
+**`pnpm run up` 1 コマンドで必要なものが全部立ち上がる**（実体は `scripts/dev-up.mjs`。手順とプロファイル表は `docs/runbooks/launch.md`）。
+
 ```bash
 pnpm install
-cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ
-pnpm db:start      # Supabase（Docker 必須）。不要なら DATABASE_URL を空にして in-memory
-pnpm robot:mock    # ロボットモック 8787
-pnpm ports:check   # 起動前にポートの衝突を確認（詳細は docs/ports.md）
-pnpm devices:mock  # 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793）
-pnpm dev           # web 3000。全 API を手で叩ける開発者ダッシュボードは http://localhost:3000/dev
-pnpm agent:studio  # Mastra Studio 4111（任意）
+pnpm --dir client/desktop install     # Electron を使うときだけ（ルート workspace 外）
+cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ。キーを入れる
+
+pnpm run up          # mock: Supabase + 機器モック 3 台 + ロボットモック + web 3000 + Studio 4111
+pnpm run up real     # Electron 実機: Supabase + desktop の Next 3100 + Electron 8801 + web 3000（DEVICE_MODE=real）
+pnpm run up demo     # 本番デモ: real から Studio とモックを外し、http://localhost:3000 だけ開く
+pnpm run up web      # web 3000 だけ
+pnpm run up --dry-run   # 起動計画だけ表示（--no-open / --no-studio / --help もある）
+
+pnpm down            # 起動したプロセスを停止（このリポジトリのパス配下だけ）
+pnpm down --all      # Supabase（Docker）も停止
 ```
+
+- **`pnpm up` と書かない。** `up` は pnpm 組み込みの `update` に取られる。必ず `pnpm run up`（`pnpm start` も同じ）
+- 起動前に使用ポートを確認し、**別プロセスが掴んでいたら起動せず exit 1**（同じ役割が動いていれば再利用）
+- readiness は HTTP で確認する（web は `/api/dev/env`、Electron は `/api/v1/desktop/status` 等）。全て Ready でサマリー表を出す
+- **Ctrl+C で自分が起動した子プロセスだけ停止**。Supabase と Electron は残るので `pnpm down --all`
+- `real` / `demo` は **`.env.local` を書き換えず**、`DEVICE_MODE=real` と `DESKTOP_BASE_URL=http://127.0.0.1:8801` を環境変数で渡すだけ
+- 個別に起動したいとき（`pnpm db:start` / `pnpm robot:mock` / `pnpm devices:mock` / `pnpm dev` / `pnpm agent:studio`）は README を参照。**A レーン以外は `pnpm db:start` を直接叩かない**（`pnpm run up` の再利用判定で既存の Supabase をそのまま使う）
 
 ## 納品ゲート
 
