@@ -51,3 +51,10 @@ next-env.d.ts
 *.db
 .claude/settings.local.json
 .mcp.json
+
+# firmware（ESP32 ビルド成果物・機密を含むローカル設定）
+.pio/
+firmware/**/.pio/
+firmware/**/config.local.json
+firmware/**/.venv/
+__pycache__/

@@ -1,0 +1,9 @@
+{
+  "wifi_ssid": "YOUR_WIFI_SSID",
+  "wifi_password": "YOUR_WIFI_PASSWORD",
+  "server_host": "rail.example.com",
+  "server_port": 443,
+  "server_path": "/ws/device",
+  "device_id": "rail-1",
+  "device_token": "REPLACE_WITH_A_RANDOM_DEVICE_TOKEN"
+}

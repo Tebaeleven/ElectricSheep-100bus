@@ -1,0 +1,6 @@
+.git
+.pio
+.venv
+**/__pycache__
+**/.env
+**/.env.local
