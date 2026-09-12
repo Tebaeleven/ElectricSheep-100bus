@@ -1,0 +1,48 @@
+diff --git a/main/application.cc b/main/application.cc
+index d69d43d..ce55fd3 100644
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -9,6 +9,7 @@
+ #include "mcp_server.h"
+ #include "assets.h"
+ #include "settings.h"
++#include "sdkconfig.h"
+ 
+ #include <cstring>
+ #include <esp_log.h>
+@@ -531,11 +532,16 @@ void Application::InitializeProtocol() {
+             } else if (strcmp(state->valuestring, "stop") == 0) {
+                 Schedule([this]() {
+                     if (GetDeviceState() == kDeviceStateSpeaking) {
++#if CONFIG_USE_CUSTOM_WAKE_WORD
++                        // Multinet は Idle でのみ Enable。Listening に留まると次の呼びかけが死ぬ
++                        SetDeviceState(kDeviceStateIdle);
++#else
+                         if (listening_mode_ == kListeningModeManualStop) {
+                             SetDeviceState(kDeviceStateIdle);
+                         } else {
+                             SetDeviceState(kDeviceStateListening);
+                         }
++#endif
+                     }
+                 });
+             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
+diff --git a/main/audio/wake_words/custom_wake_word.cc b/main/audio/wake_words/custom_wake_word.cc
+index 982bbe9..863ea91 100644
+--- a/main/audio/wake_words/custom_wake_word.cc
++++ b/main/audio/wake_words/custom_wake_word.cc
+@@ -133,6 +133,14 @@ void CustomWakeWord::OnWakeWordDetected(std::function<void(const std::string& wa
+ }
+ 
+ void CustomWakeWord::Start() {
++    // 再検知のため Multinet 内部状態と入力バッファをクリア
++    if (multinet_ != nullptr && multinet_model_data_ != nullptr) {
++        multinet_->clean(multinet_model_data_);
++    }
++    {
++        std::lock_guard<std::mutex> lock(input_buffer_mutex_);
++        input_buffer_.clear();
++    }
+     running_ = true;
+ }
+ 

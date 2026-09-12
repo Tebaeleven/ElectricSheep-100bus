@@ -1,0 +1,29 @@
+diff --git a/main/assets.cc b/main/assets.cc
+--- a/main/assets.cc
++++ b/main/assets.cc
+@@ -3,8 +3,10 @@
+ #include "display.h"
+ #include "application.h"
+ #include "lvgl_theme.h"
++#if !HAVE_LVGL
+ #include "emote_display.h"
+ #include "expression_emote.h"
++#endif
+ #if HAVE_LVGL
+ #include "display/lcd_display.h"
+ #include <spi_flash_mmap.h>
+@@ -354,6 +356,7 @@ bool Assets::LvglStrategy::Apply(Assets* assets) {
+ }
+ #endif // HAVE_LVGL
+ 
++#if !HAVE_LVGL
+ bool Assets::EmoteStrategy::InitializePartition(Assets* assets) {
+     assets->partition_valid_ = false;
+ 
+@@ -421,6 +424,7 @@ bool Assets::EmoteStrategy::Apply(Assets* assets) {
+     }
+     return true;
+ }
++#endif // !HAVE_LVGL
+ 
+ bool Assets::Download(std::string url, std::function<void(int progress, size_t speed)> progress_callback) {

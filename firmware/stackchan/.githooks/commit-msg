@@ -1,0 +1,5 @@
+#!/bin/sh
+msg_file="$1"
+tmp="${msg_file}.tmp"
+grep -v -E '^(Co-authored-by:|Made-with: Cursor)' "$msg_file" > "$tmp" || true
+mv "$tmp" "$msg_file"

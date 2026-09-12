@@ -1,0 +1,26 @@
+diff --git a/main/boards/common/i2c_device.cc b/main/boards/common/i2c_device.cc
+index 835997d..ea50d51 100644
+--- a/main/boards/common/i2c_device.cc
++++ b/main/boards/common/i2c_device.cc
+@@ -32,4 +32,8 @@ void I2cDevice::ReadRegs(uint8_t reg, uint8_t* buffer, size_t length) {
+ 
+ void I2cDevice::ReadRegs(uint8_t reg, uint8_t* buffer, size_t length) {
+     ESP_ERROR_CHECK(i2c_master_transmit_receive(i2c_device_, &reg, 1, buffer, length, 100));
++}
++
++esp_err_t I2cDevice::TryReadRegs(uint8_t reg, uint8_t* buffer, size_t length, int timeout_ms) {
++    return i2c_master_transmit_receive(i2c_device_, &reg, 1, buffer, length, timeout_ms);
+ }
+\ No newline at end of file
+diff --git a/main/boards/common/i2c_device.h b/main/boards/common/i2c_device.h
+index 7bc917b..874b137 100644
+--- a/main/boards/common/i2c_device.h
++++ b/main/boards/common/i2c_device.h
+@@ -13,6 +13,7 @@ protected:
+     void WriteReg(uint8_t reg, uint8_t value);
+     uint8_t ReadReg(uint8_t reg);
+     void ReadRegs(uint8_t reg, uint8_t* buffer, size_t length);
++    esp_err_t TryReadRegs(uint8_t reg, uint8_t* buffer, size_t length, int timeout_ms = 100);
+ };
+ 
+ #endif // I2C_DEVICE_H

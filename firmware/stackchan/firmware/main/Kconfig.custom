@@ -1,0 +1,43 @@
+# StackChan カスタム機能のビルドプリセット（WinApp / apply_profile.ps1 連携）
+# sdkconfig.defaults.local に断片を書き込む方式
+
+menu "StackChan Custom Layer"
+
+    config SC_CUSTOM_LAYER
+        bool "Enable custom integration layer"
+        default y
+        help
+            Master switch for stackchan/custom integration hooks.
+            Disable for minimal/no-op custom layer.
+
+    config SC_CUSTOM_ADDONS
+        bool "Addons panel (swipe menu)"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+    config SC_CUSTOM_IR
+        bool "Infrared control (RMT)"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+    config SC_CUSTOM_AGENT_PROFILE
+        bool "AI backend profile switching"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+    config SC_CUSTOM_ESPNOW
+        bool "ESP-NOW remote control"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+    config SC_CUSTOM_FACE_FOLLOW
+        bool "Face follow feature"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+    config SC_CUSTOM_MUSIC_DANCE
+        bool "Music dance feature"
+        depends on SC_CUSTOM_LAYER
+        default y
+
+endmenu

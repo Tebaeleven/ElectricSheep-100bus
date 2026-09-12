@@ -1,0 +1,14 @@
+﻿.env
+*.pem
+secrets.h
+version_history.txt
+
+# ESP-IDF firmware build artifacts
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/sdkconfig.defaults.local
+firmware/managed_components/
+firmware/xiaozhi-esp32/
+firmware/dependencies.lock
+firmware/.cache/

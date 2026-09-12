@@ -1,0 +1,11 @@
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+# Multinet（おばけちゃん）入り generated_assets.bin が ~5.5MB のため
+# assets を 6MB に拡大。その分 ota_0/ota_1 を各 0.5MB 縮小（app ~3.8MB は余裕あり）
+nvs,      data, nvs,     0x9000,    0x4000,
+otadata,  data, ota,     0xd000,    0x2000,
+phy_init, data, phy,     0xf000,    0x1000,
+ota_0,    app,  ota_0,   0x20000,   0x470000,
+ota_1,    app,  ota_1,   ,          0x470000,
+assets,   data, spiffs,  0x900000,  6M,
+coredump, data, coredump,,          0x10000,

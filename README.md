@@ -47,6 +47,9 @@ ElectricSheep-100bus/
 │  ├─ db/                   # @workspace/db     Supabase 生成型・サーバー専用 client・robot_commands ログ
 │  ├─ ui/                   # @workspace/ui     shadcn 共有コンポーネント
 │  ├─ eslint-config/ , typescript-config/
+├─ firmware/                # 実機ファームの正本（メンバー実装を取り込み）
+│  ├─ esp32-rail/           # 天井レール ESP32（PlatformIO / firmware/rail_dc が本命・HTTP /api/v1/rail/*）
+│  └─ stackchan/            # おばけ本体 M5Stack CoreS3（ESP-IDF / Stack-chan + Xiaozhi）
 ├─ scripts/wt-setup.sh      # pnpm wt setup <task> [base]
 ├─ docs/                    # セットアップ・開発ルール・runbook
 ├─ turbo.json , pnpm-workspace.yaml , .nvmrc , .worktreeinclude
@@ -186,7 +189,8 @@ GHOST_MODEL=google/gemini-3.1-pro-preview  # 品質重視（遅い・高い）
 | [`docs/runbooks/dev-dashboard.md`](docs/runbooks/dev-dashboard.md) | 開発者ダッシュボード [`/dev`](http://localhost:3000/dev) の使い方・エンドポイント追加手順 |
 | [`docs/runbooks/network.md`](docs/runbooks/network.md) | ハッカソン会場の接続手順（推奨構成・決定木・当日チェックリスト・切り分けコマンド） |
 | [`docs/reports/network-connectivity.html`](docs/reports/network-connectivity.html) | 会場ネットワーク接続の調査レポート（構成パターン A〜G・ESP32/スタックちゃんの接続可否・IP/ポート・Electron の localhost・クラウド中継） |
-| [`docs/specs/robot-api-requirements.md`](docs/specs/robot-api-requirements.md) | 受領した機器 API 要件定義（仕様の正本） |
+| [`docs/specs/robot-api-requirements.md`](docs/specs/robot-api-requirements.md) | 受領した機器 API 要件定義（仕様の正本）。§8 に実機ファームとの差分 |
+| [`firmware/README.md`](firmware/README.md) | 実機ファーム（ESP32 レール / スタックちゃん）の機器一覧・書き込み手順・SSID/ポート運用・SDK との差分表 |
 | [`docs/diagrams/README.md`](docs/diagrams/README.md) | 資料用ダイアグラム 6 点（ユースケース / コンテキスト / システム・ソフトウェアアーキテクチャ / 依存 / こだわり）と共通スタイルガイド・PNG 再出力手順 |
 | [`docs/runbooks/desktop.md`](docs/runbooks/desktop.md) | デスクトップ（Electron / Ghost Companion）の起動・Desktop API・画面収録権限・curl 例 |
 | [`client/desktop/README.md`](client/desktop/README.md) | デスクトップアプリ（Next.js + Electron）本体 |
