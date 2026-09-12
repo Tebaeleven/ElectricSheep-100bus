@@ -175,13 +175,28 @@ curl -sS -X POST http://127.0.0.1:8791/api/v1/rail/move \
   -H 'content-type: application/json' \
   -d '{"axis":"x","direction":1,"duration_ms":500}'
 
-# 停止（ボディなし・冪等）
-curl -sS -X POST http://127.0.0.1:8791/api/v1/rail/stop
+# 停止（JSON ボディ必須・冪等）※ axis:null で全軸、"x" で単軸
+curl -sS -X POST http://127.0.0.1:8791/api/v1/rail/stop \
+  -H 'content-type: application/json' \
+  -d '{"axis":null}'
+# => 202 {"command_id":"http-...","status":"accepted"}
 
 # 状態
 curl -sS http://127.0.0.1:8791/api/v1/rail/status
-# => {"state":"stopped", ...}
+# => {"type":"status","mode":"led_preview","simulated":true,"axes":[{"axis":"x","active":false,...}],...}
 ```
+
+#### 実機ファームとの対応（`firmware/esp32-rail/firmware/rail_dc`）
+
+モックは実機ファーム [`firmware/esp32-rail/firmware/rail_dc`](../../firmware/esp32-rail/firmware/rail_dc) の応答形に合わせてある。実機の振る舞いで押さえるところ:
+
+- **`stop` は JSON ボディ必須**。`content-type: application/json` と `{"axis":null}`（全軸）／`{"axis":"x"}`（単軸）が要る。空ボディは 400。SDK の `createRailClient().stop()` は自動で `{"axis":null}` を送る（単軸は `stop(signal, "x")`）
+- **`move` / `stop` は 202 の非同期受理**。`{"command_id":"http-...","status":"accepted"}` が返るだけで、走行完了の保証ではない。SDK は `DeviceResult.data.commandId` に載せる
+- **`status` に `state` は無い**。`axes[].active` のいずれかが true なら `moving`、そうでなければ `stopped` を SDK が導出する
+- **`MOTOR_OUTPUTS_ENABLED` が false のうちはモーター出力が出ない**。内蔵 WS2812 の LED プレビュー（X=赤 / Y=緑 / Z=青）だけが動き、`status` は `simulated: true` / `mode: "led_preview"` を返す。実機運転は配線後にこの定数を true にして再書き込みする
+- `duration_ms` の上限はファームが 60000、SDK は 3000（安全側）。`move` の不正入力はファームでは 422
+
+書き込み手順・SSID 運用・差分表の全体は [`firmware/README.md`](../../firmware/README.md)。
 
 ### 4.2 デスクトップ（Electron・8792）
 
@@ -372,7 +387,7 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 | **駆動時間の上限** | `packages/devices/src/constants.ts` の `RAIL_MAX_DURATION_MS`（`DEVICE_RAIL_MAX_DURATION_MS ?? 3000`）→ `schemas.ts` の `railMoveSchema.durationMs = z.number().int().min(1).max(RAIL_MAX_DURATION_MS)` | 上限超過は**機器へ送る前に**バリデーションで弾く。Route Handler は 400、Mastra tool は入力スキーマ違反で実行されない |
 | **移動命令の自動再送禁止** | `createRailClient().move`（`packages/devices/src/http.ts`） | `rail/move` は**リトライしない**（機器が受理済みで二重移動になる危険）。タイムアウト・ネットワークエラーでもそのまま `{ok:false}` を返す。`rail/stop` は冪等なので 1 回だけリトライする |
 | **URL の限定** | `schemas.ts` の `openUrlSchema`（`.url()` + `/^https?:\/\//` の `refine`） | `file:` / `javascript:` / `data:` は 400。Route Handler と Mastra tool の両方が同じスキーマを使う |
-| **停止の常時受付** | `rail/stop` は冪等・ボディなし・リトライ可。`/dev` ダッシュボードは `rail/stop` と `audio/stop` を**画面上部に固定した緊急ボタン**として常時表示。`device-panel.tsx` にも停止ボタンがある | どの画面・どの状態からでも 1 クリックで停止できる |
+| **停止の常時受付** | `rail/stop` は冪等・リトライ可（ファーム互換のため SDK が `{"axis":null}` のボディを付ける）。`/dev` ダッシュボードは `rail/stop` と `audio/stop` を**画面上部に固定した緊急ボタン**として常時表示。`device-panel.tsx` にも停止ボタンがある | どの画面・どの状態からでも 1 クリックで停止できる |
 | **タイムアウト** | `DEFAULT_TIMEOUT_MS`（**5000ms**・env `DEVICE_TIMEOUT_MS` で変更）、HTTP は `AbortSignal.timeout`、WS は `ack` / `camera.frame` の待ち受けにタイマー | 応答が来なくてもハングしない |
 | **認証** | `createDevices` の `resolveHeaders`（`DEVICE_AUTH_TOKEN` → `Authorization: Bearer`） | 方式未確定のため暫定。§8 で確認する |
 | **障害時の扱い** | 全公開 API が `DeviceResult` を返す。`createDevices` は実クライアント生成に失敗するとモックへフォールバックし警告ログを出す | 機器が落ちていても会話と UI は継続する |

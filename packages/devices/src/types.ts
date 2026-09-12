@@ -7,6 +7,7 @@ import type {
   imagePayloadSchema,
   openUrlSchema,
   railAxisSchema,
+  railAxisStatusSchema,
   railDirectionSchema,
   railMoveSchema,
   railStatusSchema,
@@ -15,8 +16,20 @@ import type {
 export type RailAxis = z.infer<typeof railAxisSchema>
 export type RailDirection = z.infer<typeof railDirectionSchema>
 export type RailMove = z.infer<typeof railMoveSchema>
+export type RailAxisStatus = z.infer<typeof railAxisStatusSchema>
+/**
+ * レール状態。`state` はファームが返さない場合 `axes[].active` から導出される。
+ * `ip` / `apIp` / `apSsid` / `simulated` / `axes` は実機ファーム（rail_dc）が返す任意フィールド
+ */
 export type RailStatus = z.infer<typeof railStatusSchema> & {
   state: "moving" | "stopped" | "error"
+  ip?: string
+  apIp?: string
+  apSsid?: string
+  simulated?: boolean
+  axes?: RailAxisStatus[]
+  /** 機器が返す未知のフィールドも落とさず保持する */
+  [key: string]: unknown
 }
 export type DesktopStatus = z.infer<typeof desktopStatusSchema> & {
   state: string
@@ -40,10 +53,29 @@ export interface AudioChunk extends AudioChunkPayload {
   receivedAt: number
 }
 
+/** move / stop の受理応答（ファームは 202 + command_id を返す） */
+export interface RailCommandAccepted {
+  /** ファームが採番した命令 ID（ワイヤ形式 `command_id` の camelCase 版） */
+  commandId?: string
+  /** ファームが返す受理状態（通常 `"accepted"`） */
+  status?: string
+  [key: string]: unknown
+}
+
 /** ESP32（レール）クライアント */
 export interface RailClient {
-  move(input: RailMove, signal?: AbortSignal): Promise<DeviceResult>
-  stop(signal?: AbortSignal): Promise<DeviceResult>
+  move(
+    input: RailMove,
+    signal?: AbortSignal
+  ): Promise<DeviceResult<RailCommandAccepted>>
+  /**
+   * 停止。`axis` 省略時は全軸停止（ファームへは `{"axis":null}` を送る）。
+   * 既存の呼び出し（`stop()` / `stop(signal)`）と互換にするため axis は第 2 引数
+   */
+  stop(
+    signal?: AbortSignal,
+    axis?: RailAxis
+  ): Promise<DeviceResult<RailCommandAccepted>>
   status(signal?: AbortSignal): Promise<DeviceResult<RailStatus>>
 }
 

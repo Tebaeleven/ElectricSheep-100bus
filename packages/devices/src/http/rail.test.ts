@@ -40,22 +40,64 @@ async function startCustomServer(
 }
 
 describe("createRailClient", () => {
-  it("move → status → stop が成功する", async () => {
+  it("move → status → stop が成功する（ファームの 202 応答）", async () => {
     const rail = createRailClient({ baseUrl: await startRail() })
 
     const moved = await rail.move({ axis: "x", direction: 1, durationMs: 500 })
     expect(moved.ok).toBe(true)
-    expect(moved.status).toBe(200)
+    // ファーム rail_dc は非同期受理なので 202
+    expect(moved.status).toBe(202)
+    expect(moved.data?.commandId).toBeTypeOf("string")
+    expect(moved.data?.status).toBe("accepted")
 
     const status = await rail.status()
     expect(status.ok).toBe(true)
+    // ファームは state を返さないので axes[].active から導出される
     expect(status.data?.state).toBe("moving")
+    expect(status.data?.axes?.find((a) => a.axis === "x")?.active).toBe(true)
     // 機器が返す追加フィールドは落とさない
     expect(status.data?.move_count).toBe(1)
+    expect(status.data?.simulated).toBe(true)
+    expect(status.data?.apSsid).toBe("Rail-ESP32-mock")
 
     const stopped = await rail.stop()
     expect(stopped.ok).toBe(true)
+    expect(stopped.status).toBe(202)
+    expect(stopped.data?.commandId).toBeTypeOf("string")
     expect((await rail.status()).data?.state).toBe("stopped")
+  })
+
+  it("stop は JSON ボディ {axis:null} を送る（ファームは本文必須）", async () => {
+    let received: string | undefined
+    let contentType: string | undefined
+    const baseUrl = await startCustomServer((req, res) => {
+      contentType = req.headers["content-type"]
+      const chunks: Buffer[] = []
+      req.on("data", (chunk: Buffer) => chunks.push(chunk))
+      req.on("end", () => {
+        received = Buffer.concat(chunks).toString("utf8")
+        res.writeHead(202, { "content-type": "application/json" })
+        res.end(JSON.stringify({ command_id: "http-1", status: "accepted" }))
+      })
+    })
+    const rail = createRailClient({ baseUrl })
+
+    const all = await rail.stop()
+    expect(all.ok).toBe(true)
+    expect(contentType).toBe("application/json")
+    expect(received).toBe(JSON.stringify({ axis: null }))
+    expect(all.data?.commandId).toBe("http-1")
+
+    await rail.stop(undefined, "y")
+    expect(received).toBe(JSON.stringify({ axis: "y" }))
+  })
+
+  it("stop にボディが無いとモックは 400 を返す（ファーム互換）", async () => {
+    const baseUrl = await startRail()
+    const response = await fetch(`${baseUrl}/api/v1/rail/stop`, {
+      method: "POST",
+    })
+    expect(response.status).toBe(400)
   })
 
   it("baseUrl の末尾スラッシュがあっても /api/v1 を正しく付ける", async () => {
@@ -117,8 +159,8 @@ describe("createRailClient", () => {
         res.socket?.destroy()
         return
       }
-      res.writeHead(200, { "content-type": "application/json" })
-      res.end(JSON.stringify({ accepted: true }))
+      res.writeHead(202, { "content-type": "application/json" })
+      res.end(JSON.stringify({ command_id: "http-2", status: "accepted" }))
     })
     const rail = createRailClient({ baseUrl, timeoutMs: 1000 })
     const result = await rail.stop()

@@ -21,8 +21,42 @@ export const railMoveSchema = z.object({
 /** レールの状態 */
 export const railStateSchema = z.enum(["moving", "stopped", "error"])
 
-/** レール状態レスポンス。機器が追加のフィールドを返しても落とさない */
-export const railStatusSchema = z.looseObject({ state: railStateSchema })
+/**
+ * レール 1 軸分の状態（ファーム rail_dc の `/api/v1/rail/status` が返す形）。
+ * 実装差分を吸収するため、軸名以外はすべて任意にしている
+ */
+export const railAxisStatusSchema = z.looseObject({
+  axis: railAxisSchema,
+  active: z.boolean().optional(),
+  pending: z.boolean().optional(),
+  direction: z.number().int().optional(),
+  remaining_ms: z.number().int().optional(),
+})
+
+/**
+ * レール状態レスポンス。機器が追加のフィールドを返しても落とさない。
+ * 実機ファーム（rail_dc）は `state` を返さないので、
+ * `axes[].active` のいずれかが true なら `moving`、そうでなければ `stopped` を導出する
+ */
+export const railStatusSchema = z
+  .looseObject({
+    state: railStateSchema.optional(),
+    simulated: z.boolean().optional(),
+    ip: z.string().optional(),
+    ap_ip: z.string().optional(),
+    ap_ssid: z.string().optional(),
+    axes: z.array(railAxisStatusSchema).optional(),
+  })
+  .transform((raw) => {
+    const moving = raw.axes?.some((axis) => axis.active === true) ?? false
+    return {
+      ...raw,
+      // state が無いファームでは軸の active から導出する
+      state: raw.state ?? (moving ? ("moving" as const) : ("stopped" as const)),
+      apIp: raw.ap_ip,
+      apSsid: raw.ap_ssid,
+    }
+  })
 
 /** デスクトップ（Electron）の状態レスポンス */
 export const desktopStatusSchema = z.looseObject({ state: z.string() })

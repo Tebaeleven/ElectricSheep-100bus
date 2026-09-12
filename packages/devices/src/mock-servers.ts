@@ -18,7 +18,7 @@ import {
   STACKCHAN_WS_PATH,
 } from "./constants"
 import { openUrlSchema } from "./schemas"
-import type { RailStatus } from "./types"
+import type { RailAxis } from "./types"
 import { railMoveWireSchema } from "./wire"
 
 /** 起動したモックサーバーのハンドル */
@@ -38,7 +38,8 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown | null> {
   const chunks: Buffer[] = []
   for await (const chunk of req) chunks.push(chunk as Buffer)
   const text = Buffer.concat(chunks).toString("utf8")
-  if (text.length === 0) return {}
+  // ファーム rail_dc は空ボディを 400 にするので、空と壊れた JSON を同じ null で表す
+  if (text.length === 0) return null
   try {
     return JSON.parse(text) as unknown
   } catch {
@@ -87,20 +88,67 @@ function sendJson(
 // --- レール（ESP32）モック -----------------------------------------------
 
 /**
- * レールのモック HTTP サーバー。
- * move を受け付けると duration_ms 経過で自動的に stopped へ戻る
+ * レールのモック HTTP サーバー。実機ファーム `firmware/esp32-rail/firmware/rail_dc` 互換。
+ * - `move` / `stop` は **202** `{"command_id","status":"accepted"}` を返す
+ * - `stop` は **JSON ボディ必須**（`{"axis":null}` で全軸、`{"axis":"x"}` で単軸）
+ * - `status` はファームと同じ形（`state` は返さず `axes[]` から導出させる）
  */
 export function startMockRailServer(
   port: number = MOCK_RAIL_PORT
 ): Promise<MockServerHandle> {
-  let state: RailStatus["state"] = "stopped"
   let moveCount = 0
-  let timer: ReturnType<typeof setTimeout> | undefined
+  /** 動作中の軸だけを持つ。value は方向・停止予定時刻・タイマー */
+  const running = new Map<
+    RailAxis,
+    { direction: number; until: number; timer: ReturnType<typeof setTimeout> }
+  >()
 
-  const clearMoveTimer = (): void => {
-    if (!timer) return
-    clearTimeout(timer)
-    timer = undefined
+  const clearAxis = (axis: RailAxis): void => {
+    const value = running.get(axis)
+    if (!value) return
+    clearTimeout(value.timer)
+    running.delete(axis)
+  }
+
+  const clearAll = (): void => {
+    for (const axis of [...running.keys()]) clearAxis(axis)
+  }
+
+  /** ファームと同じ命令 ID を採番する */
+  const nextCommandId = (): string =>
+    `http-${Math.random().toString(16).slice(2, 10)}`
+
+  /** ファームと同じ status JSON を組み立てる */
+  const statusJson = (): Record<string, unknown> => {
+    const now = Date.now()
+    return {
+      type: "status",
+      firmware: "rail-dc-xyz-1.0",
+      mode: "led_preview",
+      simulated: true,
+      rgb_led_ready: false,
+      configured: false,
+      wifi_connected: false,
+      server_connected: false,
+      pwm_duty: 128,
+      http_port: 80,
+      http_auth_required: false,
+      ap_ip: "192.168.4.1",
+      ap_ssid: "Rail-ESP32-mock",
+      ip: "127.0.0.1",
+      // モック独自の補助フィールド（実機ファームには無い）
+      move_count: moveCount,
+      axes: (["x", "y", "z"] as const).map((axis) => {
+        const value = running.get(axis)
+        return {
+          axis,
+          active: value !== undefined,
+          pending: false,
+          direction: value?.direction ?? 0,
+          remaining_ms: value ? Math.max(0, value.until - now) : 0,
+        }
+      }),
+    }
   }
 
   const server = createServer((req, res) => {
@@ -116,30 +164,59 @@ export function startMockRailServer(
           })
           .safeParse(body)
         if (!parsed.success) {
-          sendJson(res, 400, { error: parsed.error.issues[0]?.message ?? "invalid" })
+          sendJson(res, 400, {
+            error: parsed.error.issues[0]?.message ?? "invalid",
+          })
           return
         }
         moveCount += 1
-        state = "moving"
-        clearMoveTimer()
-        timer = setTimeout(() => {
-          state = "stopped"
-          timer = undefined
-        }, parsed.data.duration_ms)
+        const move = parsed.data
+        clearAxis(move.axis)
+        const timer = setTimeout(() => {
+          running.delete(move.axis)
+        }, move.duration_ms)
         timer.unref?.()
-        sendJson(res, 200, { accepted: true, ...parsed.data })
+        running.set(move.axis, {
+          direction: move.direction,
+          until: Date.now() + move.duration_ms,
+          timer,
+        })
+        sendJson(res, 202, {
+          command_id: nextCommandId(),
+          status: "accepted",
+        })
         return
       }
 
       if (req.method === "POST" && url === "/api/v1/rail/stop") {
-        clearMoveTimer()
-        state = "stopped"
-        sendJson(res, 200, { accepted: true })
+        // ファームと同じく content-type と JSON ボディを必須にする
+        const contentType = req.headers["content-type"] ?? ""
+        const body = await readJsonBody(req)
+        if (
+          !contentType.includes("json") ||
+          body === null ||
+          typeof body !== "object" ||
+          Array.isArray(body)
+        ) {
+          sendJson(res, 400, { error: "expected JSON object" })
+          return
+        }
+        const axis = (body as { axis?: unknown }).axis
+        if (axis === null || axis === undefined) clearAll()
+        else if (axis === "x" || axis === "y" || axis === "z") clearAxis(axis)
+        else {
+          sendJson(res, 422, { error: "invalid axis" })
+          return
+        }
+        sendJson(res, 202, {
+          command_id: nextCommandId(),
+          status: "accepted",
+        })
         return
       }
 
       if (req.method === "GET" && url === "/api/v1/rail/status") {
-        sendJson(res, 200, { state, move_count: moveCount })
+        sendJson(res, 200, statusJson())
         return
       }
 
@@ -147,7 +224,7 @@ export function startMockRailServer(
     })()
   })
 
-  server.on("close", clearMoveTimer)
+  server.on("close", clearAll)
   return listen("rail", server, port)
 }
 

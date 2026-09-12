@@ -120,3 +120,25 @@
 
 - 変換関数は `src/wire.ts`（`railMoveToWire` / `railMoveFromWire` / `imagePayloadToWire` / `imagePayloadFromWire` / `audioChunkFromWire` / `toAudioChunk`）。
 - バリデーションは `src/schemas.ts`（公開 API 用）と `src/wire.ts`（ワイヤ形式・WebSocket エンベロープ用）。
+
+## 8. 実機ファームとの差分（2026-09-12 取り込み時点）
+
+実機ファームをリポジトリに取り込んだ結果（[`firmware/`](../../firmware/README.md)）、本書の仕様と実装に差分があることが分かった。**本文（§1〜§7）は受領した仕様の正本としてそのまま残し**、ここに実装差分だけを記録する。
+
+### 8.1 レール（`firmware/esp32-rail/firmware/rail_dc`）— SDK を実装側に合わせ込み済み
+
+| # | 項目 | 本書 | ファーム実装 | SDK の対応 |
+| --- | --- | --- | --- | --- |
+| 1 | `POST /rail/stop` の本文 | ボディなし | **JSON ボディ必須**（`{"axis":null}` 全軸 / `{"axis":"x"}` 単軸）。`content-type: application/json` も必須で、欠けると 400 | `RailClient.stop()` が `{"axis":null}` を送る。単軸は `stop(signal, axis)` |
+| 2 | `move` / `stop` の応答 | 200 | **202** `{"command_id":"http-...","status":"accepted"}`（キューへの受理であり走行完了ではない） | `DeviceResult.data.commandId`（`command_id` も保持）。ok 判定は 2xx のまま |
+| 3 | `GET /rail/status` | `{"state":"moving"\|"stopped"\|"error", ...}` | `state` を返さない。`type,firmware,mode,simulated,ip,ap_ip,ap_ssid,axes[{axis,active,pending,direction,remaining_ms}],...` | `railStatusSchema` を緩め、`state` があれば検証・無ければ `axes[].active` から導出。元フィールドは全保持（passthrough）＋ `apIp` / `apSsid` を追加 |
+| 4 | `duration_ms` の上限 | 3000（クライアント側の安全要件） | **60000**（超過は 422） | SDK は 3000 のまま（安全側）。`DEVICE_RAIL_MAX_DURATION_MS` で変更可 |
+| 5 | 駆動の有無 | 実駆動 | `MOTOR_OUTPUTS_ENABLED = false` の間は**モーター出力なし**の LED プレビュー（`simulated:true` / `mode:"led_preview"`） | モックも同じ形を返す。実駆動へは配線後にファーム側の定数変更＋再書き込み |
+
+§6 の未確定事項のうち「`rail/status` の追加フィールド」はこれで解消した。認証は HTTP API では**不要**（ファームが `http_auth_required:false` を返す）。
+
+### 8.2 スタックちゃん（`firmware/stackchan`）— 未一致・SDK は未変更
+
+§3.3 の `/ws/v1/robot` は**実装されていない**（元リポで廃止済み）。端末は WS **クライアント**として PC の Media サーバー `ws://<PC>:8030/obake/media` へ接続し、JPEG / PCM をバイナリフレーム `[type:1][len:4 BE][payload]` で push する。`request_id` / `ack` の要求応答は無く、`hand.set` は現行ハードでは実現できない（手のサーボが無く、首 yaw/pitch の `{"cmd":"set_head",...}` のみ）。
+
+向き・要求応答・音声形式という**設計に関わる差分**のため SDK（`packages/devices/src/ws/stackchan.ts`）は変更していない。全項目の差分表と推奨対応（PC 側 Media サーバーをアダプタ化するのが第一候補）は [`firmware/stackchan/README.md`](../../firmware/stackchan/README.md)。
