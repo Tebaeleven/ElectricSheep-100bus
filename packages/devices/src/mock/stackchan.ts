@@ -17,8 +17,10 @@ import { createRequestId } from "../wire"
 export interface MockStackchanClient extends StackchanClient {
   /** 直近に指示された首の角度（テスト用） */
   readonly headAngles: HeadSet | undefined
-  /** @deprecated 現在の手の状態（旧契約のテスト用） */
+  /** 現在の手の状態（テスト用） */
   readonly handState: HandState
+  /** 現在の LED の状態（テスト用） */
+  readonly ledOn: boolean
   /** 録音中かどうか（テスト用） */
   readonly recording: boolean
 }
@@ -30,6 +32,7 @@ export interface MockStackchanClient extends StackchanClient {
 export function createMockStackchanClient(): MockStackchanClient {
   let connected = false
   let handState: HandState = "open"
+  let ledOn = false
   let headAngles: HeadSet | undefined
   let recording = false
   let seq = 0
@@ -57,6 +60,9 @@ export function createMockStackchanClient(): MockStackchanClient {
     },
     get handState() {
       return handState
+    },
+    get ledOn() {
+      return ledOn
     },
     get recording() {
       return recording
@@ -86,9 +92,7 @@ export function createMockStackchanClient(): MockStackchanClient {
         latencyMs: Date.now() - startedAt,
       }
     },
-    /**
-     * @deprecated 実機に手のサーボは無い。モックは旧契約の確認用に動作を残している
-     */
+    /** 手の開閉。実機では機器の HTTP（8765）に飛ぶ */
     async handSet(state: HandState): Promise<DeviceResult> {
       const startedAt = Date.now()
       handState = state
@@ -99,6 +103,20 @@ export function createMockStackchanClient(): MockStackchanClient {
         ok: true,
         status: 200,
         data: { requestId, state },
+        latencyMs: Date.now() - startedAt,
+      }
+    },
+    /** LED の点灯・消灯。実機では機器の HTTP（8765）に飛ぶ */
+    async ledSet(on: boolean): Promise<DeviceResult> {
+      const startedAt = Date.now()
+      ledOn = on
+      const requestId = createRequestId()
+      console.info("[devices:mock] stackchan.led.set", on)
+      emitEvent({ type: "ack", request_id: requestId, data: { on } })
+      return {
+        ok: true,
+        status: 200,
+        data: { requestId, on },
         latencyMs: Date.now() - startedAt,
       }
     },

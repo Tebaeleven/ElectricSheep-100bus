@@ -247,13 +247,20 @@ export function createStackchanBridgeClient(
       return result
     },
 
-    /**
-     * @deprecated 現行ハード（Obake_device）に手のサーボは無い
-     */
+    /** 手はブリッジではなく機器上の HTTP（8765）が担当する（合成クライアント参照） */
     async handSet(): Promise<DeviceResult> {
       return {
         ok: false,
-        error: "unsupported: hand servo not present",
+        error: "unsupported: hand は機器の HTTP（8765）側。STACKCHAN_HTTP_URL を設定する",
+        latencyMs: 0,
+      }
+    },
+
+    /** LED もブリッジには無い。機器上の HTTP（8765）が担当する */
+    async ledSet(): Promise<DeviceResult> {
+      return {
+        ok: false,
+        error: "unsupported: led は機器の HTTP（8765）側。STACKCHAN_HTTP_URL を設定する",
         latencyMs: 0,
       }
     },

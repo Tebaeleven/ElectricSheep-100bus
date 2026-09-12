@@ -77,6 +77,14 @@
       "kind": "mock",
       "expect": ["node", "tsx"]
     },
+    "stackchan_http_mock": {
+      "port": 8794,
+      "label": "機器モック: スタックちゃん本体の HTTP（手・LED。実機は 8765）",
+      "owner": "packages/devices",
+      "cmd": "pnpm devices:mock",
+      "kind": "mock",
+      "expect": ["node", "tsx"]
+    },
     "stackchan_bridge": {
       "port": 8030,
       "label": "スタックちゃん bridge（WS 受け口 + HTTP API。B 方式）",
@@ -106,13 +114,14 @@
     }
   },
   "reserved": {
-    "8802-8809": "将来のローカルブリッジ用に予約（ESP32 レール実機ブリッジ等）。モック帯 8791-8793 とは必ず分けること。スタックちゃんの bridge だけは例外で 8030（ファーム側の接続先に合わせるため動かせない）"
+    "8802-8809": "将来のローカルブリッジ用に予約（ESP32 レール実機ブリッジ等）。モック帯 8791-8794 とは必ず分けること。スタックちゃんの bridge だけは例外で 8030（ファーム側の接続先に合わせるため動かせない）"
   },
   "envUrls": {
     "DESKTOP_BASE_URL": { "mock": "desktop_mock", "real": "desktop_real" },
     "RAIL_BASE_URL": { "mock": "rail_mock", "real": null },
     "STACKCHAN_WS_URL": { "mock": "stackchan_mock", "real": null },
     "STACKCHAN_BRIDGE_URL": { "mock": null, "real": "stackchan_bridge" },
+    "STACKCHAN_HTTP_URL": { "mock": "stackchan_http_mock", "real": null },
     "ROBOT_BASE_URL": { "mock": "robot_mock", "real": null }
   }
 }

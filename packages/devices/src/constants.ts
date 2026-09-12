@@ -26,6 +26,8 @@ export const DEFAULT_TIMEOUT_MS = 5000
 export const MOCK_RAIL_PORT = 8791
 export const MOCK_DESKTOP_PORT = 8792
 export const MOCK_STACKCHAN_PORT = 8793
+/** スタックちゃん HTTP（8765 互換）モックの既定ポート。台帳は scripts/ports.json（stackchan_http_mock） */
+export const MOCK_STACKCHAN_HTTP_PORT = 8794
 
 /**
  * Electron 実機（client/desktop）の Desktop API 既定ポート。
@@ -71,3 +73,32 @@ export const HEAD_PITCH_MAX_DEG = 90
 export const HEAD_SPEED_MIN = 100
 export const HEAD_SPEED_MAX = 1000
 export const HEAD_SPEED_DEFAULT = 150
+
+// --- スタックちゃん HTTP（機器上の Obake サーバー・8765）-------------------
+
+/**
+ * スタックちゃん本体が持つ HTTP サーバーの既定ポート（実測）。
+ * 手（hand_open / hand_close）と LED（led_on / led_off）だけを持ち、
+ * 首・カメラ・音声は従来どおりブリッジ（8030）側にある
+ */
+export const STACKCHAN_HTTP_PORT_DEFAULT = 8765
+
+/** スタックちゃん HTTP のパス。**ここに無いパスは絶対に叩かない**（実機は未知パスで接続リセットし、固まる） */
+export const STACKCHAN_HTTP_PATHS = {
+  /** ヘルスチェック兼操作 UI。200 + HTML（`<title>Obake</title>`） */
+  root: "/",
+  control: "/control",
+  handOpen: "/obake/hand_open",
+  handClose: "/obake/hand_close",
+  ledOn: "/obake/led_on",
+  ledOff: "/obake/led_off",
+} as const
+
+/** ヘルスチェックで本文に含まれていることを確認する文字列 */
+export const STACKCHAN_HTTP_HEALTH_MARKER = "Obake"
+
+/** スタックちゃん HTTP の既定タイムアウト（ミリ秒）。機器が遅いので長めにとる */
+export const STACKCHAN_HTTP_TIMEOUT_MS_DEFAULT = 10000
+
+/** スタックちゃん HTTP の最小送信間隔（ミリ秒）。連続アクセスで機器が固まるため直列化＋間隔を空ける */
+export const STACKCHAN_HTTP_MIN_INTERVAL_MS_DEFAULT = 600

@@ -41,7 +41,7 @@ pnpm dev
 
 ### 対象エンドポイント
 
-`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/head|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env` の **16 エントリ**が `client/web/lib/dev/endpoints.ts` に定義済み（id は `chat.send` / `robot.command` / `rail.move` … / `dev.env`）。
+`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/head|hand|led|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env` の **18 エントリ**が `client/web/lib/dev/endpoints.ts` に定義済み（id は `chat.send` / `robot.command` / `rail.move` … / `dev.env`）。
 
 ---
 
@@ -96,7 +96,8 @@ pnpm dev
 - **HTTP status と latency** を最初に表示する。`DeviceResult` の `latencyMs`（機器までの往復）と、ブラウザから Next までの実測を区別して見られる。
 - **JSON ツリー**: 折りたたみ可能。全体コピーのボタンあり。
 - **`responseKind: 'image'`**（`desktop/screenshot`・`stackchan/camera`）: `data.imageBase64` を `data:<mimeType>;base64,` を付けて `<img>` で描画する。**表示のみでダウンロードはしない**（base64 は Data URL 接頭辞なしで届くので、接頭辞は UI 側で付ける）。
-- **首（`stackchan/head`）**: `POST /api/devices/stackchan/head` に `{yaw,pitch,speed?}` を送る。`yaw` は -90〜90 度（マイナスが機器から見て左）、`pitch` は -45〜45 度（プラスが上）。**旧 `stackchan/hand` は 410 Gone**（現行ハードに手のサーボが無いため廃止。`/dev` の一覧にも出てこない）。
+- **首（`stackchan/head`）**: `POST /api/devices/stackchan/head` に `{yaw,pitch,speed?}` を送る。`yaw` は -90〜90 度（マイナスが機器から見て左）、`pitch` は -45〜45 度（プラスが上）。`pitch` は 0〜90 度（0 が最も下・90 が最も上・水平はおよそ 45）。
+- **手・LED（`stackchan/hand` / `stackchan/led`）**: 機器本体の HTTP（実機 8765 / モック 8794）に届く別系統。`hand` は `{state:"open"|"closed"}`、`led` は `{on:true|false}`。プリセット（開く / 閉じる・点灯 / 消灯）から 1 クリックで送れる。**実機は連続アクセスに弱い**ので、SDK 側で直列化＋600ms 間隔を入れてある（連打しても順番に送られる）。
 - **`responseKind: 'stream'`**（`/api/chat`）: SSE をそのまま逐次追記表示する。整形せず生のイベントを流すので、AI SDK v7 のストリーム形式のデバッグに使える。
 
 ### 履歴 / curl コピー

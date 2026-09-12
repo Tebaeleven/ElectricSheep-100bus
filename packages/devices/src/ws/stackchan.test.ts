@@ -79,11 +79,11 @@ describe("createStackchanClient", () => {
     await client.close()
   })
 
-  it("handSet は送信せず unsupported を返す（手のサーボが無い）", async () => {
+  it("handSet は送信せず unsupported を返す（手は機器の HTTP 側）", async () => {
     const client = createStackchanClient({ url: await startMock() })
     const result = await client.handSet("closed")
     expect(result.ok).toBe(false)
-    expect(result.error).toBe("unsupported: hand servo not present")
+    expect(result.error).toContain("unsupported: hand")
     // 送信していないので接続もしない
     expect(client.connected).toBe(false)
     await client.close()

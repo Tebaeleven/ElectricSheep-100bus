@@ -207,6 +207,13 @@ export function DevicePanel() {
   const sendHead = (yaw: number, pitch: number) =>
     post("/api/devices/stackchan/head", { yaw, pitch, speed: headSpeed })
 
+  /** 手を開閉する（機器本体の HTTP 8765 が担当） */
+  const sendHand = (state: "open" | "closed") =>
+    post("/api/devices/stackchan/hand", { state })
+
+  /** LED を点灯・消灯する（機器本体の HTTP 8765 が担当） */
+  const sendLed = (on: boolean) => post("/api/devices/stackchan/led", { on })
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {/* --- レール（ESP32） ------------------------------------------- */}
@@ -407,6 +414,46 @@ export function DevicePanel() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-muted-foreground">
+              手と LED（機器本体の HTTP・既定 8765）
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending !== null}
+                onClick={() => void run("hand-open", () => sendHand("open"))}
+              >
+                ✋ 手 開
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending !== null}
+                onClick={() => void run("hand-close", () => sendHand("closed"))}
+              >
+                ✊ 手 閉
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending !== null}
+                onClick={() => void run("led-on", () => sendLed(true))}
+              >
+                💡 LED 点灯
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending !== null}
+                onClick={() => void run("led-off", () => sendLed(false))}
+              >
+                🌑 LED 消灯
+              </Button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
@@ -480,6 +527,8 @@ export function DevicePanel() {
                   .filter(
                     (key) =>
                       key.startsWith("head-") ||
+                      key.startsWith("hand-") ||
+                      key.startsWith("led-") ||
                       key.startsWith("audio-") ||
                       key === "camera"
                   )

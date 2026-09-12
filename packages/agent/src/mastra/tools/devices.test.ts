@@ -6,7 +6,9 @@ import {
   desktopOpenBrowser,
   desktopScreenshot,
   getDevices,
+  handSet,
   headSet,
+  ledSet,
   railMove,
   railStop,
   toRailDirection,
@@ -98,6 +100,37 @@ describe("headSet", () => {
 
     expect(result.ok).not.toBe(true)
     expect(result.error ?? result.message).toBeTruthy()
+  })
+})
+
+describe("handSet / ledSet", () => {
+  it("handSet は open / closed をモックへ送る", async () => {
+    const stackchan = getDevices().stackchan as unknown as {
+      handState?: string
+    }
+
+    expect((await run(handSet, { state: "closed" })).ok).toBe(true)
+    expect(stackchan.handState).toBe("closed")
+
+    expect((await run(handSet, { state: "open" })).ok).toBe(true)
+    expect(stackchan.handState).toBe("open")
+  })
+
+  it("handSet は open / closed 以外を受け付けない", async () => {
+    const result = await run(handSet, { state: "wave" })
+
+    expect(result.ok).not.toBe(true)
+    expect(result.error ?? result.message).toBeTruthy()
+  })
+
+  it("ledSet は点灯・消灯をモックへ送る", async () => {
+    const stackchan = getDevices().stackchan as unknown as { ledOn?: boolean }
+
+    expect((await run(ledSet, { on: true })).ok).toBe(true)
+    expect(stackchan.ledOn).toBe(true)
+
+    expect((await run(ledSet, { on: false })).ok).toBe(true)
+    expect(stackchan.ledOn).toBe(false)
   })
 })
 

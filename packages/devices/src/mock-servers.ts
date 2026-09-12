@@ -13,12 +13,14 @@ import {
   MOCK_DESKTOP_PORT,
   MOCK_PNG_BASE64,
   MOCK_RAIL_PORT,
+  MOCK_STACKCHAN_HTTP_PORT,
   MOCK_STACKCHAN_PORT,
+  STACKCHAN_HTTP_PATHS,
   RAIL_MAX_DURATION_MS,
   STACKCHAN_WS_PATH,
 } from "./constants"
 import { openUrlSchema } from "./schemas"
-import type { RailAxis } from "./types"
+import type { HandState, RailAxis } from "./types"
 import { railMoveWireSchema } from "./wire"
 
 /** 起動したモックサーバーのハンドル */
@@ -427,12 +429,94 @@ export function startMockStackchanServer(
   }))
 }
 
-/** 3 台まとめて起動する */
+// --- スタックちゃん HTTP（機器上の Obake サーバー・8765 互換）モック --------
+
+/** 実機の `GET /` / `GET /control` が返す操作 UI（title と 4 ボタンだけ再現する） */
+function obakeControlHtml(hand: HandState, ledOn: boolean): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Obake</title></head><body>
+<button onclick="fetch('${STACKCHAN_HTTP_PATHS.handOpen}',{method:'POST',cache:'no-store'})">hand open</button>
+<button onclick="fetch('${STACKCHAN_HTTP_PATHS.handClose}',{method:'POST',cache:'no-store'})">hand close</button>
+<button onclick="fetch('${STACKCHAN_HTTP_PATHS.ledOn}',{method:'POST',cache:'no-store'})">led on</button>
+<button onclick="fetch('${STACKCHAN_HTTP_PATHS.ledOff}',{method:'POST',cache:'no-store'})">led off</button>
+<p>hand=${hand} led=${ledOn ? "on" : "off"}</p>
+</body></html>`
+}
+
+/** text/plain を返す（実機の応答はテキスト） */
+function sendText(res: ServerResponse, status: number, body: string): void {
+  res.writeHead(status, {
+    "content-type": "text/plain; charset=utf-8",
+    "content-length": Buffer.byteLength(body),
+  })
+  res.end(body)
+}
+
+/**
+ * 機器上の HTTP サーバー（実機 8765）のモック。既定は台帳の 8794。
+ * - `GET /` と `GET /control` → 200 HTML（`<title>Obake</title>`）
+ * - `POST /obake/{hand_open,hand_close,led_on,led_off}` → 200 `ok`（テキスト）
+ * - 未知パスは 404。**実機は 404 ではなく接続リセットする**が、
+ *   モックでそれを再現すると Node の fetch が不安定になるためテスト側で別途再現する
+ */
+export function startMockStackchanHttpServer(
+  port: number = MOCK_STACKCHAN_HTTP_PORT
+): Promise<MockServerHandle> {
+  let hand: HandState = "open"
+  let ledOn = false
+
+  const server = createServer((req, res) => {
+    const url = req.url ?? ""
+    log("stackchan-http", `${req.method ?? "?"} ${url}`)
+
+    if (
+      req.method === "GET" &&
+      (url === STACKCHAN_HTTP_PATHS.root || url === STACKCHAN_HTTP_PATHS.control)
+    ) {
+      const body = obakeControlHtml(hand, ledOn)
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-length": Buffer.byteLength(body),
+      })
+      res.end(body)
+      return
+    }
+
+    if (req.method === "POST") {
+      switch (url) {
+        case STACKCHAN_HTTP_PATHS.handOpen:
+          hand = "open"
+          sendText(res, 200, "ok")
+          return
+        case STACKCHAN_HTTP_PATHS.handClose:
+          hand = "closed"
+          sendText(res, 200, "ok")
+          return
+        case STACKCHAN_HTTP_PATHS.ledOn:
+          ledOn = true
+          sendText(res, 200, "ok")
+          return
+        case STACKCHAN_HTTP_PATHS.ledOff:
+          ledOn = false
+          sendText(res, 200, "ok")
+          return
+        default:
+          break
+      }
+    }
+
+    sendText(res, 404, "not found")
+  })
+
+  return listen("stackchan-http", server, port)
+}
+
+/** 4 台まとめて起動する */
 export async function startAllMockServers(): Promise<MockServerHandle> {
   const handles = await Promise.all([
     startMockRailServer(),
     startMockDesktopServer(),
     startMockStackchanServer(),
+    startMockStackchanHttpServer(),
   ])
   return {
     port: handles[0].port,
@@ -442,7 +526,7 @@ export async function startAllMockServers(): Promise<MockServerHandle> {
   }
 }
 
-// 直接実行されたときは 8791/8792/8793 で 3 台起動する
+// 直接実行されたときは 8791/8792/8793/8794 で 4 台起動する
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   void startAllMockServers().then((handle) => {
     const shutdown = (): void => {

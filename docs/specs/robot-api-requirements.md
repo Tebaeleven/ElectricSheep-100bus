@@ -112,7 +112,8 @@
 | `DesktopClient.openBrowser(input)` | `POST /api/v1/desktop/browser/open` | `{ url }` | `{ url }` |
 | `DesktopClient.status()` | `GET /api/v1/desktop/status` | なし | `{ state, ... }` |
 | `StackchanClient.headSet(input)` **（B 方式・現行）** | ブリッジ `POST /obake/head` → 機器へ `{"cmd":"set_head",...}` | `{ yaw, pitch, speed? }` | `{ cmd:"set_head", yaw, pitch, speed }` |
-| `StackchanClient.handSet(state)` **（廃止）** | 送信しない。`{ok:false, error:"unsupported: hand servo not present"}` | `"open" \| "closed"` | — |
+| `StackchanClient.handSet(state)` **（復活・2026-09-12）** | 機器 HTTP `POST /obake/hand_open` / `POST /obake/hand_close`（8765・ボディ無し） | `"open" \| "closed"` | —（ボディ無し） |
+| `StackchanClient.ledSet(on)` **（新規・2026-09-12）** | 機器 HTTP `POST /obake/led_on` / `POST /obake/led_off`（8765・ボディ無し） | `boolean` | —（ボディ無し） |
 | `StackchanClient.cameraCapture()` | B 方式: ブリッジ `GET /obake/latest.json` ／ 旧契約: WS `camera.capture` → `camera.frame` | なし | `{ mime_type, image_base64 }` → `{ mimeType, imageBase64 }` |
 | `StackchanClient.audioStart()` | WS `audio.start` → `ack` | なし | `{ type, request_id }` |
 | `StackchanClient.audioStop()` | WS `audio.stop` → `ack` | なし | `{ type, request_id }` |
@@ -148,7 +149,7 @@
 
 | # | 項目 | 本書（§3.3） | 採用後 |
 | --- | --- | --- | --- |
-| 1 | 手の開閉 | `hand.set` `{state:"open"\|"closed"}` → `ack` | **`head.set` に置換**。手のサーボは現行ハードに無い。首の `{yaw,pitch,speed}` を `POST /obake/head` → 機器へ `{"cmd":"set_head",...}`。`StackchanClient.handSet` は残すが実機向けクライアントは `{ok:false, error:"unsupported: hand servo not present"}` を返す |
+| 1 | 手の開閉 | `hand.set` `{state:"open"\|"closed"}` → `ack` | **機器上の HTTP（8765）に置換して復活**（下の「2026-09-12 追記」参照）。ブリッジ（8030）側には無い |
 | 2 | 画像取得 | `camera.capture` → `camera.frame` | 機器が 400ms 間隔で push。取得はブリッジの `GET /obake/latest.json`（`cameraCapture` の実装がこれに変わる） |
 | 3 | 音声取得 | `audio.start` / `audio.stop` → `audio.chunk` | 機器は常時 push。`audioStart/Stop` は SDK 内のフラグで、`onAudioChunk` はブリッジの `GET /obake/audio/recent` を 500ms ポーリングして配る |
 | 4 | 接続の向き | Next がクライアント | **機器がクライアント**。PC 側（ブリッジ）がサーバー。env は `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030`（`DEVICE_MODE=real` で `STACKCHAN_WS_URL` より優先） |
@@ -164,5 +165,30 @@
 
 単位は度（ファーム内部は 0.1° 単位。`obake_servo_api.cpp:20` の `kDegToInternal = 10`）。
 この値は `@workspace/devices` の `headSetSchema`（`packages/devices/src/schemas.ts`）と `HEAD_*` 定数に写してあり、Web・Mastra tool・`/dev` はそこから import する（各所で数値を再定義しない）。
+
+#### 2026-09-12 追記: 手は廃止ではなく「機器上の HTTP（8765）」に移した
+
+実機を当たったところ、機器本体が **HTTP サーバー**（既定 8765）を持っていて、手と LED はそこから動かせることが分かった。
+よって §8.2 の当初判断「**hand は廃止**」は**撤回**する。手は使える。ただし系統がブリッジ（8030）とは別で、
+**手・LED = 機器 HTTP 8765 / 首・カメラ・音声 = ブリッジ 8030** の二本立てになる。
+SDK は `createStackchanCompositeClient` でこの 2 つを 1 つの `StackchanClient` にまとめる。
+
+実測した機器 HTTP の仕様（正本）:
+
+| メソッド | パス | 備考 |
+| --- | --- | --- |
+| GET | `/` / `/control` | 200 HTML（`<title>Obake</title>`）。**ヘルスチェックはこれ**（`/obake/status` は無い） |
+| POST | `/obake/hand_open` / `/obake/hand_close` | **ボディ無し・content-type 無し**。応答はテキスト（2xx なら成功） |
+| POST | `/obake/led_on` / `/obake/led_off` | 同上 |
+
+機器の癖（SDK の制約の根拠）:
+
+- 未知パスは 404 ではなく**接続リセット**。連続アクセスで機器が固まる → **表にないパスを叩かない**。
+- SDK は 8765 宛てを**直列キュー（同時 1 本）＋最低 600ms 間隔**、タイムアウト 10 秒、再送は冪等な hand / led のみ 1 回まで。
+- 固まったら電源の入れ直し。
+
+**契約への追加提案**: 本書 §3.3 の outbound に `led.set` `{on:boolean}` を正式に加える（現状は SDK の `StackchanClient.ledSet(on)` と
+Next の `POST /api/devices/stackchan/led` として先行実装済み）。`hand.set` は `{state:"open"|"closed"}` のまま復活とし、
+**実体は WS ではなく機器 HTTP 8765** と注記する。env は `STACKCHAN_HTTP_URL`（実機 `http://192.168.77.125:8765` / モック `http://127.0.0.1:8794`）。
 
 旧契約（`/ws/v1/robot` の要求応答）は `createStackchanClient` と 8793 のモックとして残す。全項目の差分表は [`firmware/stackchan/README.md`](../../firmware/stackchan/README.md)、運用手順は [`docs/runbooks/devices.md`](../runbooks/devices.md) §4.3。

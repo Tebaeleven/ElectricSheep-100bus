@@ -35,7 +35,7 @@ export type RailStatus = z.infer<typeof railStatusSchema> & {
 export type DesktopStatus = z.infer<typeof desktopStatusSchema> & {
   state: string
 }
-/** @deprecated 現行ハードに手のサーボは無い。`HeadSet` を使う */
+/** 手の開閉状態（機器 HTTP 8765 の hand_open / hand_close） */
 export type HandState = z.infer<typeof handStateSchema>
 /** 首の角度（B 方式。yaw ±128 / pitch 0..90 / speed 100..1000） */
 export type HeadSet = z.infer<typeof headSetSchema>
@@ -104,13 +104,19 @@ export interface StackchanClient {
     opts?: { timeoutMs?: number }
   ): Promise<DeviceResult>
   /**
-   * @deprecated 現行ハード（Obake_device）に手のサーボは無い。
-   * 実機向けクライアントは `{ ok:false, error:"unsupported: hand servo not present" }` を返す
+   * 手を開閉する。機器上の HTTP サーバー（8765）の
+   * `POST /obake/hand_open` / `POST /obake/hand_close` に対応する。
+   * HTTP を持たないクライアント（ブリッジ・旧契約 WS）は unsupported を返す
    */
   handSet(
     state: HandState,
     opts?: { timeoutMs?: number }
   ): Promise<DeviceResult>
+  /**
+   * LED を点灯・消灯する。機器上の HTTP サーバー（8765）の
+   * `POST /obake/led_on` / `POST /obake/led_off` に対応する
+   */
+  ledSet(on: boolean, opts?: { timeoutMs?: number }): Promise<DeviceResult>
   /** camera.frame を待つ */
   cameraCapture(opts?: {
     timeoutMs?: number
@@ -147,6 +153,18 @@ export interface StackchanBridgeStatus {
   frames: number
   bytes: number
   [key: string]: unknown
+}
+
+/**
+ * 機器上の HTTP サーバー（8765）の接続設定。
+ * baseUrl は `http://host:8765`（`/obake/*` は SDK が付与）
+ */
+export interface StackchanHttpOptions {
+  baseUrl: string
+  /** 1 リクエストのタイムアウト（ミリ秒・既定 10000） */
+  timeoutMs?: number
+  /** 送信の最小間隔（ミリ秒・既定 600）。機器が連続アクセスで固まるため空ける */
+  minIntervalMs?: number
 }
 
 /** スタックちゃんの接続設定。url は ws://host:port（/ws/v1/robot は SDK が付与） */

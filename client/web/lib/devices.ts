@@ -8,6 +8,7 @@ import {
   HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
   HEAD_YAW_MAX_DEG,
   HEAD_YAW_MIN_DEG,
+  handStateSchema,
   headSetSchema,
   type AudioChunk,
   type DeviceResult,
@@ -87,6 +88,33 @@ export type HeadSetInput = z.infer<typeof headSetRequestSchema>
 export async function setHead(input: HeadSetInput): Promise<DeviceResult> {
   const stackchan = await getStackchan()
   return stackchan.headSet(input)
+}
+
+// --- 手（hand）・LED -----------------------------------------------------
+//
+// 機器本体の HTTP サーバー（既定 8765）が担当する。首・カメラ・音声の
+// ブリッジ（8030）とは別系統で、SDK の合成クライアントが振り分ける。
+
+/** `POST /api/devices/stackchan/hand` のボディ */
+export const handSetRequestSchema = z.object({ state: handStateSchema })
+
+export type HandSetInput = z.infer<typeof handSetRequestSchema>
+
+/** `POST /api/devices/stackchan/led` のボディ */
+export const ledSetRequestSchema = z.object({ on: z.boolean() })
+
+export type LedSetInput = z.infer<typeof ledSetRequestSchema>
+
+/** 手を開く / 閉じる */
+export async function setHand(input: HandSetInput): Promise<DeviceResult> {
+  const stackchan = await getStackchan()
+  return stackchan.handSet(input.state)
+}
+
+/** LED を点ける / 消す */
+export async function setLed(input: LedSetInput): Promise<DeviceResult> {
+  const stackchan = await getStackchan()
+  return stackchan.ledSet(input.on)
 }
 
 /** 直近の音声チャンクを新しい順で返す */

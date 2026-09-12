@@ -5,6 +5,7 @@ import {
   HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
   HEAD_YAW_MAX_DEG,
   HEAD_YAW_MIN_DEG,
+  handStateSchema,
   headSetSchema,
 } from "@workspace/devices"
 import { z } from "zod"
@@ -77,7 +78,7 @@ export const GROUP_LABELS: Record<DevEndpointGroup, string> = {
   robot: "ロボット（Mastra 経由）",
   rail: "レール（ESP32）",
   desktop: "デスクトップ（Electron）",
-  stackchan: "スタックちゃん（WebSocket）",
+  stackchan: "スタックちゃん（HTTP 8765 / bridge 8030）",
   dev: "開発用",
 }
 
@@ -144,6 +145,12 @@ export const HEAD_SPEED_MAX = SDK_HEAD_SPEED_MAX
 export const HEAD_PITCH_LEVEL = 45
 
 const headInputSchema = headSetSchema
+
+/** 手の開閉（機器本体の HTTP 8765） */
+const handInputSchema = z.object({ state: handStateSchema })
+
+/** LED の点灯・消灯（機器本体の HTTP 8765） */
+const ledInputSchema = z.object({ on: z.boolean() })
 
 const audioRecentInputSchema = z.object({
   limit: z.number().int().min(1).max(200).optional(),
@@ -308,6 +315,36 @@ export const DEV_ENDPOINTS: DevEndpoint[] = [
       { label: "右", input: { yaw: 30, pitch: HEAD_PITCH_LEVEL } },
       { label: "上", input: { yaw: 0, pitch: 70 } },
       { label: "下", input: { yaw: 0, pitch: 20 } },
+    ],
+    responseKind: "json",
+  },
+  {
+    id: "stackchan.hand",
+    group: "stackchan",
+    method: "POST",
+    path: "/api/devices/stackchan/hand",
+    description:
+      "手を開閉する。機器本体の HTTP（既定 8765）の /obake/hand_open・/obake/hand_close に対応",
+    inputSchema: handInputSchema,
+    defaultInput: { state: "open" },
+    presets: [
+      { label: "開く", input: { state: "open" } },
+      { label: "閉じる", input: { state: "closed" } },
+    ],
+    responseKind: "json",
+  },
+  {
+    id: "stackchan.led",
+    group: "stackchan",
+    method: "POST",
+    path: "/api/devices/stackchan/led",
+    description:
+      "LED を点灯・消灯する。機器本体の HTTP（既定 8765）の /obake/led_on・/obake/led_off に対応",
+    inputSchema: ledInputSchema,
+    defaultInput: { on: true },
+    presets: [
+      { label: "点灯", input: { on: true } },
+      { label: "消灯", input: { on: false } },
     ],
     responseKind: "json",
   },

@@ -7,6 +7,7 @@ import {
   HEAD_SPEED_MIN as SDK_HEAD_SPEED_MIN,
   HEAD_YAW_MAX_DEG,
   HEAD_YAW_MIN_DEG,
+  handStateSchema,
   openUrlSchema,
   railAxisSchema,
   railMoveSchema,
@@ -216,6 +217,40 @@ export const headSet = createTool({
   execute: async (input) => {
     const result = await runDeviceCall(() =>
       getDevices().stackchan.headSet(input)
+    )
+    return toLlmResult(result)
+  },
+})
+
+/** 手を開閉する tool */
+export const handSet = createTool({
+  id: "hand-set",
+  description:
+    "自分の手を開いたり閉じたりする。手をふる・握手する・ばいばいするときに使う。open=開く / closed=閉じる。",
+  inputSchema: z.object({
+    state: handStateSchema.describe("open=手を開く / closed=手を閉じる"),
+  }),
+  outputSchema: deviceResultSchema,
+  execute: async (input) => {
+    const result = await runDeviceCall(() =>
+      getDevices().stackchan.handSet(input.state)
+    )
+    return toLlmResult(result)
+  },
+})
+
+/** LED を点灯・消灯する tool */
+export const ledSet = createTool({
+  id: "led-set",
+  description:
+    "自分の LED を光らせたり消したりする。うれしいとき・びっくりしたときに光らせると気持ちが伝わる。on=true で点灯 / false で消灯。",
+  inputSchema: z.object({
+    on: z.boolean().describe("true=点灯 / false=消灯"),
+  }),
+  outputSchema: deviceResultSchema,
+  execute: async (input) => {
+    const result = await runDeviceCall(() =>
+      getDevices().stackchan.ledSet(input.on)
     )
     return toLlmResult(result)
   },

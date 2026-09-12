@@ -377,14 +377,20 @@ export function createStackchanClient(
       return request("head.set", input, "ack", opts?.timeoutMs)
     },
 
-    /**
-     * @deprecated 現行ハード（Obake_device）に手のサーボは無い。
-     * 送信せずに unsupported を返す（首は headSet）
-     */
+    /** 手は旧契約の WS ではなく機器上の HTTP（8765）が担当する */
     async handSet(): Promise<DeviceResult> {
       return {
         ok: false,
-        error: "unsupported: hand servo not present",
+        error: "unsupported: hand は機器の HTTP（8765）側。STACKCHAN_HTTP_URL を設定する",
+        latencyMs: 0,
+      }
+    },
+
+    /** LED も旧契約の WS には無い。機器上の HTTP（8765）が担当する */
+    async ledSet(): Promise<DeviceResult> {
+      return {
+        ok: false,
+        error: "unsupported: led は機器の HTTP（8765）側。STACKCHAN_HTTP_URL を設定する",
         latencyMs: 0,
       }
     },

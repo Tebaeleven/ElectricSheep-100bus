@@ -25,7 +25,7 @@ describe("createMockStackchanClient", () => {
     expect(events.at(-1)?.type).toBe("ack")
   })
 
-  it("handSet は状態を保持し ack イベントを流す（旧契約）", async () => {
+  it("handSet は状態を保持し ack イベントを流す", async () => {
     const stackchan = createMockStackchanClient()
     const events: StackchanInbound[] = []
     const unsubscribe = stackchan.onEvent((msg) => events.push(msg))
@@ -41,6 +41,21 @@ describe("createMockStackchanClient", () => {
     expect(stackchan.handState).toBe("open")
     expect(events).toHaveLength(1)
     await stackchan.close()
+  })
+
+  it("ledSet は点灯状態を保持し ack イベントを流す", async () => {
+    const stackchan = createMockStackchanClient()
+    const events: StackchanInbound[] = []
+    stackchan.onEvent((msg) => events.push(msg))
+
+    expect(stackchan.ledOn).toBe(false)
+    const result = await stackchan.ledSet(true)
+    expect(result.ok).toBe(true)
+    expect(stackchan.ledOn).toBe(true)
+    expect(events.at(-1)?.type).toBe("ack")
+
+    await stackchan.ledSet(false)
+    expect(stackchan.ledOn).toBe(false)
   })
 
   it("cameraCapture は 1x1 PNG を返す", async () => {

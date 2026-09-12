@@ -71,6 +71,7 @@ flowchart LR
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。`mock` は全機器をプロセス内モックにする。`real` でも URL 未設定の機器はモックのまま |
 | `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32（レール）の `http://host:port`。**`/api/v1` は付けない**（SDK が付与） |
 | `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | デスクトップの `http://host:port`。同上。**モックは 8792・Electron 実機は 8801**（[`docs/ports.md`](../ports.md)） |
+| `STACKCHAN_HTTP_URL` | 空 | **スタックちゃん本体の HTTP（手・LED）**。実機は `http://192.168.77.125:8765`、モックは `http://127.0.0.1:8794`。`/obake/*` は付けない（SDK が付与）。`DEVICE_MODE=real` でこの値か `STACKCHAN_BRIDGE_URL` があれば合成クライアントになる |
 | `STACKCHAN_BRIDGE_URL` | `http://127.0.0.1:8030` | **スタックちゃん B 方式（本命）**。PC 側ブリッジ（`pnpm stackchan:bridge`）の `http://host:port`。`/obake/*` は付けない（SDK が付与）。`DEVICE_MODE=real` でこの値があれば `STACKCHAN_WS_URL` より優先される |
 | `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | **旧契約**。スタックちゃんの `ws://host:port`。現行ファームは `/ws/v1/robot` を実装していないのでモック確認用 |
 | `DEVICE_AUTH_TOKEN` | 空 | 認証方式は未確定。設定されていれば全機器に `Authorization: Bearer <token>` を付与する |
@@ -97,6 +98,8 @@ DEVICE_MODE=mock
 RAIL_BASE_URL=http://127.0.0.1:8791
 # モックサーバーなら 8792、Electron 実機なら 8801
 DESKTOP_BASE_URL=http://127.0.0.1:8792
+# スタックちゃん本体の HTTP（手・LED）。実機 http://192.168.77.125:8765 / モック http://127.0.0.1:8794
+STACKCHAN_HTTP_URL=
 # スタックちゃん B 方式: PC 側ブリッジ（pnpm stackchan:bridge）
 STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030
 # 旧契約（現行ファームは未実装。モック確認用）
@@ -155,12 +158,12 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
 ## 3. モックサーバーの起動
 
 ```bash
-# 3 台同時起動（rail 8791 / desktop 8792 / stackchan 8793）
+# 4 台同時起動（rail 8791 / desktop 8792 / stackchan WS 8793 / stackchan HTTP 8794）
 # 起動前に pnpm ports:check で衝突がないか確認できる（docs/ports.md）
 pnpm devices:mock
 ```
 
-- 実体は `packages/devices/src/mock-servers.ts`（`startMockRailServer` / `startMockDesktopServer` / `startMockStackchanServer` / `startAllMockServers`）。ポート定数は `packages/devices/src/constants.ts` の `MOCK_RAIL_PORT` / `MOCK_DESKTOP_PORT` / `MOCK_STACKCHAN_PORT`。
+- 実体は `packages/devices/src/mock-servers.ts`（`startMockRailServer` / `startMockDesktopServer` / `startMockStackchanServer` / `startMockStackchanHttpServer` / `startAllMockServers`）。ポート定数は `packages/devices/src/constants.ts` の `MOCK_RAIL_PORT` / `MOCK_DESKTOP_PORT` / `MOCK_STACKCHAN_PORT` / `MOCK_STACKCHAN_HTTP_PORT`。
 - 受領仕様（`/api/v1` 付きの HTTP、`/ws/v1/robot` の WebSocket）どおりに応答する**実装済みのモック**。§4 の `curl` 例はそのまま通る。
 - ルート `package.json` の `devices:mock` は `pnpm --filter @workspace/devices mock` の別名。どちらで起動してもよい。
 - 起動ログ: `[devices:mock] rail listening on http://127.0.0.1:8791` のように出る。ポート衝突時は `EADDRINUSE` で落ちるので、`lsof -i :8791` で掴んでいるプロセスを確認する。
@@ -234,7 +237,56 @@ curl -sS http://127.0.0.1:8792/api/v1/desktop/status
 # => {"state":"running", ...}
 ```
 
-### 4.3 スタックちゃん（B 方式・PC 側ブリッジ 8030）
+### 4.3 スタックちゃん（HTTP 8765 と bridge 8030 の二本立て）
+
+スタックちゃんの操作口は **2 つある**。片方だけでは全部の機能に届かないので、
+SDK は合成クライアント（`createStackchanCompositeClient`）で 1 つの `StackchanClient` にまとめている。
+
+| 系統 | 何が繋がるか | できること | env |
+| --- | --- | --- | --- |
+| **機器上の HTTP（実機 8765）** | 機器が HTTP **サーバー**。ブラウザからも直接触れる | **手の開閉**・**LED の点灯/消灯** | `STACKCHAN_HTTP_URL` |
+| **PC 側ブリッジ（8030）** | 機器が WS **クライアント**として PC に繋ぎに来る | 首・カメラ（JPEG）・音声（PCM） | `STACKCHAN_BRIDGE_URL` |
+
+`DEVICE_MODE=real` でどちらか一方でも URL があれば合成クライアントになり、
+担当外の機能は fallback（旧契約 WS かモック）に流れる。
+
+#### 機器上の HTTP（8765）の実測仕様
+
+| メソッド | パス | 返すもの |
+| --- | --- | --- |
+| GET | `/` / `/control` | 200 HTML（`<title>Obake</title>` とボタン 4 つ）。**ヘルスチェックはこれ** |
+| POST | `/obake/hand_open` | テキスト（2xx なら成功） |
+| POST | `/obake/hand_close` | 同上 |
+| POST | `/obake/led_on` | 同上 |
+| POST | `/obake/led_off` | 同上 |
+
+**実機を触るときの注意（実測で判明した癖。SDK も同じ制約で実装してある）**
+
+- **ボディも content-type も付けない**。機器の公式 UI と同じ `fetch(url, {method:'POST', cache:'no-store'})` の形だけが通る。`POST /obake/hand` に JSON を送る API は**存在しない**。
+- **上の表にないパスを絶対に叩かない**。未知パスは 404 ではなく**接続リセット**になり、続けて叩くと機器が固まる。`/obake/status` のような「ありそうなパス」を探りに行かないこと。
+- **同時 1 本・最低 600ms 間隔**で送る。SDK は直列キューと間隔制御を内蔵している（`createStackchanHttpClient({ minIntervalMs: 600 })`）。
+- タイムアウトは 10 秒。再送は冪等な hand / led のときだけ 1 回まで。
+- **固まったら電源を入れ直す**（HTTP が無応答になったら復旧手段はこれだけ）。
+
+```bash
+# ヘルスチェック（200 + 本文に Obake）
+curl -sS -i http://192.168.77.125:8765/ | head -5
+
+# 手を開く / 閉じる（ボディ無し・content-type 無し）
+curl -sS -X POST http://192.168.77.125:8765/obake/hand_open
+sleep 1
+curl -sS -X POST http://192.168.77.125:8765/obake/hand_close
+
+# LED を点ける / 消す
+curl -sS -X POST http://192.168.77.125:8765/obake/led_on
+sleep 1
+curl -sS -X POST http://192.168.77.125:8765/obake/led_off
+```
+
+モックは `pnpm devices:mock` が **8794** に同じ形で立てる（`startMockStackchanHttpServer`）。
+実機に触れないときは `STACKCHAN_HTTP_URL=http://127.0.0.1:8794` にする。
+
+#### PC 側ブリッジ（8030）
 
 現行ファーム（`firmware/stackchan` = Obake_device / M5Stack CoreS3）は **`/ws/v1/robot` を実装していない**。
 機器が **WS クライアント**として PC の `ws://<PC の IP>:8030/obake/media` に繋ぎに来て、JPEG と PCM を**常時 push** する。
@@ -250,7 +302,8 @@ PC 側の受け口が `packages/stackchan-bridge`（`pnpm stackchan:bridge`）�
 | 機器 → PC（音声） | 同上 | `type=0x20` … PCM 16-bit LE モノラル（既定 200ms 間隔・レートは hello の値） |
 | PC → 機器（首） | テキスト JSON | `{"cmd":"set_head","yaw":<int>,"pitch":<int>,"speed":<int>}` |
 
-`request_id` / `ack` の要求応答は無い。`hand.set`・`camera.capture`・`audio.start/stop` は**機器側に存在しない**。
+`request_id` / `ack` の要求応答は無い。`camera.capture`・`audio.start/stop` は**ブリッジ側に存在しない**（SDK が最新フレーム取得・ポーリングに読み替える）。
+手と LED はこのブリッジではなく、上の **機器上の HTTP（8765）** が担当する。
 
 #### 首の可動範囲（ファーム実測）
 
@@ -338,7 +391,8 @@ SDK（`createStackchanBridgeClient`）側は `headSetSchema` で**送る前に 4
 > **旧契約**。`/ws/v1/robot` の要求応答モデル（`hand.set` / `camera.capture` / `audio.start`）は
 > 現行ファームに実装されていない。`pnpm devices:mock` の 8793 モックと `createStackchanClient` は、
 > 将来ファーム側が実装した場合と SDK の回帰確認のために残してある。
-> `hand.set` は**手のサーボが無いため恒久的に使えない**（`handSet` は `{ok:false, error:"unsupported: hand servo not present"}` を返す）。
+> 旧契約の `hand.set` は現行ファームに無い（`createStackchanClient` の `handSet` / `ledSet` は
+> `unsupported: ... 機器の HTTP（8765）側` を返す）。手と LED は §4.3 の HTTP 8765 を使う。
 
 `websocat` があるなら:
 
@@ -365,7 +419,7 @@ websocat ws://127.0.0.1:8793/ws/v1/robot
 
 ## 5. Next 経由の API 一覧（`/api/devices/*`）
 
-**12 本すべて実装済み**。実体は `client/web/app/api/devices/...`、接続は `client/web/lib/devices.ts` の `getDevices()`（`globalThis` キャッシュのシングルトン。HMR で WebSocket が増殖しないようにする）。
+**13 本すべて実装済み**。実体は `client/web/app/api/devices/...`、接続は `client/web/lib/devices.ts` の `getDevices()`（`globalThis` キャッシュのシングルトン。HMR で WebSocket が増殖しないようにする）。
 
 共通仕様:
 
@@ -394,7 +448,8 @@ interface DeviceResult<T = unknown> {
 | POST | `/api/devices/desktop/browser/open` | `{"url":"https://example.com"}` | 受理結果 |
 | GET | `/api/devices/desktop/status` | なし | `{"state":"running", ...}` |
 | POST | `/api/devices/stackchan/head` | `{"yaw":20,"pitch":45,"speed":150}`（yaw -128..128 / pitch 0..90 / speed 100..1000・省略時 150） | ブリッジの `{ok, sent}` |
-| POST | `/api/devices/stackchan/hand` | — | **廃止**。手のサーボが無いので `ok:false`（`unsupported: hand servo not present`） |
+| POST | `/api/devices/stackchan/hand` | `{"state":"open"\|"closed"}` | 機器 HTTP（8765）の `/obake/hand_open` / `/obake/hand_close` の応答テキスト |
+| POST | `/api/devices/stackchan/led` | `{"on":true\|false}` | 機器 HTTP（8765）の `/obake/led_on` / `/obake/led_off` の応答テキスト |
 | POST | `/api/devices/stackchan/camera` | なし | `{"mimeType":"image/png","imageBase64":"..."}` |
 | POST | `/api/devices/stackchan/audio/start` | なし | 受理結果 |
 | POST | `/api/devices/stackchan/audio/stop` | なし | 受理結果 |
@@ -435,9 +490,13 @@ curl -sS -X POST http://localhost:3000/api/devices/stackchan/head \
   -H 'content-type: application/json' \
   -d '{"yaw":20,"pitch":45,"speed":150}'
 
-# 旧・手の開閉（現行ハードに手は無いので ok:false）
+# 手の開閉（機器 HTTP 8765。STACKCHAN_HTTP_URL が未設定ならモック/fallback に流れる）
 curl -sS -X POST http://localhost:3000/api/devices/stackchan/hand \
   -H 'content-type: application/json' -d '{"state":"open"}'
+
+# LED の点灯・消灯
+curl -sS -X POST http://localhost:3000/api/devices/stackchan/led \
+  -H 'content-type: application/json' -d '{"on":true}'
 
 # カメラ撮影
 curl -sS -X POST http://localhost:3000/api/devices/stackchan/camera | head -c 200

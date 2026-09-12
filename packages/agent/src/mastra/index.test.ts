@@ -10,14 +10,16 @@ describe("mastra", () => {
     expect(agent.id).toBe(GHOST_AGENT_ID)
   })
 
-  it("おばけエージェントが robotCommand / robotStatus を持つ", async () => {
+  it("おばけエージェントが robot / devices の tool を一式持つ", async () => {
     const tools = await ghost.listTools()
 
     expect(Object.keys(tools).sort()).toEqual([
       "cameraCapture",
       "desktopOpenBrowser",
       "desktopScreenshot",
+      "handSet",
       "headSet",
+      "ledSet",
       "railMove",
       "railStop",
       "robotCommand",

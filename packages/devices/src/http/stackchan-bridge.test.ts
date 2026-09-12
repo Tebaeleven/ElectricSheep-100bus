@@ -123,7 +123,7 @@ describe("createStackchanBridgeClient", () => {
     const client = createStackchanBridgeClient({ baseUrl })
     const result = await client.handSet("open")
     expect(result.ok).toBe(false)
-    expect(result.error).toBe("unsupported: hand servo not present")
+    expect(result.error).toContain("unsupported: hand")
     await client.close()
   })
 
