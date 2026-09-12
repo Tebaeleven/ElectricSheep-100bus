@@ -3,20 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "main": "electron/main.js",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0",
+    "dev": "next dev --hostname 0.0.0.0 -p ${DESKTOP_NEXT_PORT:-3100}",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0",
+    "start": "next start --hostname 0.0.0.0 -p ${DESKTOP_NEXT_PORT:-3100}",
     "lint": "eslint",
     "electron": "node electron/launch.js",
     "electron:stop": "node electron/with-node22.js electron/stop.js",
     "dev:desktop": "concurrently -k \"npm run dev\" \"npm run electron\"",
     "dev:pet": "concurrently -k \"npm run dev\" \"npm run electron\"",
     "dist": "node electron/dist.mjs",
-    "electron:open": "node electron/open-app.js"
+    "electron:open": "node electron/open-app.js",
+    "postinstall": "node electron/ensure-electron-binary.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.23",
