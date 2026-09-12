@@ -10,6 +10,8 @@
  *   実装は HandleRobotJson + ServoRequestSetHeadAngles（大きな cpp 改修はメモリ作業と分離）
  * - ブラウザ簡易制御: GET http://<ip>:8765/ （光る/消す/開く/閉じる）
  *   POST /obake/led_on・/obake/led_off・/obake/hand_open・/obake/hand_close
+ *   POST /obake/hand  body {"open":true|false}（Next.js 向け統一。応答に open を含む）
+ *   WS TEXT {"type":"hand.set","open":true|false} → ack {"type":"ack","cmd":"hand.set","open":...}
  *   （httpd はキューのみ。LED/手は PreUpdate で drain。hand は WS hand.set と同じ yaw）
  * - 契約の正本メモはリポ根の 引き継ぎ.md「双方向トランシーバ」節
  * このヘッダに downlink API を足すときは、メモリ逼迫対策（home/PSRAM 作業）と衝突しないよう

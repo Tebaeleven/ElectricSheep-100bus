@@ -6,7 +6,7 @@ Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Robo
 |----------|------|
 | `obake_config.h` | **人が変える数値**（先頭）＋`kObakeAutoCustom`＋ Robot WS（サーバ既定／クライアント退避） |
 | `obake_runtime.*` | init / UI tick / hw タスク |
-| `obake_robot_ws.*` | 既定は端末 **WS サーバ** `ws://<IP>:8765/ws/v1/robot`。`kMediaListenAsServer=0` で PC クライアント経路 |
+| `obake_robot_ws.*` | 既定は端末 **WS サーバ** `ws://<IP>:8765/ws/v1/robot`。HTTP: POST `/obake/hand_open`・`/obake/hand_close`・`/obake/hand`（`{"open":bool}`）。`kMediaListenAsServer=0` で PC クライアント経路 |
 | `obake_servo_api.*` | 首角度キュー（PreUpdate drain） |
 | `obake_pahub.*` | I2C port0 (GPIO2/1) + PaHub |
 | `obake_eyes.*` | CH0/1 OLED |

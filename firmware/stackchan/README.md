@@ -17,7 +17,7 @@ Source: https://github.com/kazu-1234/Obake_device @ `095611b`（2026-09-12 同�
 | URL | `ws://<端末IP>:<port>/ws/v1/robot` | 同上（ポート `kRobotWsPort=8765`） |
 | フォールバック | - | `kMediaListenAsServer=0` で旧 **PC クライアント**（`ws://<PC>:8030/obake/media` + `homelab/obake_media/server.py`） |
 | エンベロープ | JSON `{"type","request_id","data"}` | サーバ経路でも JSON 指令＋バイナリ上行あり。詳細は `homelab/obake_media/README.md` / `obake/README.md` |
-| `hand.set` | 手を開閉 | **首 yaw open/close**（グリッパではない。`kHandOpenYawDeg` / `kHandCloseYawDeg`） |
+| `hand.set` | 手を開閉 | **首 yaw open/close**（グリッパではない。`kHandOpenYawDeg` / `kHandCloseYawDeg`）。HTTP: POST `/obake/hand_open`・`/obake/hand_close`・統一 `/obake/hand` `{"open":bool}`。WS: `{"type":"hand.set","open":bool}` → ack |
 | `camera.capture` / `audio.*` | 要求応答 | サーバ経路でクライアントへ配信。JPEG は SPIRAM 寄せ・延期キャプチャ |
 | 認証 | Bearer 暫定 | **無し**（LAN 前提・平文 ws） |
 

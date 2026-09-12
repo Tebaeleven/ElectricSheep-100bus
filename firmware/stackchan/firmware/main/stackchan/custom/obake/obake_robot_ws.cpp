@@ -485,6 +485,23 @@ esp_err_t SendJsonResult(httpd_req_t* req, bool ok, const char* action, const ch
     return httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);
 }
 
+/** 手開閉用 JSON（Next.js が open を見やすくする） */
+esp_err_t SendHandJsonResult(httpd_req_t* req, bool ok, const char* action, bool open,
+                             const char* err = nullptr)
+{
+    char buf[192];
+    if (ok) {
+        snprintf(buf, sizeof(buf), "{\"ok\":true,\"action\":\"%s\",\"open\":%s}", action,
+                 open ? "true" : "false");
+    } else {
+        snprintf(buf, sizeof(buf), "{\"ok\":false,\"action\":\"%s\",\"open\":%s,\"error\":\"%s\"}", action,
+                 open ? "true" : "false", err != nullptr ? err : "failed");
+    }
+    httpd_resp_set_type(req, "application/json; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);
+}
+
 esp_err_t ControlPageHandler(httpd_req_t* req)
 {
     httpd_resp_set_type(req, "text/html; charset=utf-8");
@@ -506,14 +523,50 @@ esp_err_t LedOffHandler(httpd_req_t* req)
 
 esp_err_t HandOpenHandler(httpd_req_t* req)
 {
+    // 制御ページ「開く」・外部サーバ向けショートカット
     ControlRequestEnqueue(ControlCmd::HandOpen);
-    return SendJsonResult(req, true, "hand_open");
+    return SendHandJsonResult(req, true, "hand_open", true);
 }
 
 esp_err_t HandCloseHandler(httpd_req_t* req)
 {
+    // 制御ページ「閉じる」・外部サーバ向けショートカット
     ControlRequestEnqueue(ControlCmd::HandClose);
-    return SendJsonResult(req, true, "hand_close");
+    return SendHandJsonResult(req, true, "hand_close", false);
+}
+
+/** 統一 HTTP: POST /obake/hand  body {"open":true|false}（WS hand.set と同義） */
+esp_err_t HandSetHttpHandler(httpd_req_t* req)
+{
+    char body[160];
+    const int total = req->content_len;
+    if (total <= 0 || total >= static_cast<int>(sizeof(body))) {
+        return SendHandJsonResult(req, false, "hand", false, "need_json_body");
+    }
+    int received = 0;
+    while (received < total) {
+        const int r = httpd_req_recv(req, body + received, total - received);
+        if (r <= 0) {
+            if (r == HTTPD_SOCK_ERR_TIMEOUT) {
+                continue;
+            }
+            return SendHandJsonResult(req, false, "hand", false, "recv_failed");
+        }
+        received += r;
+    }
+    body[received] = '\0';
+
+    ArduinoJson::JsonDocument doc;
+    if (ArduinoJson::deserializeJson(doc, body, static_cast<size_t>(received))) {
+        return SendHandJsonResult(req, false, "hand", false, "bad_json");
+    }
+    // open は bool 必須（欠落・文字列はエラー。WS と同じく | false で黙認しない）
+    if (!doc["open"].is<bool>()) {
+        return SendHandJsonResult(req, false, "hand", false, "need_open_bool");
+    }
+    const bool open = doc["open"].as<bool>();
+    ControlRequestEnqueue(open ? ControlCmd::HandOpen : ControlCmd::HandClose);
+    return SendHandJsonResult(req, true, "hand", open);
 }
 
 void LogStaIp()
@@ -625,6 +678,14 @@ void SendAck(httpd_req_t* req, const char* cmd)
     SendWsText(req, buf);
 }
 
+/** hand.set 専用 ack（open を返すと Next.js 側の確認が楽） */
+void SendHandAck(httpd_req_t* req, bool open)
+{
+    char buf[96];
+    snprintf(buf, sizeof(buf), "{\"type\":\"ack\",\"cmd\":\"hand.set\",\"open\":%s}", open ? "true" : "false");
+    SendWsText(req, buf);
+}
+
 void SendErr(httpd_req_t* req, const char* cmd, const char* message)
 {
     char buf[160];
@@ -694,8 +755,9 @@ void HandleRobotJson(httpd_req_t* req, int fd, const char* data, size_t len)
     if (strcmp(type, "hand.set") == 0) {
         // グリッパ無し: open/close を首 yaw 左右にマップ（定数は obake_config.h）
         // 先に ack。実処理は PreUpdate の ControlApiDrain（httpd から Motion/I2C しない）
-        SendAck(req, "hand.set");
-        ControlRequestEnqueue((doc["open"] | false) ? ControlCmd::HandOpen : ControlCmd::HandClose);
+        const bool open = doc["open"] | false;
+        SendHandAck(req, open);
+        ControlRequestEnqueue(open ? ControlCmd::HandOpen : ControlCmd::HandClose);
         return;
     }
     if (strcmp(type, "camera.capture") == 0) {
@@ -804,8 +866,8 @@ bool StartHttpdOnce()
     config.server_port = static_cast<uint16_t>(kRobotWsPort);
     // WS + ブラウザ keep-alive + 連打 POST で 4 だと枯渇しやすい
     config.max_open_sockets = 7;
-    // WS + GET / /control + POST led_on/off hand_open/close
-    config.max_uri_handlers = 10;
+    // WS + GET / /control + POST led_on/off hand_open/close + hand
+    config.max_uri_handlers = 12;
     config.backlog_conn = 2;
     config.lru_purge_enable = true;
     // 内部 DRAM の httpd タスクを避け、SPIRAM 上の小さめスタックで動かす
@@ -891,9 +953,19 @@ bool StartHttpdOnce()
         .handle_ws_control_frames = false,
         .supported_subprotocol = nullptr,
     };
+    // Next.js 等向け統一: body {"open":true|false}（hand_open/close と同等）
+    static const httpd_uri_t kHandUri = {
+        .uri = "/obake/hand",
+        .method = HTTP_POST,
+        .handler = HandSetHttpHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
 
-    const httpd_uri_t* uris[] = {&kWsUri,     &kRootUri,     &kControlUri, &kLedOnUri,
-                                 &kLedOffUri, &kHandOpenUri, &kHandCloseUri};
+    const httpd_uri_t* uris[] = {&kWsUri,     &kRootUri,     &kControlUri,  &kLedOnUri, &kLedOffUri,
+                                 &kHandOpenUri, &kHandCloseUri, &kHandUri};
     for (const httpd_uri_t* u : uris) {
         err = httpd_register_uri_handler(hd, u);
         if (err != ESP_OK) {

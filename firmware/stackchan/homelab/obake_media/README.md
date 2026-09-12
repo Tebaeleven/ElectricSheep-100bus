@@ -35,11 +35,28 @@ python client_test.py obake.local
 | 方向 | 内容 |
 |------|------|
 | 接続直後 TEXT | `{"type":"hello","pcm_rate":N}` |
-| 入力 TEXT | `hand.set`（open/close → 首 yaw。度数は `kHandOpenYawDeg` 等。グリッパではない）, `camera.capture`, `audio.start`, `audio.stop` |
-| 応答 TEXT | `{"type":"ack","cmd":"..."}` / `{"type":"error",...}` |
+| 入力 TEXT | `hand.set`（`{"type":"hand.set","open":true\|false}` → 首 yaw。ack に `open` 付き。グリッパではない）, `camera.capture`, `audio.start`, `audio.stop` |
+| 応答 TEXT | `{"type":"ack","cmd":"..."}` / `{"type":"error",...}`（`hand.set` は `"open":bool` も返す） |
 | バイナリ | `0x02`+JPEG（capture 時のみ）、`0x01`+PCM16（`audio.start` 後。tee マイク） |
 
 長さ 4 バイトのプレフィクスは **付けない**（`:8030` の PC サーバ経路とは別）。
+
+### HTTP 制御（同一 :8765・キュー drain）
+
+制御ページ `http://<端末>:8765/` のボタンと同じ経路。Next.js からは curl / fetch で呼べる。
+
+| Method | URL | Body | 成功 JSON |
+|--------|-----|------|-----------|
+| POST | `/obake/hand_open` | 無し | `{"ok":true,"action":"hand_open","open":true}` |
+| POST | `/obake/hand_close` | 無し | `{"ok":true,"action":"hand_close","open":false}` |
+| POST | `/obake/hand` | `{"open":true}` または `{"open":false}` | `{"ok":true,"action":"hand","open":...}` |
+| POST | `/obake/led_on` / `/obake/led_off` | 無し | `{"ok":true,"action":"led_on\|led_off"}` |
+
+```powershell
+curl -X POST http://obake.local:8765/obake/hand_open
+curl -X POST http://obake.local:8765/obake/hand_close
+curl -X POST http://obake.local:8765/obake/hand -H "Content-Type: application/json" -d "{\"open\":true}"
+```
 
 設定: `firmware/main/stackchan/custom/obake/obake_config.h`
 
