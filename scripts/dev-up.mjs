@@ -23,11 +23,13 @@ import {
   MAIN_REPO_ROOT,
   PREFIX_COLORS,
   REPO_ROOT,
+  acceptsRailStatus,
+  acceptsStackchanHttpRoot,
+  evaluateReadyChecks,
   findStaleProcesses,
   loadLedger,
   paint,
   portOf,
-  probe,
   renderTable,
   sleep,
   waitUntil,
@@ -82,16 +84,17 @@ function serviceDefs(ledger) {
       ],
       url: `http://127.0.0.1:${p("rail_mock")}`,
       readyUrl: `http://127.0.0.1:${p("rail_mock")}/api/v1/rail/status`,
-      accept: (body) => body.includes("state") || body.includes("position"),
+      accept: acceptsRailStatus,
       // スタックちゃん本体の HTTP モック（手・LED。実機 8765 の代わり）も Ready を見る
       extraReady: [
         {
           url: `http://127.0.0.1:${p("stackchan_http_mock")}/`,
-          accept: (body) => body.includes("Obake"),
+          accept: acceptsStackchanHttpRoot,
         },
       ],
       command: ["pnpm", ["devices:mock"]],
-      readyTimeoutMs: 30000,
+      // pnpm → pnpm --filter → tsx の 3 段ラッパーで 4 台立ち上がるまで数秒かかる
+      readyTimeoutMs: 60000,
       // 失敗しても会話の本筋は動くので、止めずに続行する
       critical: false,
     },
@@ -441,13 +444,10 @@ function inspectPorts() {
 async function alreadyRunning(service) {
   // ポートを持たないサービス（偽スタックちゃん）は外から見分けられないので常に起動する
   if (service.readyUrl === null) return null
-  let primaryBody = null
-  for (const check of readyChecks(service)) {
-    const result = await probe(check.url, 1500)
-    if (!result.ok || !check.accept(result.body)) return null
-    primaryBody ??= result.body
-  }
-  return primaryBody
+  const { ready, bodies } = await evaluateReadyChecks(readyChecks(service), {
+    timeoutMs: 1500,
+  })
+  return ready ? (bodies[0] ?? "") : null
 }
 
 /**
@@ -757,7 +757,7 @@ async function main() {
         const dependencyReady =
           !skipped.has(dependency.key) &&
           (reuse.has(dependency.key) ||
-            (await waitReady(dependency.service, dependency.key)))
+            (await waitReady(dependency.service, dependency.key)).ready)
         if (!dependencyReady) {
           const reason = `依存している ${dependency.service.tag} が Ready になりませんでした`
           if (!critical) {
@@ -799,14 +799,18 @@ async function main() {
       summary.push([service.label, service.url, paint(COLOR.green, "再利用")])
       continue
     }
-    const ready = await waitReady(service, key)
+    const { ready, failure } = await waitReady(service, key)
     if (ready) {
       summary.push([service.label, service.url, paint(COLOR.green, "Ready")])
       info(`${service.tag} Ready`)
       continue
     }
-    const reason = `Ready になりませんでした（${service.readyUrl ?? "プロセスが起動直後に終了しました"}）`
+    const failedUrl =
+      failure?.url ?? service.readyUrl ?? "プロセスが起動直後に終了しました"
+    const reason = `Ready になりませんでした（${failedUrl}）`
     fail(`${service.tag} が ${reason}`)
+    // どのチェックがなぜ落ちたかを出す（URL だけだと accept の不一致に気づけない）
+    if (failure) fail(`  └ ${failure.url}: ${failure.reason}`)
     if (service.hint) fail(service.hint)
     if (critical) {
       await shutdown(1)
@@ -881,25 +885,35 @@ function shortenReason(reason) {
   return single.length > 60 ? `${single.slice(0, 59)}…` : single
 }
 
-/** readiness を待つ */
+/**
+ * readiness を待つ。
+ * @returns {Promise<{ ready: boolean, failure: { url: string, reason: string } | null }>}
+ *   failure には「最後に落ちたチェックの URL と理由」が入る（失敗時の原因調査用）。
+ */
 async function waitReady(service, key) {
   if (service.readyUrl === null) {
     // ポートを持たないサービスは「起動直後に落ちていないこと」で Ready とみなす
     await sleep(PROCESS_READY_GRACE_MS)
     const entry = children.get(key)
-    return entry !== undefined && !entry.exited
+    const alive = entry !== undefined && !entry.exited
+    return {
+      ready: alive,
+      failure: alive
+        ? null
+        : { url: "（ポート無し）", reason: "プロセスが起動直後に終了しました" },
+    }
   }
   const checks = readyChecks(service)
-  return waitUntil(
+  let lastFailure = null
+  const ready = await waitUntil(
     async () => {
-      for (const check of checks) {
-        const result = await probe(check.url, 2000)
-        if (!result.ok || !check.accept(result.body)) return false
-      }
-      return true
+      const result = await evaluateReadyChecks(checks, { timeoutMs: 2000 })
+      lastFailure = result.failure
+      return result.ready
     },
     { timeoutMs: service.readyTimeoutMs ?? 60000, intervalMs: 500 }
   )
+  return { ready, failure: ready ? null : lastFailure }
 }
 
 /** 既定ブラウザで開く（macOS の open。失敗しても起動は続ける） */

@@ -108,8 +108,11 @@ pnpm down --all        # Supabase（Docker）も止める
 6. **起動** — `child_process.spawn` で子プロセスとして起動し、標準出力・標準エラーに
    `[web]` `[studio]` `[robot]` `[devices]` `[bridge]` `[mock-device]` `[desk-next]` `[electron]` の色付きプレフィックスを付けて
    **1 つのターミナルに流す**。Electron は Next 3100 が応答してから `electron:open` で起動する。
-7. **readiness をポーリング** — 下表の URL が応答したら Ready。**サマリー表**（役割・URL・状態）に
+7. **readiness をポーリング** — 下表の URL が応答**し、本文が判定条件を満たしたら** Ready
+   （`probe` は毎回本文を最大 64KB まで読む）。**サマリー表**（役割・URL・状態）に
    `Ready` / `再利用` / `失敗（理由）` が並ぶ。「任意」サービスの失敗があっても終了コードは 0。
+   Ready にならなかったときは **落ちたチェックの URL と理由**（応答なし / 本文が想定と違う＋本文の先頭）を
+   `└` 付きで 1 行出すので、そこを見れば「繋がっていないのか、判定条件が合っていないのか」が分かる。
 8. **ブラウザを開く** — `--no-open` でなければ `open` で `http://localhost:3000` と `http://localhost:3000/dev`（`demo` は前者だけ）。
 9. **Ctrl+C で子プロセスを全部停止** — SIGTERM → 3 秒待って SIGKILL。
    **Supabase と Electron は止めない**（Electron は `open` で起動した別プロセスなので `pnpm down` で止める）。
@@ -120,7 +123,7 @@ pnpm down --all        # Supabase（Docker）も止める
 |---|---|---|
 | Web 3000 | `http://127.0.0.1:3000/api/dev/env` | 本文に `deviceMode` が含まれる（**3000 に別の Next が居ても Ready にならない**） |
 | Mastra Studio 4111 | `http://127.0.0.1:4111/` | 応答すれば Ready |
-| 機器モック | `http://127.0.0.1:8791/api/v1/rail/status` と `http://127.0.0.1:8794/` | 前者の本文に `state` / `position`、後者の本文に `Obake`（**両方**通って Ready） |
+| 機器モック | `http://127.0.0.1:8791/api/v1/rail/status` と `http://127.0.0.1:8794/` | 前者の本文が `{"type":"status", …, "axes":[…]}`（JSON として `type: "status"` か `axes` 配列を持つ）、後者の本文に `Obake`（**両方**通って Ready。3 段ラッパー経由で 4 台立つので待ちは 60 秒） |
 | ロボットモック | `http://127.0.0.1:8787/status` | 本文に `commandCount` |
 | スタックちゃん bridge | `http://127.0.0.1:8030/obake/status` | 本文に `connected` |
 | 偽スタックちゃん | （ポート無し） | 起動から 1.5 秒後にプロセスが生きていれば Ready |
@@ -188,6 +191,7 @@ pnpm ports:check     # 止まったか確認する
 | `client/desktop の依存が未インストールです` | `client/desktop` はルート workspace 外 | `pnpm --dir client/desktop install` |
 | `Electron.app が見つかりません` | pnpm が古く electron の install スクリプトが走っていない | `pnpm --dir client/desktop install`（それでも駄目なら [`desktop.md`](desktop.md) の該当行） |
 | Supabase が Ready にならない | Docker Desktop が起動していない | Docker Desktop を起動して `pnpm run up` をやり直す |
+| ログに `[devices:mock] rail listening` が出ているのに機器モックが `Ready になりませんでした` | readiness の判定条件がモックの応答本文と食い違っている（2026-09-12: レールの status 本文に無い `state` / `position` を探していた） | 失敗行の `└ <URL>: …本文: …` を見て、`scripts/dev-up.mjs` の `accept`（判定は `scripts/lib/dev-common.mjs` の `acceptsRailStatus` 等）を実際の本文に合わせる |
 | `GOOGLE_GENERATIVE_AI_API_KEY が未設定です` の警告 | キー未設定（起動自体は続く） | `client/web/.env.local` に https://aistudio.google.com/apikey のキーを入れて Web を再起動 |
 | Electron が Ready にならない | 3100 の Next が落ちている / 8801 が埋まっている | `pnpm ports:check` で 3100・8801 を確認（[`desktop.md`](desktop.md)） |
 | スクリーンショットが 403 | macOS の画面収録権限 | システム設定 > プライバシーとセキュリティ > 画面収録 で Electron を ON にして再起動（[`desktop.md`](desktop.md)） |

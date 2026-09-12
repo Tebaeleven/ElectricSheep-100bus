@@ -6,8 +6,17 @@
  * 実際の ps / lsof は叩かず、偽の ps 出力と偽の cwd を渡して判定だけを見る。
  */
 import { strict as assert } from "node:assert"
+import { createServer } from "node:http"
 import { test } from "node:test"
-import { detectStaleProcesses, isRepoFamilyPath } from "./dev-common.mjs"
+import {
+  MAX_PROBE_BODY_BYTES,
+  acceptsRailStatus,
+  acceptsStackchanHttpRoot,
+  detectStaleProcesses,
+  evaluateReadyChecks,
+  isRepoFamilyPath,
+  probe,
+} from "./dev-common.mjs"
 
 const REPO = "/Users/dev/workspace/ElectricSheep-100bus"
 const WORKTREE = `${REPO}/.claude/worktrees/feature-x`
@@ -126,4 +135,137 @@ test("isRepoFamilyPath は前方一致の別ディレクトリを弾く", () => 
   assert.equal(isRepoFamilyPath(`${WORKTREE}/packages`, REPO), true)
   assert.equal(isRepoFamilyPath(`${REPO}-old/packages`, REPO), false)
   assert.equal(isRepoFamilyPath("", REPO), false)
+})
+
+// --- readiness チェック（probe + accept）--------------------------------
+
+/**
+ * 実サーバーを立てて probe と accept の噛み合わせを見る。
+ * 本文を読まない probe / 実在しない語を見る accept の組み合わせだと
+ * 機器モックが永遠に Ready にならない（2026-09-12 の devices レーン不 Ready）。
+ */
+async function withServer(handler, run) {
+  const server = createServer(handler)
+  await new Promise((done) => server.listen(0, "127.0.0.1", done))
+  const { port } = server.address()
+  try {
+    await run(`http://127.0.0.1:${port}`)
+  } finally {
+    await new Promise((done) => server.close(done))
+  }
+}
+
+/** レールモックの実際の status 本文（packages/devices/src/mock-servers.ts と同形） */
+const RAIL_STATUS_BODY = JSON.stringify({
+  type: "status",
+  firmware: "rail-dc-xyz-1.0",
+  mode: "led_preview",
+  simulated: true,
+  move_count: 0,
+  axes: [{ axis: "x", active: false, pending: false, direction: 0, remaining_ms: 0 }],
+})
+
+const STACKCHAN_HTTP_BODY =
+  '<!doctype html><html><head><meta charset="utf-8"><title>Obake</title></head><body></body></html>'
+
+test("probe は本文を返す（accept が中身を見られる）", async () => {
+  await withServer(
+    (req, res) => {
+      res.writeHead(200, { "content-type": "application/json" })
+      res.end(RAIL_STATUS_BODY)
+    },
+    async (base) => {
+      const result = await probe(`${base}/api/v1/rail/status`, 2000)
+      assert.equal(result.ok, true)
+      assert.equal(result.status, 200)
+      assert.equal(result.body, RAIL_STATUS_BODY)
+    }
+  )
+})
+
+test("probe は巨大な本文を 64KB で打ち切る", async () => {
+  await withServer(
+    (req, res) => {
+      res.writeHead(200, { "content-type": "text/plain" })
+      res.end("a".repeat(MAX_PROBE_BODY_BYTES * 2))
+    },
+    async (base) => {
+      const result = await probe(base, 4000)
+      assert.equal(result.ok, true)
+      assert.equal(result.body.length, MAX_PROBE_BODY_BYTES)
+    }
+  )
+})
+
+test("acceptsRailStatus は実際の status 本文を通す", () => {
+  assert.equal(acceptsRailStatus(RAIL_STATUS_BODY), true)
+  // 旧実装は "state" / "position" を探していて、この本文では永久に false だった
+  assert.equal(RAIL_STATUS_BODY.includes("state"), false)
+  assert.equal(RAIL_STATUS_BODY.includes("position"), false)
+  assert.equal(acceptsRailStatus('{"error":"not found"}'), false)
+  assert.equal(acceptsRailStatus("<html>Obake</html>"), false)
+})
+
+test("acceptsStackchanHttpRoot はトップページの HTML を通す", () => {
+  assert.equal(acceptsStackchanHttpRoot(STACKCHAN_HTTP_BODY), true)
+  assert.equal(acceptsStackchanHttpRoot("<html><title>Other</title></html>"), false)
+})
+
+test("evaluateReadyChecks は全部通れば ready、本文も返す", async () => {
+  await withServer(
+    (req, res) => {
+      if (req.url === "/api/v1/rail/status") {
+        res.writeHead(200, { "content-type": "application/json" })
+        res.end(RAIL_STATUS_BODY)
+        return
+      }
+      res.writeHead(200, { "content-type": "text/html" })
+      res.end(STACKCHAN_HTTP_BODY)
+    },
+    async (base) => {
+      const result = await evaluateReadyChecks([
+        { url: `${base}/api/v1/rail/status`, accept: acceptsRailStatus },
+        { url: `${base}/`, accept: acceptsStackchanHttpRoot },
+      ])
+      assert.equal(result.ready, true)
+      assert.equal(result.failure, null)
+      assert.equal(result.bodies.length, 2)
+    }
+  )
+})
+
+test("evaluateReadyChecks は落ちたチェックの URL と理由を返す", async () => {
+  await withServer(
+    (req, res) => {
+      res.writeHead(404, { "content-type": "application/json" })
+      res.end('{"error":"not found"}')
+    },
+    async (base) => {
+      const url = `${base}/api/v1/rail/status`
+      const result = await evaluateReadyChecks([
+        { url, accept: acceptsRailStatus },
+        { url: `${base}/never-reached`, accept: () => true },
+      ])
+      assert.equal(result.ready, false)
+      assert.equal(result.failure.url, url)
+      assert.match(result.failure.reason, /HTTP 404/)
+    }
+  )
+})
+
+test("evaluateReadyChecks は未起動のポートを「応答がありません」と報告する", async () => {
+  // 立てて即閉じたサーバーのポート＝ほぼ確実に誰もいない
+  let deadUrl = ""
+  await withServer(
+    (req, res) => res.end("ok"),
+    async (base) => {
+      deadUrl = base
+    }
+  )
+  const result = await evaluateReadyChecks([{ url: deadUrl, accept: () => true }], {
+    timeoutMs: 800,
+  })
+  assert.equal(result.ready, false)
+  assert.equal(result.failure.url, deadUrl)
+  assert.match(result.failure.reason, /応答がありません/)
 })

@@ -174,9 +174,43 @@ export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** readiness 判定で読む本文の上限（これ以上は切り捨てる） */
+export const MAX_PROBE_BODY_BYTES = 64 * 1024
+
+/** 応答本文を上限まで読む（巨大な HTML を丸ごと抱えないため） */
+async function readBodyCapped(response, limit) {
+  if (!response.body) return (await response.text()).slice(0, limit)
+  const reader = response.body.getReader()
+  const chunks = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      total += value.length
+      if (total >= limit) break
+    }
+  } finally {
+    try {
+      await reader.cancel()
+    } catch {
+      // 読み終えた後の cancel は失敗してよい
+    }
+  }
+  const merged = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.length
+  }
+  return new TextDecoder().decode(merged.subarray(0, limit))
+}
+
 /**
  * URL を 1 回だけ叩く。応答すれば { ok: true, status, body }。
  * 到達できなければ { ok: false }。
+ * body は accept() で中身を見たいので必ず読む（最大 MAX_PROBE_BODY_BYTES）。
  */
 export async function probe(url, timeoutMs = 1500) {
   try {
@@ -184,11 +218,78 @@ export async function probe(url, timeoutMs = 1500) {
       signal: AbortSignal.timeout(timeoutMs),
       headers: { accept: "*/*" },
     })
-    const body = await response.text()
+    const body = await readBodyCapped(response, MAX_PROBE_BODY_BYTES)
     return { ok: true, status: response.status, body }
   } catch {
     return { ok: false, status: 0, body: "" }
   }
+}
+
+/** ログに出す用に本文の先頭だけ取り出す */
+export function previewBody(body, limit = 120) {
+  const single = String(body).replace(/\s+/g, " ").trim()
+  if (single === "") return "（空）"
+  return single.length > limit ? `${single.slice(0, limit - 1)}…` : single
+}
+
+/** JSON 本文をゆるくパースする（壊れていれば null） */
+function parseJsonBody(body) {
+  try {
+    const value = JSON.parse(body)
+    return typeof value === "object" && value !== null ? value : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * レールモックの GET /api/v1/rail/status の応答か。
+ * 実機ファーム互換の本文は `{"type":"status", ..., "axes":[...]}` で、
+ * "state" / "position" といった語は入らない（ここを取り違えると永遠に Ready にならない）。
+ */
+export function acceptsRailStatus(body) {
+  const json = parseJsonBody(body)
+  if (json === null) return false
+  return json.type === "status" || Array.isArray(json.axes)
+}
+
+/** スタックちゃん HTTP モックのトップページか */
+export function acceptsStackchanHttpRoot(body) {
+  return String(body).includes("Obake")
+}
+
+/**
+ * readiness チェック（{ url, accept }）を順に叩く。
+ * 全部通れば { ready: true, bodies }。落ちたら failure に「どの URL がなぜ落ちたか」を入れる。
+ * @param {{ url: string, accept: (body: string) => boolean }[]} checks
+ */
+export async function evaluateReadyChecks(
+  checks,
+  { probeFn = probe, timeoutMs = 2000 } = {}
+) {
+  const bodies = []
+  for (const check of checks) {
+    const result = await probeFn(check.url, timeoutMs)
+    if (!result.ok) {
+      return {
+        ready: false,
+        bodies,
+        failure: { url: check.url, reason: "応答がありません（未起動 / 接続拒否 / タイムアウト）" },
+      }
+    }
+    if (!check.accept(result.body)) {
+      return {
+        ready: false,
+        bodies,
+        failure: {
+          url: check.url,
+          reason: `応答の中身が想定と違います（HTTP ${result.status} / 本文: ${previewBody(result.body)}）`,
+        },
+      }
+    }
+    bodies.push(result.body)
+  }
+  return { ready: true, bodies, failure: null }
 }
 
 /**
