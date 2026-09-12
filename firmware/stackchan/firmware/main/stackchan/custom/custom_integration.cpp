@@ -8,6 +8,7 @@
 #include "custom_ota.h"
 
 #if CONFIG_SC_CUSTOM_LAYER
+#include "obake/obake_config.h"
 #include "obake/obake_runtime.h"
 #include "obake/obake_robot_ws.h"
 #endif
@@ -264,7 +265,9 @@ void OnAgentProfileSync()
     using stackchan::agent_profile::ProfileId;
 
     const ProfileId profile = GetActiveProfile();
-    const bool run_ota      = profile != ProfileId::Cloud;
+    // Wi-Fi 版チェックは止め、プロファイル URL 書き込みだけ行う（途中 OTA 差し替え防止）
+    const bool run_ota =
+        !stackchan::obake::kDisableWifiOtaVersionCheck && profile != ProfileId::Cloud;
     if (!ApplyProfile(profile, run_ota)) {
         mclog::tagWarn(_tag, "agent profile sync failed (OTA check={})", run_ota);
     }

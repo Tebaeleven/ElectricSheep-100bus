@@ -8,11 +8,19 @@
 #include <cstdio>
 #include <memory>
 #include <ota.h>
+#include <stackchan/custom/obake/obake_config.h>
 
 static const std::string_view _tag = "HAL-OTA";
 
 bool Hal::updateFirmware(std::function<void(std::string_view)> onLog)
 {
+    // Obake: Wi-Fi 版チェック／自動インストールを止める（手動フラッシュのみ）
+    if (stackchan::obake::kDisableWifiOtaVersionCheck) {
+        mclog::tagWarn(_tag, "updateFirmware blocked (kDisableWifiOtaVersionCheck=1)");
+        onLog("Wi-Fi OTA disabled");
+        return false;
+    }
+
     onLog("Checking firmware updates...");
 
     Ota ota;

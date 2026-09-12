@@ -9,6 +9,7 @@
 #include "obake_servo_api.h"
 
 #include <hal/board/cores3_audio_codec.h>
+#include <hal/hal.h>
 
 #include <algorithm>
 #include <atomic>
@@ -380,6 +381,70 @@ std::atomic<bool> s_mdns_ok{false};
 /** httpd ハンドラ内で JPEG エンコードしない（SPIRAM タスク側へ延期して固まり・OOM を避ける） */
 std::atomic<int> s_capture_pending_fd{-1};
 
+/** ウェイク相当の緑 LED（stackchan_display LISTENING と同じ経路） */
+void ControlLedOn()
+{
+    GetHAL().setRgbColor(0, 0, 50, 0);
+    GetHAL().refreshRgb();
+    ESP_LOGI(TAG, "control led_on (wake-style RGB index0 green)");
+}
+
+/** hand.set と同じ: open/close → 首 yaw（度数は obake_config.h） */
+void ControlHandSet(bool open)
+{
+    int cur_yaw = 0;
+    int cur_pitch = 0;
+    ServoGetHeadAngles(cur_yaw, cur_pitch);
+    const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
+    ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
+    ESP_LOGI(TAG, "control hand open=%d -> yaw=%d (pitch keep %d)", open ? 1 : 0, yaw, cur_pitch);
+}
+
+/** ブラウザ用の最小 HTML（ボタン3つだけ）。見た目は問わない */
+static const char kControlHtml[] =
+    "<!DOCTYPE html><html><head><meta charset=utf-8>"
+    "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+    "<title>Obake</title></head><body>"
+    "<h1>Obake</h1>"
+    "<p><button onclick=\"p('/obake/led_on')\">光る</button></p>"
+    "<p><button onclick=\"p('/obake/hand_open')\">開く</button></p>"
+    "<p><button onclick=\"p('/obake/hand_close')\">閉じる</button></p>"
+    "<pre id=o></pre>"
+    "<script>async function p(u){try{const r=await fetch(u,{method:'POST'});"
+    "document.getElementById('o').textContent=u+' '+r.status+' '+await r.text()}"
+    "catch(e){document.getElementById('o').textContent=String(e)}}</script>"
+    "</body></html>";
+
+esp_err_t SendOkText(httpd_req_t* req, const char* body)
+{
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    return httpd_resp_send(req, body, HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t ControlPageHandler(httpd_req_t* req)
+{
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    return httpd_resp_send(req, kControlHtml, HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t LedOnHandler(httpd_req_t* req)
+{
+    ControlLedOn();
+    return SendOkText(req, "led_on");
+}
+
+esp_err_t HandOpenHandler(httpd_req_t* req)
+{
+    ControlHandSet(true);
+    return SendOkText(req, "hand_open");
+}
+
+esp_err_t HandCloseHandler(httpd_req_t* req)
+{
+    ControlHandSet(false);
+    return SendOkText(req, "hand_close");
+}
+
 void LogStaIp()
 {
     esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -392,8 +457,8 @@ void LogStaIp()
         ESP_LOGW(TAG, "STA IP read failed");
         return;
     }
-    ESP_LOGI(TAG, "STA IP " IPSTR "  listen ws://" IPSTR ":%d%s  mdns=%s.local", IP2STR(&ip.ip), IP2STR(&ip.ip),
-             kRobotWsPort, kRobotWsPath, kRobotWsMdnsHost);
+    ESP_LOGI(TAG, "STA IP " IPSTR "  http://%s.local:%d/  ws://" IPSTR ":%d%s", IP2STR(&ip.ip), kRobotWsMdnsHost,
+             kRobotWsPort, IP2STR(&ip.ip), kRobotWsPort, kRobotWsPath);
 }
 
 void StartMdns()
@@ -559,13 +624,7 @@ void HandleRobotJson(httpd_req_t* req, int fd, const char* data, size_t len)
         // グリッパ無し: open/close を首 yaw 左右にマップ（定数は obake_config.h）
         // 先に ack してセッションを落とさない。サーボはキュー経由なので busy でも落ちない
         SendAck(req, "hand.set");
-        const bool open = doc["open"] | false;
-        int cur_yaw = 0;
-        int cur_pitch = 0;
-        ServoGetHeadAngles(cur_yaw, cur_pitch);
-        const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
-        ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
-        ESP_LOGI(TAG, "hand.set open=%d -> yaw=%d (pitch keep %d)", open ? 1 : 0, yaw, cur_pitch);
+        ControlHandSet(doc["open"] | false);
         return;
     }
     if (strcmp(type, "camera.capture") == 0) {
@@ -673,7 +732,8 @@ bool StartHttpdOnce()
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = static_cast<uint16_t>(kRobotWsPort);
     config.max_open_sockets = 4;
-    config.max_uri_handlers = 4;
+    // WS + 制御ページ(/, /control) + POST×3
+    config.max_uri_handlers = 8;
     config.backlog_conn = 1;
     config.lru_purge_enable = true;
     // 内部 DRAM の httpd タスクを避け、SPIRAM 上の小さめスタックで動かす
@@ -704,14 +764,64 @@ bool StartHttpdOnce()
         .handle_ws_control_frames = false,
         .supported_subprotocol = nullptr,
     };
-    err = httpd_register_uri_handler(hd, &kWsUri);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "register uri: %s", esp_err_to_name(err));
-        httpd_stop(hd);
-        return false;
+    // ブラウザ用: GET / と /control は同じ最小 HTML
+    static const httpd_uri_t kRootUri = {
+        .uri = "/",
+        .method = HTTP_GET,
+        .handler = ControlPageHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    static const httpd_uri_t kControlUri = {
+        .uri = "/control",
+        .method = HTTP_GET,
+        .handler = ControlPageHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    static const httpd_uri_t kLedOnUri = {
+        .uri = "/obake/led_on",
+        .method = HTTP_POST,
+        .handler = LedOnHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    static const httpd_uri_t kHandOpenUri = {
+        .uri = "/obake/hand_open",
+        .method = HTTP_POST,
+        .handler = HandOpenHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    static const httpd_uri_t kHandCloseUri = {
+        .uri = "/obake/hand_close",
+        .method = HTTP_POST,
+        .handler = HandCloseHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+
+    const httpd_uri_t* uris[] = {&kWsUri, &kRootUri, &kControlUri, &kLedOnUri, &kHandOpenUri, &kHandCloseUri};
+    for (const httpd_uri_t* u : uris) {
+        err = httpd_register_uri_handler(hd, u);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "register %s: %s", u->uri, esp_err_to_name(err));
+            httpd_stop(hd);
+            return false;
+        }
     }
     s_httpd = hd;
-    ESP_LOGI(TAG, "httpd listening :%d%s", kRobotWsPort, kRobotWsPath);
+    ESP_LOGI(TAG, "httpd listening :%d%s and control GET / /control", kRobotWsPort, kRobotWsPath);
     return true;
 }
 

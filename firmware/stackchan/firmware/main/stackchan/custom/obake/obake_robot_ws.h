@@ -8,6 +8,8 @@
  * - 下行（未実装・フック予約）: サーバ音声のスピーカ再生、サーバ経由ウェイク→既存 LED
  * - hand.set: グリッパではない。サーバ信号で首 yaw の open/close（度数は obake_config.h）。
  *   実装は HandleRobotJson + ServoRequestSetHeadAngles（大きな cpp 改修はメモリ作業と分離）
+ * - ブラウザ簡易制御: GET http://<ip>:8765/ （光る/開く/閉じる）
+ *   POST /obake/led_on・/obake/hand_open・/obake/hand_close（hand は WS hand.set と同じ）
  * - 契約の正本メモはリポ根の 引き継ぎ.md「双方向トランシーバ」節
  * このヘッダに downlink API を足すときは、メモリ逼迫対策（home/PSRAM 作業）と衝突しないよう
  * 薄い宣言のみにし、本体は obake_robot_ws.cpp に後置する。

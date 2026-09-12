@@ -1,16 +1,36 @@
 diff --git a/main/application.cc b/main/application.cc
-index d69d43d..ce55fd3 100644
+index d69d43d..5ce928b 100644
 --- a/main/application.cc
 +++ b/main/application.cc
-@@ -9,6 +9,7 @@
+@@ -9,6 +9,10 @@
  #include "mcp_server.h"
  #include "assets.h"
  #include "settings.h"
 +#include "sdkconfig.h"
++#if CONFIG_SC_CUSTOM_LAYER
++#include "stackchan/custom/obake/obake_config.h"
++#endif
  
  #include <cstring>
  #include <esp_log.h>
-@@ -531,11 +532,16 @@ void Application::InitializeProtocol() {
+@@ -396,6 +400,16 @@ void Application::CheckAssetsVersion() {
+ }
+ 
+ void Application::CheckNewVersion() {
++#if CONFIG_SC_CUSTOM_LAYER
++    // Obake: Wi-Fi 版チェック／自動 OTA を止める（途中差し替え防止。NVS の mqtt/ws は既存を使う）
++    if (stackchan::obake::kDisableWifiOtaVersionCheck) {
++        ESP_LOGI(TAG, "Wi-Fi OTA/version check skipped (kDisableWifiOtaVersionCheck=1)");
++        if (ota_) {
++            ota_->MarkCurrentVersionValid();
++        }
++        return;
++    }
++#endif
+     const int MAX_RETRY = 10;
+     int retry_count = 0;
+     int retry_delay = 10; // Initial retry delay in seconds
+@@ -531,11 +545,16 @@ void Application::InitializeProtocol() {
              } else if (strcmp(state->valuestring, "stop") == 0) {
                  Schedule([this]() {
                      if (GetDeviceState() == kDeviceStateSpeaking) {

@@ -57,6 +57,14 @@ inline constexpr uint32_t kMouthHideRetryMs = 500;
  */
 inline constexpr int kObakeAutoCustom = 1;
 
+/**
+ * Wi-Fi 経由のファーム版チェック／自動 OTA を止める。
+ * 1 = tenclass OTA ポーリング・CheckAndInstallFirmware・プロファイル OTA を無効（既定）
+ * 0 = 従来どおり（接続時 CheckNewVersion → 新版があれば Upgrade）
+ * Media httpd（:8765）や通常 Wi-Fi は影響しない。検証中の途中差し替えを防ぐ。
+ */
+inline constexpr int kDisableWifiOtaVersionCheck = 1;
+
 // =============================================================================
 // Media / Robot WebSocket
 // 既定は端末がサーバ（Next.js が直接接続）。0 にすると旧 PC クライアント経路。
