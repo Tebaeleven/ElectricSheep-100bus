@@ -62,31 +62,51 @@ ElectricSheep-100bus/
 ```bash
 # 1. 依存インストール
 pnpm install
+pnpm --dir client/desktop install   # Electron を使うとき（client/desktop はルート workspace 外）
 
 # 2. env を作る（正本は client/web/.env.local）
 cp client/web/.env.example client/web/.env.local
 #    GOOGLE_GENERATIVE_AI_API_KEY を書き込む（下の「環境変数」参照）
 
-# 3. ローカル Supabase を起動（初回は Docker イメージの pull で数分かかる）
-pnpm db:start
-#    表示された secret key（sb_secret_...）を SUPABASE_SECRET_KEY に書き込む
-#    再表示: pnpm exec supabase --workdir server status -o env | grep SECRET_KEY
+# 3. 必要なものを 1 コマンドで全部起動
+pnpm run up          # モック構成（Supabase + モック + Web 3000 + Studio 4111）
+pnpm run up real     # Electron 実機（Ghost Companion）に繋ぐ構成
+pnpm run up demo     # 本番デモ構成（Studio とモックを外し、チャット画面だけ開く）
+pnpm run up web      # Web 3000 だけ
 
-# 4. ロボットのモックサーバー（別ターミナル）
-pnpm robot:mock
-
-# 5. 機器（レール / スタックちゃん / デスクトップ）のモック 3 台（別ターミナル・任意）
-pnpm devices:mock   # 8791 / 8792 / 8793
-
-# 6. Web アプリ
-pnpm dev            # http://localhost:3000
-#    チャット: http://localhost:3000
-#    開発者ダッシュボード（全 API を手で叩ける）: http://localhost:3000/dev
+# 停止（Ctrl+C だと Supabase と Electron は残る）
+pnpm down            # このリポジトリのプロセスを止める
+pnpm down --all      # Supabase（Docker）も止める
 ```
+
+> **`pnpm up` ではなく `pnpm run up`。** `up` は pnpm 自身のコマンド（`pnpm update` の別名）なので、
+> `pnpm up` と書くと依存の更新が走ってしまう。`pnpm run up`（または同じものを指す `pnpm start`）と書くこと。
+> 停止の `pnpm down` はそのままで問題ない。
+
+`pnpm run up` は起動前に `pnpm ports:check` 相当の確認を行い、**使うポートを別のプロセスが掴んでいたら
+起動せずに止まる**（同じ役割のものが既に動いていれば再利用する）。全サービスの readiness を HTTP で確認して
+サマリー表を出し、ブラウザで `http://localhost:3000` と `http://localhost:3000/dev` を開く（`--no-open` で抑止）。
+**Ctrl+C で自分が起動した子プロセスを全部停止**する（Supabase と Electron は残るので `pnpm down --all`）。
+
+プロファイル表・内部動作・よくある失敗・デモ当日のチェックリストは
+[`docs/runbooks/launch.md`](docs/runbooks/launch.md)。
 
 > **`/dev` は認証なし・ローカル専用**。`/dev` と `/api/dev/*`・`/api/devices/*` には認証が無く、開けば誰でも機器を動かせる。`localhost` からのみ使い、`next dev` を `--hostname 0.0.0.0` で公開したり、トンネル（ngrok / Cloudflare Tunnel 等）で外に出したりしないこと。詳細は [`docs/runbooks/dev-dashboard.md`](docs/runbooks/dev-dashboard.md)。
 
-`DEVICE_MODE=mock`（既定）は**プロセス内モック**なので手順 5 は不要。8791-8793 のモックサーバーまで含めて実 HTTP / WebSocket 経路を試すときは、env を上書きして起動する。
+個別に起動したいとき（`pnpm run up` を使わない場合）は次の通り。`pnpm db:start` の表示する
+secret key（`sb_secret_...`）を `SUPABASE_SECRET_KEY` に入れておく（再表示: `pnpm db:status`）。
+
+```bash
+pnpm db:start       # ローカル Supabase（初回は Docker イメージの pull で数分）
+pnpm robot:mock     # ロボットモック 8787
+pnpm devices:mock   # 機器モック 3 台 8791 / 8792 / 8793
+pnpm dev            # web 3000
+pnpm agent:studio   # Mastra Studio 4111
+```
+
+`DEVICE_MODE=mock`（既定）は**プロセス内モック**なので `pnpm devices:mock` は不要。8791-8793 のモックサーバーまで
+含めて実 HTTP / WebSocket 経路を試すときは env を上書きして起動する（`pnpm run up real` は同じことを
+デスクトップだけ Electron 実機 8801 に向けて行う。`.env.local` は書き換えない）。
 
 ```bash
 DEVICE_MODE=real \
@@ -104,6 +124,8 @@ Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` を�
 
 | コマンド | 内容 |
 |---|---|
+| **`pnpm run up [profile]`** | **必要なものを 1 コマンドで起動**（`mock` / `real` / `demo` / `web`。[`docs/runbooks/launch.md`](docs/runbooks/launch.md)）。`pnpm up` は pnpm の update なので `run` を付ける |
+| **`pnpm down [--all]`** | 起動したプロセスを停止（`--all` で Supabase も） |
 | `pnpm dev` | 全パッケージの dev（web は 3000） |
 | `pnpm verify` | `turbo run lint typecheck test build`。**納品ゲート** |
 | `pnpm lint` / `pnpm typecheck` / `pnpm test` / `pnpm build` | 個別タスク |
@@ -187,6 +209,7 @@ GHOST_MODEL=google/gemini-3.1-pro-preview  # 品質重視（遅い・高い）
 |---|---|
 | [`docs/setup.md`](docs/setup.md) | 詳細セットアップとトラブルシュート |
 | [`docs/development.md`](docs/development.md) | 並列開発ルール・ファイル所有権・worktree 運用 |
+| [`docs/runbooks/launch.md`](docs/runbooks/launch.md) | `pnpm run up` / `pnpm down` のプロファイル・内部動作・デモ当日チェックリスト |
 | [`docs/runbooks/supabase.md`](docs/runbooks/supabase.md) | DB スキーマ変更・RLS・認証導入 |
 | [`docs/runbooks/mastra.md`](docs/runbooks/mastra.md) | Studio・tool 追加・Memory・v1 の落とし穴 |
 | [`docs/runbooks/robot.md`](docs/runbooks/robot.md) | 実機ロボット仕様受領後の差し替え手順 |

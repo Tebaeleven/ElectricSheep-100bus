@@ -4,6 +4,9 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "up": "node scripts/dev-up.mjs",
+    "start": "node scripts/dev-up.mjs",
+    "down": "node scripts/dev-down.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",

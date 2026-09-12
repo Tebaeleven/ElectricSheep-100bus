@@ -6,7 +6,7 @@ import {
   desktopOpenBrowser,
   desktopScreenshot,
   getDevices,
-  handSet,
+  headSet,
   railMove,
   railStop,
   toRailDirection,
@@ -80,15 +80,20 @@ describe("railStop", () => {
   })
 })
 
-describe("handSet", () => {
-  it("手の状態がモックに反映される", async () => {
-    const result = await run(handSet, { state: "closed" })
+describe("headSet", () => {
+  // TODO(P5 統合): P5-A がモックに headSet を実装したら ok:true と
+  // 送られた角度（yaw / pitch / speed）まで検証する
+  it("可動範囲内の角度なら例外を投げずに結果を返す", async () => {
+    const result = await run(headSet, { yaw: 30, pitch: -10, speed: 50 })
 
-    expect(result.ok).toBe(true)
-    const stackchan = getDevices().stackchan as unknown as {
-      handState: string
-    }
-    expect(stackchan.handState).toBe("closed")
+    expect(typeof result.latencyMs).toBe("number")
+  })
+
+  it("可動範囲外の角度は inputSchema で弾かれ、機器へ送らない", async () => {
+    const result = await run(headSet, { yaw: 200, pitch: 0 })
+
+    expect(result.ok).not.toBe(true)
+    expect(result.error ?? result.message).toBeTruthy()
   })
 })
 

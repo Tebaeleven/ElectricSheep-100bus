@@ -121,8 +121,17 @@ const openUrlInputSchema = z.object({
   url: z.url(),
 })
 
-const handInputSchema = z.object({
-  state: z.enum(["open", "closed"]),
+/** 首の可動範囲（度）と速度。正本は @workspace/devices の headSetSchema */
+export const HEAD_YAW_MIN = -90
+export const HEAD_YAW_MAX = 90
+export const HEAD_PITCH_MIN = -45
+export const HEAD_PITCH_MAX = 45
+export const HEAD_SPEED_MAX = 100
+
+const headInputSchema = z.object({
+  yaw: z.number().min(HEAD_YAW_MIN).max(HEAD_YAW_MAX),
+  pitch: z.number().min(HEAD_PITCH_MIN).max(HEAD_PITCH_MAX),
+  speed: z.number().min(0).max(HEAD_SPEED_MAX).optional(),
 })
 
 const audioRecentInputSchema = z.object({
@@ -275,16 +284,18 @@ export const DEV_ENDPOINTS: DevEndpoint[] = [
     responseKind: "json",
   },
   {
-    id: "stackchan.hand",
+    id: "stackchan.head",
     group: "stackchan",
     method: "POST",
-    path: "/api/devices/stackchan/hand",
-    description: "手の開閉（ack を待つ）",
-    inputSchema: handInputSchema,
-    defaultInput: { state: "open" },
+    path: "/api/devices/stackchan/head",
+    description: `首を向ける。yaw ${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度（マイナスが左）、pitch ${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度（プラスが上）、speed は 0〜${HEAD_SPEED_MAX}`,
+    inputSchema: headInputSchema,
+    defaultInput: { yaw: 0, pitch: 0 },
     presets: [
-      { label: "open", input: { state: "open" } },
-      { label: "closed", input: { state: "closed" } },
+      { label: "正面", input: { yaw: 0, pitch: 0 } },
+      { label: "左", input: { yaw: -30, pitch: 0 } },
+      { label: "右", input: { yaw: 30, pitch: 0 } },
+      { label: "上", input: { yaw: 0, pitch: 20 } },
     ],
     responseKind: "json",
   },
