@@ -91,6 +91,7 @@ void RuntimeStart()
         s_started = true;
         ESP_LOGI(TAG, "start Obake face HW (deferred init)");
         s_task_run.store(true, std::memory_order_relaxed);
+        // HW タスクは内部スタック。SPIRAM スタックは flash cache 無効時に assert する
         xTaskCreatePinnedToCore(hw_task, "obake_hw", 8192, nullptr, 5, &s_task, 0);
     }
     MouthUiCreate();

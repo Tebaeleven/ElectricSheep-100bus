@@ -45,6 +45,7 @@
 #endif
 
 #include <hal/hal.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 #include <mcp_server.h>
 #include <mooncake_log.h>
@@ -144,8 +145,15 @@ void LeaveCustomSession()
 {
     s_custom_session = false;
 #if CONFIG_SC_CUSTOM_LAYER
+    // ホーム／再起動前に httpd と HW を順序立てて止め、内部 DRAM 断片化・UAF を避ける
+    mclog::tagInfo(_tag, "leave custom: before stop internal={} spiram={}",
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
     stackchan::obake::RobotWsStop();
     stackchan::obake::RuntimeStop();
+    mclog::tagInfo(_tag, "leave custom: after stop internal={} spiram={}",
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
 #endif
 }
 

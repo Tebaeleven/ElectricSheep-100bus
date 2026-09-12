@@ -1,24 +1,24 @@
 <!-- ElectricSheep-100bus 側の取り込みメモ（このヘッダは monorepo 用。以下の本体 README は Obake 由来） -->
 
-Source: https://github.com/kazu-1234/Obake_device @ `7434f6a`（2026-09-12 同期。表示版 **v0.5.3**）  
+Source: https://github.com/kazu-1234/Obake_device @ `095611b`（2026-09-12 同期。表示版 **v0.5.3**＋ブートループ修正）  
 パス正本（チーム共有）: `firmware/stackchan/`（ブランチ `develop`）。個人作業用 private は [kazu-1234/Obake_device](https://github.com/kazu-1234/Obake_device)。以後の ESP／Stack-chan 更新は **このディレクトリへ PR**（`develop` 向け）。
 
 本体は `firmware/`（ESP-IDF / M5Stack CoreS3 の Stack-chan ベース）。おばけ固有の実装は `firmware/main/stackchan/custom/obake/`。
 
-**取り込み時に除外したファイル**: `reference/content.png`（大容量参考図）、`sdkconfig.defaults.local`（秘密・端末固有）、`homelab/obake_media/latest.jpg`、`firmware/build_log.txt`、ローカルの `version_history.txt` 差分拡大はしない。
+**取り込み時に除外したファイル**: `reference/content.png`（大容量参考図）、`sdkconfig.defaults.local`（秘密・端末固有）、`wifi_credentials.local.h`（パスワード）、`homelab/obake_media/latest.jpg`、`firmware/build_log.txt`、ローカルの `version_history.txt` 差分拡大はしない。`wifi_credentials.local.h.example`（プレースホルダのみ）は同梱。
 
 ## 通信 I/F（v0.5.3）と要件定義書の関係
 
-**v0.5.3 既定**: 端末が **WS サーバ**として `ws://<端末STA>:8765/ws/v1/robot`（mDNS `obake.local`）を待ち受ける（`kMediaListenAsServer=1`）。実装は `obake_robot_ws.cpp`（httpd は SPIRAM・Wi-Fi 後遅延・最大 3 回リトライで DRAM 枯渇を緩和）。
+**v0.5.3 既定**: 端末が **WS サーバ**として `ws://<端末STA>:8765/ws/v1/robot`（mDNS `obake.local`）を待ち受ける（`kMediaListenAsServer=1`）。実装は `obake_robot_ws.cpp`（httpd のみ SPIRAM・Wi-Fi 後遅延・最大 3 回リトライ）。`stackchan`/`obake_hw` は内部 DRAM スタック（SPIRAM スタックは flash cache off でブートループ）。
 
-| 観点 | 要件定義書（`docs/specs/robot-api-requirements.md`） | 実装（Obake v0.5.3 @ 7434f6a） |
+| 観点 | 要件定義書（`docs/specs/robot-api-requirements.md`） | 実装（Obake v0.5.3 @ 095611b） |
 | --- | --- | --- |
 | 向き | 端末が WS **サーバー**、アプリがクライアント | **一致（既定）**。`STACKCHAN_WS_URL=ws://<端末IP or obake.local>:8765`（パスは SDK が `/ws/v1/robot` を付与） |
 | URL | `ws://<端末IP>:<port>/ws/v1/robot` | 同上（ポート `kRobotWsPort=8765`） |
 | フォールバック | - | `kMediaListenAsServer=0` で旧 **PC クライアント**（`ws://<PC>:8030/obake/media` + `homelab/obake_media/server.py`） |
 | エンベロープ | JSON `{"type","request_id","data"}` | サーバ経路でも JSON 指令＋バイナリ上行あり。詳細は `homelab/obake_media/README.md` / `obake/README.md` |
-| `hand.set` | 手を開閉 | **未実装**（手サーボ無し）。首は `head.set` / `set_head`（yaw/pitch） |
-| `camera.capture` / `audio.*` | 要求応答 | サーバ経路でクライアントへ配信。完全な要件どおりかは実機確認が必要 |
+| `hand.set` | 手を開閉 | **首 yaw open/close**（グリッパではない。`kHandOpenYawDeg` / `kHandCloseYawDeg`） |
+| `camera.capture` / `audio.*` | 要求応答 | サーバ経路でクライアントへ配信。JPEG は SPIRAM 寄せ・延期キャプチャ |
 | 認証 | Bearer 暫定 | **無し**（LAN 前提・平文 ws） |
 
 ### SDK / ブリッジとの関係（本 PR では `packages/` を触らない）

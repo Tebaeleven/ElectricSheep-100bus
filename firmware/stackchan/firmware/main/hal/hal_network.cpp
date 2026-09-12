@@ -5,6 +5,7 @@
  */
 #include "hal.h"
 #include <stackchan/stackchan.h>
+#include <stackchan/custom/obake/obake_wifi_seed.h>
 #include <mooncake.h>
 #include <mooncake_log.h>
 #include <wifi_manager.h>
@@ -106,6 +107,8 @@ void Hal::startNetwork(std::function<void(std::string_view)> onLog)
                 break;
         }
     });
+    // UI 配網不可時用: gitignored local があれば NVS の wifi 資格情報だけ更新
+    stackchan::obake::ApplyLocalWifiCredentialsIfPresent();
     board.StartNetwork();
 
     while (!network_connected) {

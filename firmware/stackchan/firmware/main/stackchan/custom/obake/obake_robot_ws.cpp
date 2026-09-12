@@ -24,6 +24,7 @@
 #include <esp_heap_caps.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
+#include <esp_memory_utils.h>
 #include <esp_netif.h>
 #include <esp_timer.h>
 #include <esp_wifi.h>
@@ -41,12 +42,13 @@ namespace {
 
 const char* TAG = "obake_robot_ws";
 
-/** 内部 DRAM / SPIRAM の空きを起動前後で比較するため */
+/** 内部 DRAM（~数百 KB）と 8MB PSRAM を分けて出す。free sram≈3KB は内部枯渇であり PSRAM 未搭載ではない */
 void LogHeaps(const char* where)
 {
-    ESP_LOGI(TAG, "%s heap internal=%u spiram=%u", where,
+    ESP_LOGI(TAG, "%s heap internal=%u spiram=%u (min_int=%u)", where,
              static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
-             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)),
+             static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
 }
 
 uint32_t now_ms()
@@ -60,13 +62,26 @@ int PcmRate()
     return codec ? codec->input_sample_rate() : 24000;
 }
 
+/** JPEG エンコード一時領域が内部 DRAM を食い潰さないよう、余裕が無いときは撮らない */
+constexpr size_t kMinInternalForJpegEncode = 24 * 1024;
+
 /** JPEG は SPIRAM 側へ寄せる（内部 DRAM に大きなフレームを置かない） */
 bool CaptureJpeg(uint8_t** out_jpeg, size_t* out_len)
 {
     *out_jpeg = nullptr;
     *out_len = 0;
+    LogHeaps("before CaptureJpeg");
+    const size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (internal_free < kMinInternalForJpegEncode) {
+        // 8MB PSRAM が空いていても jpeg_calloc_align 等が内部を要求するため、ここで拒否して固まりを防ぐ
+        ESP_LOGW(TAG, "skip CaptureJpeg: internal DRAM %u < %u (spiram=%u still free)",
+                 static_cast<unsigned>(internal_free), static_cast<unsigned>(kMinInternalForJpegEncode),
+                 static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+        return false;
+    }
     auto* camera = hal_bridge::board_get_camera();
     if (camera == nullptr || !camera->StreamCaptures()) {
+        LogHeaps("CaptureJpeg stream fail");
         return false;
     }
     uint8_t* jpeg = nullptr;
@@ -75,10 +90,26 @@ bool CaptureJpeg(uint8_t** out_jpeg, size_t* out_len)
                        camera->GetFrameHeight(), static_cast<v4l2_pix_fmt_t>(camera->GetFrameFormat()),
                        kMediaJpegQuality, &jpeg, &jpeg_len) ||
         jpeg == nullptr || jpeg_len == 0) {
+        LogHeaps("CaptureJpeg encode fail");
         return false;
+    }
+    // エンコーダ出力が内部 DRAM に載った場合は SPIRAM へ移し、内部を即座に返す
+    if (!esp_ptr_external_ram(jpeg)) {
+        uint8_t* spiram_copy =
+            static_cast<uint8_t*>(heap_caps_malloc(jpeg_len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (spiram_copy == nullptr) {
+            ESP_LOGW(TAG, "SPIRAM copy failed for jpeg %u", static_cast<unsigned>(jpeg_len));
+            free(jpeg);
+            LogHeaps("after CaptureJpeg spiram-copy fail");
+            return false;
+        }
+        memcpy(spiram_copy, jpeg, jpeg_len);
+        free(jpeg);
+        jpeg = spiram_copy;
     }
     *out_jpeg = jpeg;
     *out_len = jpeg_len;
+    LogHeaps("after CaptureJpeg");
     return true;
 }
 
@@ -175,7 +206,7 @@ bool CaptureAndSendJpegClient(WebSocket* ws)
         return false;
     }
     const bool ok = SendFramed(ws, ClientBinType::Jpeg, jpeg, jpeg_len);
-    free(jpeg);
+    heap_caps_free(jpeg);
     return ok;
 }
 
@@ -335,6 +366,7 @@ void MediaClientTask(void* /*arg*/)
 // バイナリは長さプレフィクス無し: 0x02+JPEG / 0x01+PCM
 // -----------------------------------------------------------------------------
 
+/** 双方向契約: 0x01=PCM（現状は上行。下り再生は将来別経路でも型を衝突させない） / 0x02=JPEG */
 enum class ServerBinType : uint8_t {
     Pcm = 0x01,
     Jpeg = 0x02,
@@ -345,6 +377,8 @@ httpd_handle_t s_httpd = nullptr;
 std::atomic<int> s_client_fd{-1};
 std::atomic<bool> s_audio{false};
 std::atomic<bool> s_mdns_ok{false};
+/** httpd ハンドラ内で JPEG エンコードしない（SPIRAM タスク側へ延期して固まり・OOM を避ける） */
+std::atomic<int> s_capture_pending_fd{-1};
 
 void LogStaIp()
 {
@@ -400,6 +434,24 @@ esp_err_t SendWsText(httpd_req_t* req, const char* json)
     return httpd_ws_send_frame(req, &frame);
 }
 
+/** req 無し（延期キャプチャ失敗など）でも FD 経由で JSON を返す */
+esp_err_t SendWsTextFd(int fd, const char* json)
+{
+    httpd_handle_t hd = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(s_httpd_mu);
+        hd = s_httpd;
+    }
+    if (hd == nullptr || fd < 0 || json == nullptr) {
+        return ESP_FAIL;
+    }
+    httpd_ws_frame_t frame{};
+    frame.type = HTTPD_WS_TYPE_TEXT;
+    frame.payload = reinterpret_cast<uint8_t*>(const_cast<char*>(json));
+    frame.len = strlen(json);
+    return httpd_ws_send_data(hd, fd, &frame);
+}
+
 esp_err_t SendWsBinFd(int fd, ServerBinType type, const uint8_t* payload, size_t len)
 {
     httpd_handle_t hd = nullptr;
@@ -444,17 +496,26 @@ void SendErr(httpd_req_t* req, const char* cmd, const char* message)
     SendWsText(req, buf);
 }
 
+void SendErrFd(int fd, const char* cmd, const char* message)
+{
+    char buf[160];
+    snprintf(buf, sizeof(buf), "{\"type\":\"error\",\"cmd\":\"%s\",\"message\":\"%s\"}", cmd, message);
+    SendWsTextFd(fd, buf);
+}
+
 void OnClientClosed(httpd_handle_t /*hd*/, int sockfd)
 {
-    // 切断時に FD を捨て、音声上行を止める（リークした listen と混同しない）
+    // 切断時に FD を捨て、音声上行と延期キャプチャを止める（リークした listen と混同しない）
     int expected = sockfd;
     if (s_client_fd.compare_exchange_strong(expected, -1)) {
         s_audio.store(false);
+        int pend = sockfd;
+        s_capture_pending_fd.compare_exchange_strong(pend, -1);
         ESP_LOGI(TAG, "ws client closed fd=%d", sockfd);
     }
 }
 
-bool SendCameraFrame(httpd_req_t* req, int fd)
+bool SendCameraFrame(int fd)
 {
     uint8_t* jpeg = nullptr;
     size_t jpeg_len = 0;
@@ -462,13 +523,28 @@ bool SendCameraFrame(httpd_req_t* req, int fd)
         return false;
     }
     const esp_err_t err = SendWsBinFd(fd, ServerBinType::Jpeg, jpeg, jpeg_len);
-    free(jpeg);
+    heap_caps_free(jpeg);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "jpeg send: %s", esp_err_to_name(err));
         return false;
     }
-    (void)req;
     return true;
+}
+
+/** ServerTask から呼ぶ: 延期された camera.capture を1枚処理 */
+void PumpPendingCapture()
+{
+    const int fd = s_capture_pending_fd.exchange(-1);
+    if (fd < 0) {
+        return;
+    }
+    if (s_client_fd.load() != fd) {
+        ESP_LOGW(TAG, "drop stale capture fd=%d", fd);
+        return;
+    }
+    if (!SendCameraFrame(fd)) {
+        SendErrFd(fd, "camera.capture", "capture_failed");
+    }
 }
 
 void HandleRobotJson(httpd_req_t* req, int fd, const char* data, size_t len)
@@ -480,15 +556,22 @@ void HandleRobotJson(httpd_req_t* req, int fd, const char* data, size_t len)
     }
     const char* type = doc["type"] | "";
     if (strcmp(type, "hand.set") == 0) {
-        // グリッパ無し。セッションは落とさず ack のみ
+        // グリッパ無し: open/close を首 yaw 左右にマップ（定数は obake_config.h）
+        // 先に ack してセッションを落とさない。サーボはキュー経由なので busy でも落ちない
         SendAck(req, "hand.set");
+        const bool open = doc["open"] | false;
+        int cur_yaw = 0;
+        int cur_pitch = 0;
+        ServoGetHeadAngles(cur_yaw, cur_pitch);
+        const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
+        ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
+        ESP_LOGI(TAG, "hand.set open=%d -> yaw=%d (pitch keep %d)", open ? 1 : 0, yaw, cur_pitch);
         return;
     }
     if (strcmp(type, "camera.capture") == 0) {
+        // ack だけ即返し、JPEG は ServerTask（SPIRAM スタック）で撮る
         SendAck(req, "camera.capture");
-        if (!SendCameraFrame(req, fd)) {
-            SendErr(req, "camera.capture", "capture_failed");
-        }
+        s_capture_pending_fd.store(fd);
         return;
     }
     if (strcmp(type, "audio.start") == 0) {
@@ -580,6 +663,7 @@ void StopHttpdLocked()
     s_httpd = nullptr;
     s_client_fd.store(-1);
     s_audio.store(false);
+    s_capture_pending_fd.store(-1);
 }
 
 bool StartHttpdOnce()
@@ -704,6 +788,8 @@ void ServerTask(void* /*arg*/)
             }
         }
         const uint32_t t = now_ms();
+        // camera.capture は httpd スレッドでは撮らず、ここで処理（内部 DRAM 逼迫時の固まり緩和）
+        PumpPendingCapture();
         if (t - last_pcm_ms >= kMediaPcmIntervalMs) {
             last_pcm_ms = t;
             PumpAudioIfNeeded();
@@ -745,7 +831,9 @@ void RobotWsStop()
         return;
     }
     ESP_LOGI(TAG, "RobotWsStop");
+    LogHeaps("before RobotWsStop");
     s_audio.store(false);
+    s_capture_pending_fd.store(-1);
     {
         std::lock_guard<std::mutex> lock(s_httpd_mu);
         StopHttpdLocked();
@@ -755,6 +843,7 @@ void RobotWsStop()
     }
     DisconnectClient();
     StopMdns();
+    LogHeaps("after RobotWsStop");
 }
 
 void RobotWsOnPreUpdate()

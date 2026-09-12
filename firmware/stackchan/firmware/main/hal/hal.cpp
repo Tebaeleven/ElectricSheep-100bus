@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: MIT
  */
 #include "hal.h"
+#include <atomic>
 #include <memory>
 #include <mooncake_log.h>
 #include <nvs_flash.h>
 #include <stackchan/custom/custom_integration.h>
+#include <stackchan/custom/obake/obake_wifi_seed.h>
+#include <esp_heap_caps.h>
 
 static std::unique_ptr<Hal> _hal_instance;
 static const std::string_view _tag = "HAL";
@@ -32,6 +35,9 @@ void Hal::init()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    // Xiaozhi の Wi-Fi 開始より前に local SSID を NVS へ（UI 配網不可の救済）
+    stackchan::obake::ApplyLocalWifiCredentialsIfPresent();
 
     xiaozhi_board_init();
     xiaozhi_mcp_init();
@@ -144,6 +150,9 @@ void Hal::xiaozhi_board_init()
     hal_bridge::xiaozhi_board_init();
 }
 
+/** ホーム確定は LVGL ロック外で処理する（httpd/RobotWs 停止で delay するため） */
+static std::atomic<bool> s_home_reboot_pending{false};
+
 static void _stackchan_update_task(void* param)
 {
     bool is_setup_done = false;
@@ -153,33 +162,46 @@ static void _stackchan_update_task(void* param)
 
         tools::update_reminders();
 
-        LvglLockGuard lock;
+        {
+            LvglLockGuard lock;
 
-        if (!hal_bridge::is_xiaozhi_idle()) {
-            vTaskDelay(pdMS_TO_TICKS(100));
+            if (!hal_bridge::is_xiaozhi_idle()) {
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
+
+            stackchan::custom::OnStackChanPreUpdate();
+            GetStackChan().update();
+
+            if (!hal_bridge::is_xiaozhi_ready()) {
+                continue;
+            }
+
+            if (!is_setup_done) {
+                // Setup when xiaozhi ready
+                GetHAL().startSntp();
+                stackchan::custom::OnAgentProfileSync();
+                // ここでは再起動せずフラグのみ。ロック外で順序立てて止めてから warm reboot
+                view::create_home_indicator([]() { s_home_reboot_pending.store(true, std::memory_order_relaxed); },
+                                            0x81DBBD, 0x134233);
+                view::create_status_bar(0x81DBBD, 0x134233);
+                stackchan::custom::OnXiaozhiUiReady();
+                is_setup_done = true;
+            }
+
+            // 口 UI / IP ラベル更新のあとにホームを回し、前面・ジェスチャを奪われないようにする
+            view::update_status_bar();
+            stackchan::custom::OnUiFrameUpdate();
+            view::update_home_indicator();
         }
 
-        stackchan::custom::OnStackChanPreUpdate();
-        GetStackChan().update();
-
-        if (!hal_bridge::is_xiaozhi_ready()) {
-            continue;
+        // LVGL ロック解除後: Robot WS httpd と PaHub を止めてからホームへ（DRAM 逼迫時の暴走防止）
+        if (s_home_reboot_pending.exchange(false, std::memory_order_relaxed)) {
+            mclog::tagInfo(_tag, "home leave: internal={} spiram={} — stop custom then warm reboot",
+                           static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+                           static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+            stackchan::custom::LeaveCustomSession();
+            GetHAL().requestWarmReboot(0);
         }
-
-        if (!is_setup_done) {
-            // Setup when xiaozhi ready
-            GetHAL().startSntp();
-            stackchan::custom::OnAgentProfileSync();
-            view::create_home_indicator([]() { GetHAL().requestWarmReboot(0); }, 0x81DBBD, 0x134233);
-            view::create_status_bar(0x81DBBD, 0x134233);
-            stackchan::custom::OnXiaozhiUiReady();
-            is_setup_done = true;
-        }
-
-        // 口 UI / IP ラベル更新のあとにホームを回し、前面・ジェスチャを奪われないようにする
-        view::update_status_bar();
-        stackchan::custom::OnUiFrameUpdate();
-        view::update_home_indicator();
     }
 }
 
@@ -203,7 +225,8 @@ void Hal::startXiaozhi()
         hal_bridge::app_play_sound(OGG_NEW_NOTIFICATION);
     });
 
-    // Start stackchan update task
+    // スタックは内部 DRAM 必須。SPIRAM スタックだと flash cache off 時に
+    // esp_task_stack_is_sane_cache_disabled で即パニックする（ブートループ原因）
     xTaskCreatePinnedToCore(_stackchan_update_task, "stackchan", 4096, NULL, 3, NULL, 1);
 
     hal_bridge::start_xiaozhi_app();

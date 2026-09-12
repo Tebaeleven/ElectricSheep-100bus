@@ -27,7 +27,7 @@ Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Robo
 
 1. `firmware/main/stackchan/custom/obake/obake_config.h` を開く
 2. 先頭の定数を変更（下表）
-3. `scripts/fast_build.ps1` または `firmware/` で `idf.py build` → `idf.py -p COMx flash`
+3. サブ PC で `scripts/fast_build.ps1` → `scripts/export_flash_bundle.ps1 -Zip`。メイン PC で bundle を `scripts/flash_bundle.ps1` または Flash GUI
 4. `kObakeAutoCustom=1` なら自動で CUSTOM。手動ならランチャーで **CUSTOM** を起動し、目・口・距離を確認
 
 ### よく触る定数

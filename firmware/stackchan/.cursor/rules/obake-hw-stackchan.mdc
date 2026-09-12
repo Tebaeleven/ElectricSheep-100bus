@@ -14,6 +14,7 @@ alwaysApply: true
 - **このフォルダを更新したら、作業単位ごとに必ず `git commit` と `git push origin main`**
 - 別リポ（旧 StackChan-Obake / `Documents\Arduino\Stackchan`）を正本にしない
 - `version_history.txt`・秘密情報は push しない
+- **メイン PC = 実機・書き込み。サブ PC = ビルド。** `firmware/build` は git 外。サブは `scripts/export_flash_bundle.ps1`、メインは bundle を GUI か `scripts/flash_bundle.ps1`
 
 CUSTOM セッションで **口・左右の目・ToF 距離** を必須表示（`firmware/main/stackchan/custom/obake/`）。通常 AI.AGENT は従来どおり。書く前は Flash バックアップ。
 

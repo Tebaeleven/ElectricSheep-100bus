@@ -37,6 +37,7 @@ set(_stackchan_extra_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_runtime.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_servo_api.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_robot_ws.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_wifi_seed.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/vl53l0x.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/apps/app_custom/app_custom.cpp"
 )

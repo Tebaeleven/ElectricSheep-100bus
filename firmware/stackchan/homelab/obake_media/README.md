@@ -35,7 +35,7 @@ python client_test.py obake.local
 | 方向 | 内容 |
 |------|------|
 | 接続直後 TEXT | `{"type":"hello","pcm_rate":N}` |
-| 入力 TEXT | `hand.set`（ack のみ・グリッパ無し）, `camera.capture`, `audio.start`, `audio.stop` |
+| 入力 TEXT | `hand.set`（open/close → 首 yaw。度数は `kHandOpenYawDeg` 等。グリッパではない）, `camera.capture`, `audio.start`, `audio.stop` |
 | 応答 TEXT | `{"type":"ack","cmd":"..."}` / `{"type":"error",...}` |
 | バイナリ | `0x02`+JPEG（capture 時のみ）、`0x01`+PCM16（`audio.start` 後。tee マイク） |
 
@@ -49,8 +49,10 @@ python client_test.py obake.local
 | `kRobotWsPort` / `kRobotWsPath` | `8765` `/ws/v1/robot` | 待ち受け |
 | `kRobotWsMdnsHost` | `obake` | `obake.local` |
 | `kMediaJpegQuality` | `20` | capture 時の JPEG |
+| `kHandOpenYawDeg` / `kHandCloseYawDeg` / `kHandYawSpeed` | `45` / `0` / `150` | `hand.set` の yaw 2 パターン（手動調整） |
 
-Next.js は **端末**の `ws://obake.local:8765/ws/v1/robot`（または STA IP）へ接続する。
+Next.js は **端末**の `ws://obake.local:8765/ws/v1/robot`（または STA IP）へ接続する。  
+双方向トランシーバ・SDK ギャップ・段階計画はリポ根 [引き継ぎ.md](../../引き継ぎ.md) §2.1。
 
 ## フォールバック（PC サーバ）
 

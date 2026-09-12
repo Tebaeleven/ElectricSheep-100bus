@@ -102,6 +102,18 @@ inline constexpr uint32_t kMediaJpegStallMs = 8000;
 inline constexpr uint32_t kMediaReconnectMs = 5000;
 
 // =============================================================================
+// 手（hand.set）= 首 yaw 左右。数値だけ変えて後から手で調整する
+// open/close の2パターンのみ。pitch は現状維持。
+// =============================================================================
+
+/** hand.set open=true のとき首 yaw（度。左負・右正。サーボ API と同じ） */
+inline constexpr int kHandOpenYawDeg = 45;
+/** hand.set open=false のとき首 yaw（度） */
+inline constexpr int kHandCloseYawDeg = 0;
+/** hand.set 時の yaw 移動速度（Motion moveWithSpeed。100〜1000） */
+inline constexpr int kHandYawSpeed = 150;
+
+// =============================================================================
 // ハード定数（配線・アドレス。普段は触らない）
 // =============================================================================
 
