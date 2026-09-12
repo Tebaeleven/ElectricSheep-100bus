@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Field Report — Petassist</title>
+  <!--
+    APPEND ONLY.
+    新しい変更は #log の末尾に <article class="entry"> を足す。
+    過去の article は書き換えない。失敗も消さない。
+  -->
+  <style>
+    :root {
+      --ink: #302c55;
+      --paper: #f4efe4;
+      --note: #fffdf7;
+      --rule: #e4d9c5;
+      --allow: #ea580c;
+      --ok: #2f6f5e;
+      --fail: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 18px/1.65 "Hiragino Mincho ProN", "Yu Mincho", "Source Han Serif", Georgia, serif;
+    }
+    header {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 3rem 1.25rem 1.5rem;
+    }
+    header p.kicker {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--allow);
+    }
+    h1 {
+      margin: 0.4rem 0 0.6rem;
+      font-size: 2rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .lede { margin: 0; opacity: 0.88; }
+    #log {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 0 1.25rem 5rem;
+    }
+    article.entry {
+      background: var(--note);
+      border: 1px solid var(--rule);
+      border-radius: 2px;
+      padding: 1.25rem 1.35rem 1.4rem;
+      margin: 0 0 1.25rem;
+      box-shadow: 2px 3px 0 rgba(48, 44, 85, 0.04);
+    }
+    article.entry header {
+      padding: 0;
+      margin: 0 0 0.7rem;
+      max-width: none;
+    }
+    time {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      color: #6b657c;
+    }
+    h2 {
+      margin: 0.15rem 0 0;
+      font-size: 1.15rem;
+    }
+    .tag {
+      display: inline-block;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--ink);
+      padding: 0.12rem 0.4rem;
+      margin: 0 0.25rem 0 0;
+    }
+    .tag.fail { border-color: var(--fail); color: var(--fail); }
+    .tag.ok { border-color: var(--ok); color: var(--ok); }
+    .tag.decide { border-color: var(--allow); color: var(--allow); }
+    article.entry p { margin: 0.55rem 0 0; }
+    article.entry ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+    footer.colophon {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 0 1.25rem 3rem;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.8rem;
+      color: #6b657c;
+    }
+    a { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Agent Harness Hackathon · 2026-08-29 · SF</p>
+    <h1>許可が見えるまで、送らない。</h1>
+    <p class="lede">Petassist の現場メモ。方針、失敗、直し方。新しい出来事だけ足す。過去は消さない。</p>
+  </header>
+
+  <section id="log">
+    <article class="entry" id="e-2026-08-29-theme">
+      <header>
+        <time datetime="2026-08-29">2026-08-29 午前</time>
+        <h2>このハッカソンで作るもの</h2>
+      </header>
+      <span class="tag decide">方針</span>
+      <p>チャットボットは答える。エージェントは動く。ただし道具に届き、隔離してコードを回し、取り返しのつかない操作の前に人が止められること。土台は TrueForge。</p>
+      <p>コピーの芯はこれにした。<strong>エンジニアじゃないから AI エージェントが怖い、という時代を終わらせる。誰もが仲間にできるエージェント。</strong></p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-face">
+      <header>
+        <time datetime="2026-08-29">2026-08-29</time>
+        <h2>見えるのはペット。配管はハーネス。</h2>
+      </header>
+      <span class="tag decide">方針</span>
+      <p>Live2D / VRM も候補だったが、机に貼る動物のほうが「Allow するまで手が挙がって待つ」が一発で伝わる。仕事は MCP、安全は TrueForge、デスクは Petassist。</p>
+      <p>ねこは隔離して調べる（送れない）。うさぎは下書きだけ。いぬだけが外に出す。出す前に止まる。</p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-gap">
+      <header>
+        <time datetime="2026-08-29">2026-08-29 13:00</time>
+        <h2>物語は審査向き。配線はまだ半分だった</h2>
+      </header>
+      <span class="tag fail">失敗</span>
+      <p>README は「サンドボックスとサブエージェント」と書いていた。セッションに渡していたのは model と instructions と config だけ。MCP は載っていなかった。ねこ→うさぎ→いぬはアプリが順番に呼んでいた。</p>
+      <p>フォルダのフルアクセスは、TrueForge の隔離から外れてこの Mac でシェルを回す。ハーネスの強みの逆だったので、撮影デモからは外した。</p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-harness">
+      <header>
+        <time datetime="2026-08-29">2026-08-29 13:40</time>
+        <h2>ハーネス本線に載せ替える</h2>
+      </header>
+      <span class="tag ok">改善</span>
+      <p>ねこに読み取り MCP と sandbox と subagents。いぬに write MCP とツール承認。「この仕事を任せる」は TrueForge が緑でないと押せない。OpenAI フォールバックは撮影では使わない。</p>
+      <p>ログにサンドボックス起動・サブエージェント・MCP 接続を出す。審査員がハーネスを見られるようにした。</p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-qodo-miss">
+      <header>
+        <time datetime="2026-08-29">2026-08-29 13:52</time>
+        <h2>Qodo 付き PR を見逃していた</h2>
+      </header>
+      <span class="tag fail">失敗</span>
+      <span class="tag decide">方針</span>
+      <p>Mac Mini 賞の任意だと思っていた。公式ルールでは提出そのものの条件だった。実質的な変更は Qodo がレビューした GitHub PR を通す。main 直 push は数えない。</p>
+      <p>公開リポジトリ <a href="https://github.com/Yu220284/petassist">Yu220284/petassist</a> を作り、ハッカソン本体を <a href="https://github.com/Yu220284/petassist/pull/1">PR #1</a> に載せた。main は Create Next App のまま残して、レビュー対象がはっきりするようにした。</p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-qodo-high">
+      <header>
+        <time datetime="2026-08-29T14:01-07:00">2026-08-29 14:01</time>
+        <h2>Qodo が High を4つ出した</h2>
+      </header>
+      <span class="tag fail">失敗</span>
+      <span class="tag ok">改善</span>
+      <p>レビューは動いた。指摘は妥当だった。撮影デモの外のオーバーレイが、ホストのシェルと API キーに届く形になっていた。</p>
+      <ul>
+        <li>エージェント API は loopback のみ。撮影ジョブは grants を無視。フルアクセスは環境変数がないと拒否。</li>
+        <li>TrueForge の SSE delta を上書きせず連結。</li>
+        <li>OpenAI パスで兄弟ツールの応答が欠けないようにした。</li>
+        <li>フォルダ権限ではシェル禁止。子プロセスに秘密を渡さない。</li>
+      </ul>
+      <p>Medium も直した。Allow 失敗で pending が消える、reset が誰でも全員分消せる、Electron が任意 URL で preload を渡す。</p>
+      <p>スレッドに返信し、同じ PR でフォローアップの <code>/agentic_review</code> を投げた。マージは再レビューのあと。</p>
+    </article>
+
+    <article class="entry" id="e-2026-08-29-keep-going">
+      <header>
+        <time datetime="2026-08-29T14:05-07:00">2026-08-29 14:05</time>
+        <h2>Qodo は入った。実装は止めていない</h2>
+      </header>
+      <span class="tag decide">方針</span>
+      <p>GitHub App が PR にレビューを書けているので、インストールは成功している。このままデスクとハーネスの実装を進めてよい。ただし新しい実質変更は PR 経由。main に直接載せない。</p>
+      <p>このページは提出用のブログ草稿でもある。ここから先は末尾に追記するだけにする。</p>
+    </article>
+  </section>
+
+  <footer class="colophon">
+    追記専用。過去の記事は編集しない。<br />
+    ローカル: <a href="/field-report.html">/field-report.html</a>
+  </footer>
+</body>
+</html>

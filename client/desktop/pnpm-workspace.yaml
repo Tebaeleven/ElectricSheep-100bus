@@ -1,0 +1,9 @@
+# client/desktop はルート workspace から除外された独立プロジェクト。
+# このファイルがあることで pnpm はここを単独の workspace ルートとして扱う
+packages: []
+
+allowBuilds:
+  electron: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

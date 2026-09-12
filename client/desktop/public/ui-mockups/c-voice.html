@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>案C — こえの場</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --fog: #7ea8a0;
+      --deep: #16353a;
+      --peach: #f0a08a;
+      --cream: #f3ece3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; color: var(--cream);
+      font-family: "Zen Maru Gothic", sans-serif;
+      background:
+        radial-gradient(ellipse 90% 60% at 50% 110%, rgba(240,160,138,0.35), transparent 55%),
+        radial-gradient(ellipse 70% 50% at 80% 0%, rgba(126,168,160,0.4), transparent 50%),
+        linear-gradient(160deg, #0f2a2e 0%, #16353a 40%, #1c4248 100%);
+      overflow-x: hidden;
+    }
+    .label {
+      position: fixed; top: 14px; left: 16px; z-index: 20;
+      font-size: 12px; letter-spacing: 0.1em; opacity: 0.55;
+    }
+    .nav {
+      display: flex; gap: 12px; justify-content: flex-end;
+      padding: 18px 22px 0;
+    }
+    .nav a { color: var(--cream); text-decoration: none; font-size: 13px; opacity: 0.65; }
+    .nav a:hover { opacity: 1; color: var(--peach); }
+
+    .wrap {
+      max-width: 560px; margin: 0 auto;
+      min-height: calc(100dvh - 40px);
+      display: grid; align-content: end;
+      padding: 40px 22px 36px; gap: 18px;
+      position: relative;
+    }
+    .ghost-plane {
+      position: absolute; inset: 8% 0 auto; height: 48%;
+      display: grid; place-items: center;
+      pointer-events: none;
+    }
+    .ghost-plane::before {
+      content: "";
+      position: absolute; width: 70%; height: 70%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(126,168,160,0.35), transparent 68%);
+      filter: blur(8px);
+      animation: breath 5s ease-in-out infinite;
+    }
+    .ghost-plane img {
+      position: relative; width: min(48vw, 200px);
+      filter: drop-shadow(0 0 28px rgba(240,160,138,0.35));
+      animation: drift 6s ease-in-out infinite;
+    }
+    @keyframes breath {
+      0%,100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+    @keyframes drift {
+      0%,100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-14px) rotate(2deg); }
+    }
+
+    .brand {
+      font-family: "Shippori Mincho", serif;
+      font-size: clamp(2.2rem, 7vw, 3.2rem);
+      font-weight: 700; margin: 0; letter-spacing: 0.06em;
+      line-height: 1.2;
+    }
+    .wake {
+      margin: 0; font-size: 0.95rem; opacity: 0.7;
+    }
+    .wake strong { color: var(--peach); font-weight: 700; }
+
+    .wave {
+      display: flex; align-items: flex-end; gap: 5px; height: 36px;
+      margin: 4px 0 8px;
+    }
+    .wave span {
+      width: 5px; border-radius: 99px; background: var(--peach);
+      animation: bar 1.1s ease-in-out infinite;
+    }
+    .wave span:nth-child(1) { height: 12px; animation-delay: 0s; }
+    .wave span:nth-child(2) { height: 22px; animation-delay: .1s; }
+    .wave span:nth-child(3) { height: 30px; animation-delay: .2s; }
+    .wave span:nth-child(4) { height: 18px; animation-delay: .3s; }
+    .wave span:nth-child(5) { height: 26px; animation-delay: .15s; }
+    .wave span:nth-child(6) { height: 14px; animation-delay: .25s; }
+    @keyframes bar {
+      0%,100% { transform: scaleY(0.55); opacity: 0.55; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+
+    .care {
+      width: 100%; border: 0; border-radius: 999px;
+      padding: 1.25rem 1.5rem; cursor: pointer;
+      font-family: inherit; font-size: 1.25rem; font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--deep); background: var(--peach);
+      box-shadow: 0 0 0 1px rgba(243,236,227,0.12), 0 16px 40px rgba(0,0,0,0.28);
+      transition: transform .15s ease;
+    }
+    .care:active { transform: scale(0.985); }
+
+    .meta {
+      display: flex; flex-wrap: wrap; gap: 10px 16px;
+      font-size: 0.8rem; opacity: 0.55;
+    }
+    .reply {
+      margin: 0; padding: 0.9rem 1rem;
+      border-left: 3px solid var(--peach);
+      font-size: 1rem; line-height: 1.65; opacity: 0.92;
+      background: linear-gradient(90deg, rgba(243,236,227,0.08), transparent);
+    }
+  </style>
+</head>
+<body>
+  <p class="label">案C · こえの場</p>
+  <nav class="nav">
+    <a href="./index.html">目次</a>
+    <a href="./a-plaza.html">A</a>
+    <a href="./b-sticky.html">B</a>
+    <a href="./c-voice.html">C</a>
+  </nav>
+
+  <main class="wrap">
+    <div class="ghost-plane">
+      <img src="../ghost/ObakeOpen.webp" alt="" />
+    </div>
+
+    <h1 class="brand">Ghost<br />Companion</h1>
+    <p class="wake">よびかけ <strong>おばけちゃん</strong> · ボタンなしでも話す</p>
+
+    <div class="wave" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <button class="care" type="button">いまの調子を話す</button>
+    <p class="reply">リンク、開いたよ。スクショも撮れるよ。</p>
+    <div class="meta">
+      <span>常時リスニング</span>
+      <span>URL自動オープン</span>
+      <span>画面→base64</span>
+    </div>
+  </main>
+</body>
+</html>

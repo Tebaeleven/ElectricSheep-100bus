@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>案B — 透けスティッキー</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=IBM+Plex+Sans+JP:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #243044;
+      --pink: #e56b8c;
+      --glass: rgba(247, 250, 253, 0.78);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; overflow: hidden;
+      font-family: "IBM Plex Sans JP", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(20,28,48,0.18), rgba(20,28,48,0.42)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect fill='%23c5d4e6' width='160' height='160'/%3E%3Cpath fill='%23b7c8dc' d='M0 80h160v80H0z'/%3E%3Ccircle cx='30' cy='40' r='18' fill='%23e8eef5'/%3E%3Ccircle cx='120' cy='28' r='26' fill='%23eef3f8'/%3E%3C/svg%3E");
+      background-size: cover, 180px 180px;
+    }
+    .label {
+      position: fixed; top: 14px; left: 16px; z-index: 30;
+      color: #fff; font-size: 12px; letter-spacing: 0.08em; opacity: 0.8;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.35);
+    }
+    .nav {
+      position: fixed; top: 12px; right: 14px; z-index: 30;
+      display: flex; gap: 10px;
+    }
+    .nav a {
+      color: #fff; text-decoration: none; font-size: 13px;
+      opacity: 0.85; text-shadow: 0 1px 8px rgba(0,0,0,0.35);
+    }
+    .desktop-chrome {
+      position: absolute; inset: 18px 18px auto 18px;
+      height: 28px; border-radius: 10px;
+      background: rgba(255,255,255,0.22);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; gap: 7px; padding: 0 12px;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #ff8b7a; opacity: 0.9; }
+    .dot:nth-child(2) { background: #f0c75e; }
+    .dot:nth-child(3) { background: #7dcf8a; }
+
+    /* sticky ghost — compact */
+    .sticky {
+      position: absolute;
+      left: 58%; top: 22%;
+      width: 152px; height: 210px;
+      display: grid; place-items: center;
+      cursor: grab;
+      animation: bob 4s ease-in-out infinite;
+    }
+    .sticky img {
+      width: 118px; height: auto;
+      filter: drop-shadow(0 10px 16px rgba(0,0,0,0.28));
+      user-select: none; pointer-events: none;
+    }
+    @keyframes bob {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* expanded talk sheet growing from sticky */
+    .talk {
+      position: absolute;
+      left: calc(58% - 70px); top: 42%;
+      width: min(340px, calc(100vw - 40px));
+      border-radius: 22px;
+      background: var(--glass);
+      backdrop-filter: blur(18px) saturate(1.2);
+      box-shadow: 0 24px 50px rgba(20,28,48,0.28);
+      padding: 16px 16px 18px;
+      border: 1px solid rgba(255,255,255,0.55);
+    }
+    .talk h1 {
+      margin: 0 0 4px;
+      font-family: "M PLUS Rounded 1c", sans-serif;
+      font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02em;
+    }
+    .talk .sub { margin: 0 0 14px; font-size: 0.82rem; opacity: 0.65; }
+    .care {
+      width: 100%; border: 0; border-radius: 16px;
+      padding: 1.1rem 1rem; margin-bottom: 12px;
+      font-family: inherit; font-size: 1.15rem; font-weight: 700;
+      color: #fff; background: var(--pink); cursor: pointer;
+      box-shadow: 0 10px 22px rgba(229,107,140,0.35);
+    }
+    .lines { display: grid; gap: 8px; max-height: 160px; overflow: auto; }
+    .line {
+      max-width: 90%; padding: 0.55rem 0.8rem; border-radius: 14px;
+      font-size: 0.88rem; line-height: 1.45;
+    }
+    .line.u { margin-left: auto; background: var(--pink); color: #fff; }
+    .line.g { background: rgba(255,255,255,0.9); }
+    .mic {
+      position: absolute; right: 14px; top: 14px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--pink); box-shadow: 0 0 0 0 rgba(229,107,140,0.5);
+      animation: pulse 1.6s ease-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(229,107,140,0.45); }
+      70% { box-shadow: 0 0 0 12px rgba(229,107,140,0); }
+      100% { box-shadow: 0 0 0 0 rgba(229,107,140,0); }
+    }
+    .caption {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-size: 12px; opacity: 0.75;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <p class="label">案B · 透けスティッキー</p>
+  <nav class="nav">
+    <a href="./index.html">目次</a>
+    <a href="./a-plaza.html">A</a>
+    <a href="./b-sticky.html">B</a>
+    <a href="./c-voice.html">C</a>
+  </nav>
+  <div class="desktop-chrome" aria-hidden="true">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+  </div>
+
+  <div class="sticky" title="お化け">
+    <img src="../ghost/ObakeNormal.webp" alt="" />
+  </div>
+
+  <section class="talk" aria-label="会話">
+    <span class="mic" aria-hidden="true"></span>
+    <h1>Ghost Companion</h1>
+    <p class="sub">ダブルクリックで開く · 常に手前</p>
+    <button class="care" type="button">いまの調子を話す</button>
+    <div class="lines">
+      <div class="line u">スクショ撮って</div>
+      <div class="line g">画面、撮れたよ。なにが写ってる？</div>
+    </div>
+  </section>
+
+  <p class="caption">机の上に1体だけ · Electron sticky 想定</p>
+</body>
+</html>

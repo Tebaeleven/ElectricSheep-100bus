@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>案A — ひろばデスク</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #2a3350;
+      --pink: #e56b8c;
+      --pink-deep: #d45a7c;
+      --mist: #dfe9f4;
+      --paper: #f7fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--ink);
+      font-family: "Zen Kaku Gothic New", sans-serif;
+      background:
+        radial-gradient(1200px 700px at 70% -10%, #ffe4ec 0%, transparent 55%),
+        radial-gradient(900px 600px at 0% 100%, #c9dff5 0%, transparent 50%),
+        linear-gradient(165deg, #eef4fb 0%, #f6f8fc 45%, #e8f0f8 100%);
+    }
+    .label {
+      position: fixed; top: 14px; left: 16px; z-index: 20;
+      font-size: 12px; letter-spacing: 0.08em; opacity: 0.55;
+    }
+    .nav {
+      display: flex; gap: 10px; justify-content: flex-end;
+      padding: 18px 22px 0;
+    }
+    .nav a {
+      color: var(--ink); text-decoration: none; font-size: 13px;
+      opacity: 0.7; border-bottom: 1px solid transparent;
+    }
+    .nav a:hover { opacity: 1; border-color: var(--pink); }
+    .stage {
+      max-width: 720px; margin: 0 auto;
+      min-height: calc(100dvh - 48px);
+      display: grid; align-content: center;
+      padding: 24px 20px 48px; gap: 28px;
+      text-align: center;
+    }
+    .brand {
+      font-family: "Kiwi Maru", serif;
+      font-size: clamp(2.4rem, 8vw, 3.6rem);
+      font-weight: 500; letter-spacing: 0.04em;
+      margin: 0; line-height: 1.15;
+      color: var(--ink);
+    }
+    .lead {
+      margin: 0 auto; max-width: 26rem;
+      font-size: 1.05rem; line-height: 1.7; opacity: 0.78;
+    }
+    .ghost {
+      width: min(42vw, 220px); height: auto; margin: 8px auto 0;
+      filter: drop-shadow(0 18px 28px rgba(229,107,140,0.28));
+      animation: float 3.6s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .cta {
+      display: block; width: min(100%, 420px); margin: 8px auto 0;
+      border: 0; border-radius: 22px; cursor: pointer;
+      padding: 1.35rem 1.5rem;
+      font-family: inherit; font-size: 1.35rem; font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #fff; background: var(--pink);
+      box-shadow: 0 14px 30px rgba(229,107,140,0.35);
+      transition: transform .15s ease, background .15s ease;
+    }
+    .cta:hover { background: var(--pink-deep); transform: translateY(-2px); }
+    .cta:active { transform: translateY(1px) scale(0.99); }
+    .hint {
+      font-size: 0.85rem; opacity: 0.55; margin: 0;
+    }
+    .chat {
+      margin: 12px auto 0; width: min(100%, 420px);
+      text-align: left; display: grid; gap: 8px;
+    }
+    .bubble {
+      max-width: 88%; padding: 0.7rem 0.95rem; border-radius: 18px;
+      font-size: 0.95rem; line-height: 1.55;
+    }
+    .bubble.user {
+      margin-left: auto; background: var(--pink); color: #fff;
+      border-bottom-right-radius: 6px;
+    }
+    .bubble.ghost {
+      background: rgba(255,255,255,0.82);
+      border-bottom-left-radius: 6px;
+      box-shadow: 0 6px 18px rgba(42,51,80,0.06);
+    }
+  </style>
+</head>
+<body>
+  <p class="label">案A · ひろばデスク</p>
+  <nav class="nav">
+    <a href="./index.html">目次</a>
+    <a href="./a-plaza.html">A</a>
+    <a href="./b-sticky.html">B</a>
+    <a href="./c-voice.html">C</a>
+  </nav>
+  <main class="stage">
+    <h1 class="brand">Ghost Companion</h1>
+    <p class="lead">デスクにひとり。いまの調子を話してね。</p>
+    <img class="ghost" src="../ghost/ObakeNormal.webp" alt="お化け" />
+    <button class="cta" type="button">いまの調子を話す</button>
+    <p class="hint">よびかけ「おばけちゃん」· URLはそのまま開く</p>
+    <div class="chat" aria-hidden="true">
+      <div class="bubble user">https://example.com 見て</div>
+      <div class="bubble ghost">リンク、開いたよ。</div>
+    </div>
+  </main>
+</body>
+</html>

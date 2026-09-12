@@ -1,0 +1,15 @@
+{
+  "name": "Petassist Pocket",
+  "short_name": "Pocket",
+  "start_url": "/pocket",
+  "display": "standalone",
+  "background_color": "#eef3f9",
+  "theme_color": "#302c55",
+  "icons": [
+    {
+      "src": "/party/cat/02.webp",
+      "sizes": "192x192",
+      "type": "image/webp"
+    }
+  ]
+}

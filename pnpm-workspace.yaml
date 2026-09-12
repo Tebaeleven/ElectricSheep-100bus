@@ -1,5 +1,8 @@
 packages:
   - "client/*"
+  # client/desktop は Electron 同梱の独立プロジェクト（Next 15 系・electron-builder）。
+  # ルートの catalog / turbo verify と分離するため workspace から除外する
+  - "!client/desktop"
   - "packages/*"
   - "server/*"
 
