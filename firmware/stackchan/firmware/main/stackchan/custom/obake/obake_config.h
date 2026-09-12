@@ -35,9 +35,12 @@ inline constexpr uint32_t kLookAfterBlinkMs = 200;
 inline constexpr int kLookRangeX = 7;
 inline constexpr int kLookRangeY = 10;
 
-/** 口 ∪/∩ 切替間隔（視線と独立。長くすると口の再描画が減る） */
-inline constexpr uint32_t kMouthFlipMinMs = 3000;
-inline constexpr uint32_t kMouthFlipSpanMs = 4000;
+/**
+ * 口 ∪/∩ 切替間隔（視線と独立。.ino bringup と同じ体感に合わせる）。
+ * 以前 3–7s だと「表情が動かない」に見えやすかった。
+ */
+inline constexpr uint32_t kMouthFlipMinMs = 400;
+inline constexpr uint32_t kMouthFlipSpanMs = 1400;
 
 /** PaHub 目・ToF を回す hw タスク周期 */
 inline constexpr uint32_t kHwTickMs = 40;
@@ -115,10 +118,10 @@ inline constexpr uint32_t kMediaReconnectMs = 5000;
 // open/close の2パターンのみ。pitch は現状維持。
 // =============================================================================
 
-/** hand.set open=true のとき首 yaw（度。左負・右正。サーボ API と同じ） */
-inline constexpr int kHandOpenYawDeg = 45;
-/** hand.set open=false のとき首 yaw（度） */
-inline constexpr int kHandCloseYawDeg = 0;
+/** hand.set open=true のとき首 yaw（度。+12〜+52 の開側） */
+inline constexpr int kHandOpenYawDeg = 52;
+/** hand.set open=false のとき首 yaw（度。同じ範囲の閉側＝逆） */
+inline constexpr int kHandCloseYawDeg = 12;
 /** hand.set 時の yaw 移動速度（Motion moveWithSpeed。100〜1000） */
 inline constexpr int kHandYawSpeed = 150;
 

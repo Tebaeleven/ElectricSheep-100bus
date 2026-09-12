@@ -8,9 +8,11 @@
  * - 下行（未実装・フック予約）: サーバ音声のスピーカ再生、サーバ経由ウェイク→既存 LED
  * - hand.set: グリッパではない。サーバ信号で首 yaw の open/close（度数は obake_config.h）。
  *   実装は HandleRobotJson + ServoRequestSetHeadAngles（大きな cpp 改修はメモリ作業と分離）
- * - ブラウザ簡易制御: GET http://<ip>:8765/ （光る/消す/開く/閉じる）
+ * - ブラウザ簡易制御: GET http://<ip>:8765/ （光る/消す/開く/閉じる + 角度数値入力）
  *   POST /obake/led_on・/obake/led_off・/obake/hand_open・/obake/hand_close
  *   POST /obake/hand  body {"open":true|false}（Next.js 向け統一。応答に open を含む）
+ *   POST /obake/hand_yaw body {"yaw":度}（任意角度チューニング）
+ *   GET  /obake/hand_status → yaw/pitch と config の open_deg/close_deg
  *   WS TEXT {"type":"hand.set","open":true|false} → ack {"type":"ack","cmd":"hand.set","open":...}
  *   （httpd はキューのみ。LED/手は PreUpdate で drain。hand は WS hand.set と同じ yaw）
  * - 契約の正本メモはリポ根の 引き継ぎ.md「双方向トランシーバ」節

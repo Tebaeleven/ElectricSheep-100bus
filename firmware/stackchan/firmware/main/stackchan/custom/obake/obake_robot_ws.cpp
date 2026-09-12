@@ -432,6 +432,7 @@ void ControlApiDrain()
                 int cur_pitch = 0;
                 ServoGetHeadAngles(cur_yaw, cur_pitch);
                 const bool open = (cmd == ControlCmd::HandOpen);
+                // 開く=+52 / 閉じる=+12（obake_config.h）
                 const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
                 ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
                 ESP_LOGI(TAG, "control drain hand open=%d yaw=%d pitch=%d", open ? 1 : 0, yaw, cur_pitch);
@@ -441,7 +442,7 @@ void ControlApiDrain()
     }
 }
 
-/** ブラウザ用の最小 HTML（4ボタン）。見た目は問わない */
+/** ブラウザ用の最小 HTML（光る/消す/開く/閉じるのみ） */
 static const char kControlHtml[] =
     "<!DOCTYPE html><html><head><meta charset=utf-8>"
     "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
@@ -469,7 +470,6 @@ static const char kControlHtml[] =
     "}"
     "</script>"
     "</body></html>";
-
 /** 常に JSON で ok/error を返す（フロントの判定を簡単にする） */
 esp_err_t SendJsonResult(httpd_req_t* req, bool ok, const char* action, const char* err = nullptr)
 {
@@ -866,8 +866,8 @@ bool StartHttpdOnce()
     config.server_port = static_cast<uint16_t>(kRobotWsPort);
     // WS + ブラウザ keep-alive + 連打 POST で 4 だと枯渇しやすい
     config.max_open_sockets = 7;
-    // WS + GET / /control + POST led_on/off hand_open/close + hand
-    config.max_uri_handlers = 12;
+    // WS + GET / /control + POST led/hand + hand_yaw + hand_status
+    config.max_uri_handlers = 14;
     config.backlog_conn = 2;
     config.lru_purge_enable = true;
     // 内部 DRAM の httpd タスクを避け、SPIRAM 上の小さめスタックで動かす
@@ -963,9 +963,28 @@ bool StartHttpdOnce()
         .handle_ws_control_frames = false,
         .supported_subprotocol = nullptr,
     };
+    // 任意角度チューニング: body {"yaw":度}
+    static const httpd_uri_t kHandYawUri = {
+        .uri = "/obake/hand_yaw",
+        .method = HTTP_POST,
+        .handler = HandYawHttpHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    static const httpd_uri_t kHandStatusUri = {
+        .uri = "/obake/hand_status",
+        .method = HTTP_GET,
+        .handler = HandStatusHttpHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
 
-    const httpd_uri_t* uris[] = {&kWsUri,     &kRootUri,     &kControlUri,  &kLedOnUri, &kLedOffUri,
-                                 &kHandOpenUri, &kHandCloseUri, &kHandUri};
+    const httpd_uri_t* uris[] = {&kWsUri,       &kRootUri,     &kControlUri,   &kLedOnUri,    &kLedOffUri,
+                                 &kHandOpenUri, &kHandCloseUri, &kHandUri,      &kHandYawUri, &kHandStatusUri};
     for (const httpd_uri_t* u : uris) {
         err = httpd_register_uri_handler(hd, u);
         if (err != ESP_OK) {
