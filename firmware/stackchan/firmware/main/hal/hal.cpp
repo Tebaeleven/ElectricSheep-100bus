@@ -176,9 +176,10 @@ static void _stackchan_update_task(void* param)
             is_setup_done = true;
         }
 
-        view::update_home_indicator();
+        // 口 UI / IP ラベル更新のあとにホームを回し、前面・ジェスチャを奪われないようにする
         view::update_status_bar();
         stackchan::custom::OnUiFrameUpdate();
+        view::update_home_indicator();
     }
 }
 

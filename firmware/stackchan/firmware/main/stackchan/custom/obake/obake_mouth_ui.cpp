@@ -1,5 +1,5 @@
 /*
- * アバターの目口を隠し、白キャンバスに ∪/∩ と cm / ALT_CM を描く。
+ * アバターの目口を隠し、白キャンバスに ∪/∩・cm / ALT_CM・STA IP を描く。
  */
 #include "obake_mouth_ui.h"
 
@@ -13,8 +13,10 @@
 #include <stackchan/stackchan.h>
 
 #include <cmath>
+#include <cstdio>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
+#include <esp_netif.h>
 #include <esp_timer.h>
 #include <lvgl.h>
 #include <string.h>
@@ -32,11 +34,16 @@ lv_obj_t* s_canvas = nullptr;
 lv_obj_t* s_label_tl = nullptr;
 lv_obj_t* s_label_tr = nullptr;
 lv_obj_t* s_label_bl = nullptr;
+/** STA IP 用（タップ非奪取。ホームボタンより前面にしない） */
+lv_obj_t* s_label_ip = nullptr;
 uint16_t* s_buf = nullptr;
 int s_drawn_cm = -2;
 bool s_drawn_smile = false;
 /** 標準顔・吹き出しの保険隠しを間引くための次回時刻 (ms) */
 uint32_t s_next_hide_ms = 0;
+/** IP 再読取間隔（DHCP 変動・接続遅れに追従） */
+uint32_t s_next_ip_ms = 0;
+char s_ip_text[24] = "--";
 
 uint32_t now_ms()
 {
@@ -116,6 +123,28 @@ void update_status_labels(int cm)
         lv_label_set_text(s_label_tr, "-- cm");
         lv_label_set_text(s_label_bl, "ALT_CM=----");
     }
+}
+
+/** STA IPv4 を読み、IP ラベルを更新（未接続時は --） */
+void update_ip_label()
+{
+    if (!s_label_ip) {
+        return;
+    }
+    char buf[24] = "--";
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif != nullptr) {
+        esp_netif_ip_info_t ip{};
+        if (esp_netif_get_ip_info(netif, &ip) == ESP_OK && ip.ip.addr != 0) {
+            std::snprintf(buf, sizeof(buf), IPSTR, IP2STR(&ip.ip));
+        }
+    }
+    if (std::strcmp(buf, s_ip_text) == 0) {
+        return;
+    }
+    std::snprintf(s_ip_text, sizeof(s_ip_text), "%s", buf);
+    // 端末サーバ接続用に STA IP を常時表示（タップは奪わない）
+    lv_label_set_text_fmt(s_label_ip, "IP %s", s_ip_text);
 }
 
 void set_default_face_hidden(bool hide)
@@ -212,15 +241,22 @@ void MouthUiCreate()
     s_label_tl = make_label(parent, LV_ALIGN_TOP_LEFT, 6, 6);
     s_label_tr = make_label(parent, LV_ALIGN_TOP_RIGHT, -6, 6);
     s_label_bl = make_label(parent, LV_ALIGN_BOTTOM_LEFT, 6, -6);
+    // 下中央: STA IP（ホームボタン帯と重ならないよう少し上）
+    s_label_ip = make_label(parent, LV_ALIGN_BOTTOM_MID, 0, -36);
     lv_obj_set_style_text_color(s_label_tr, lv_color_black(), 0);
+    lv_obj_set_style_text_color(s_label_ip, lv_color_hex(0x222222), 0);
     lv_obj_move_foreground(s_label_tl);
     lv_obj_move_foreground(s_label_tr);
     lv_obj_move_foreground(s_label_bl);
+    lv_obj_move_foreground(s_label_ip);
 
     s_drawn_cm = -2;
     s_drawn_smile = true;
+    s_next_ip_ms = 0;
+    s_ip_text[0] = '\0';
     paint_mouth(true);
     update_status_labels(-1);
+    update_ip_label();
     ESP_LOGI(TAG, "mouth UI ready (wake=%s)", kWakeDisplayName);
 }
 
@@ -240,6 +276,10 @@ void MouthUiDestroy()
         lv_obj_del(s_label_bl);
         s_label_bl = nullptr;
     }
+    if (s_label_ip) {
+        lv_obj_del(s_label_ip);
+        s_label_ip = nullptr;
+    }
     if (s_canvas) {
         lv_obj_del(s_canvas);
         s_canvas = nullptr;
@@ -251,6 +291,8 @@ void MouthUiDestroy()
     // set_default_face_hidden(false) はしない — パネルは白のまま
     s_drawn_cm = -2;
     s_next_hide_ms = 0;
+    s_next_ip_ms = 0;
+    s_ip_text[0] = '\0';
 }
 
 void MouthUiUpdate()
@@ -261,6 +303,11 @@ void MouthUiUpdate()
     // 毎フレームの avatar 操作は重いので、保険間隔だけ隠し直す
     if (now_ms() >= s_next_hide_ms) {
         ensure_obake_overlay();
+    }
+    // DHCP / 接続遅れに合わせ IP を間欠更新（ホーム前面は home_indicator 側で担保）
+    if (now_ms() >= s_next_ip_ms) {
+        s_next_ip_ms = now_ms() + 2000;
+        update_ip_label();
     }
     const bool smile = EyesMouthSmile();
     const int cm = TofLastCm();

@@ -1,5 +1,5 @@
 /*
- * Custom 時の口 UI（白地 ∪/∩）＋距離表示。
+ * Custom 時の口 UI（白地 ∪/∩）＋距離・STA IP 表示。
  */
 #pragma once
 

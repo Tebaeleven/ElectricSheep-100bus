@@ -3,7 +3,7 @@ description: Obake は Stack-chan ベース。管理は Obake_device のみ。�
 alwaysApply: true
 ---
 
-# Obake（v0.5.2）
+# Obake（v0.5.3）
 
 脳は **Stack-chan CoreS3**。カメラ・マイク・スピーカもそれ。旧案（専用 CoreS3・Unit LCD・ToF4M）に戻さない。
 
@@ -27,7 +27,7 @@ Port.A → PaHub v2.1（0x70）: CH0 左目 / CH1 右目 / CH2 ToF U010。目は
 - 呼びかけ: 「おばけちゃん」（必須）。ウェイク LED は Stack-chan のまま
 - CoreS3 液晶: **口**（CUSTOM）
 - 移動: 別マイコン。CoreS3 は「来て」「20 cm 維持」を送る。通信は未定（Wi-Fi or BLE）。スタブを先に置く
-- サーボ（足・首）: **サーバ／API 指令のみ可動**（自動は modifyLock）。Media は現行クライアント（`:8030`）。**次は端末サーバ再挑戦**（失敗経緯は引き継ぎ §5）
+- サーボ（足・首）: **サーバ／API 指令のみ可動**（自動は modifyLock）。Media は **端末 WS サーバ**（`:8765/ws/v1/robot`、`obake.local`）。`kMediaListenAsServer=0` で旧 PC クライアント（`:8030`）
 - 吹き出し: CUSTOM では出さない。下スワイプホームは従来どおり
 - assets: Multinet で ~5.5MB → `partitions.csv` の assets は **6MB**（不足するとランチャーアイコン全滅）
 - 詳細正本: [引き継ぎ.md](../../引き継ぎ.md)

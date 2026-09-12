@@ -135,7 +135,8 @@ void EnterCustomSession()
     GetHAL().setLaserEnabled(false);
     // UI ready が先に終わっていても HW を起動（OnXiaozhiUiReady は一度きりのため）
     stackchan::obake::RuntimeStart();
-    // Media WS は Xiaozhi/Wi-Fi 準備後のみ（ここで始めると再起動する）
+    // httpd / Media はここでは始めない（内部 DRAM 不足で httpd_start が落ちる）
+    // 開始は OnXiaozhiUiReady → RobotWsStart のみ
 #endif
 }
 
@@ -176,6 +177,7 @@ void OnXiaozhiUiReady()
     StartCustomRuntime();
     // CUSTOM 時のみおばけ顔（両目・ToF・口）を起動
     stackchan::obake::RuntimeStart();
+    // httpd はここから遅延起動（EnterCustomSession では呼ばない）
     stackchan::obake::RobotWsStart();
 #if CONFIG_SC_CUSTOM_ADDONS
     stackchan::addons::create_addon_panel(lv_screen_active());
