@@ -112,12 +112,19 @@ void ServoApiDrain()
     if (local.empty()) {
         return;
     }
+    // CUSTOM/アバター未準備のとき捨てると httpd 先行レースで「押したのに動かない」になる
     if (!GetStackChan().hasAvatar()) {
+        std::lock_guard<std::mutex> lock(s_mu);
+        while (!local.empty()) {
+            s_queue.push_front(local.back());
+            local.pop_back();
+        }
         return;
     }
 
     auto& motion = GetStackChan().motion();
     for (const auto& cmd : local) {
+        // modifyLock / 自動ジェスチャ中でもサーバ・制御ページ指令を通す
         stackchan::custom::BeginUserDirectedMotion();
         if (cmd.type == CmdType::GoHome) {
             motion.goHome(cmd.speed);

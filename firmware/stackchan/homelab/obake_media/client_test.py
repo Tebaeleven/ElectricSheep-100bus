@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # 端末待ち受け Robot WS の簡易確認クライアント
-# 使い方: python client_test.py <端末IP>
+# 使い方: python client_test.py obake.local  または  python client_test.py <端末IP>
 from __future__ import annotations
 
 import asyncio
@@ -67,6 +67,6 @@ async def main(host: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage: python client_test.py <device-ip>")
+        print("usage: python client_test.py <device-ip-or-obake.local>")
         sys.exit(2)
     asyncio.run(main(sys.argv[1]))

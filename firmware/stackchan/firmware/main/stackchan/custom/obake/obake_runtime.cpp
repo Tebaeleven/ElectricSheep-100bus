@@ -17,6 +17,7 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <hal/board/hal_bridge.h>
 
 namespace stackchan::obake {
 namespace {
@@ -37,7 +38,7 @@ uint32_t now_ms()
     return static_cast<uint32_t>(esp_timer_get_time() / 1000ULL);
 }
 
-/** PaHub → 目 → ToF */
+/** PaHub → 目 → ToF。失敗時も口アニメ用に EyesInit を一度呼ぶ */
 bool start_pahub_chain()
 {
     if (PahubInit()) {
@@ -45,7 +46,8 @@ bool start_pahub_chain()
         TofInit();
         return true;
     }
-    ESP_LOGW(TAG, "PaHub miss (tag=%s)", PahubStatusTag());
+    ESP_LOGW(TAG, "PaHub miss (tag=%s) — mouth anim without OLEDs", PahubStatusTag());
+    EyesInit();  // PaHub 無しでも口タイマーを起動
     return false;
 }
 
@@ -58,9 +60,15 @@ void hw_task(void* /*arg*/)
 
     int retries_left = kPahubRetryMax;
     uint32_t next_retry_ms = now_ms() + kPahubRetryMs;
+    uint32_t next_bus_out_ms = now_ms() + 3000;
 
     while (s_task_run.load(std::memory_order_relaxed)) {
         const uint32_t t = now_ms();
+        // Port.A プルアップが落ちることがあるので周期的に BUS_OUT 再アサート
+        if (t >= next_bus_out_ms) {
+            next_bus_out_ms = t + 3000;
+            (void)hal_bridge::board_ensure_port_a_bus_out();
+        }
         // 未検出なら周期的に deinit→再 init（配線・電源遅延対策）
         if (!PahubOk() && retries_left > 0 && t >= next_retry_ms) {
             ESP_LOGW(TAG, "PaHub retry (%d left)", retries_left);
@@ -91,6 +99,7 @@ void RuntimeStart()
         s_started = true;
         ESP_LOGI(TAG, "start Obake face HW (deferred init)");
         s_task_run.store(true, std::memory_order_relaxed);
+        // HW タスクは内部スタック。SPIRAM スタックは flash cache 無効時に assert する
         xTaskCreatePinnedToCore(hw_task, "obake_hw", 8192, nullptr, 5, &s_task, 0);
     }
     MouthUiCreate();

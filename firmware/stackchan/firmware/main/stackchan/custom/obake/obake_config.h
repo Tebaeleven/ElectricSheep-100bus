@@ -51,28 +51,53 @@ inline constexpr uint32_t kMouthHideRetryMs = 500;
 // =============================================================================
 
 /**
- * 起動後に CUSTOM を自動オープンするか。
+ * 電源投入（冷起動）後に CUSTOM を自動オープンするか。
  * 0 = 手動（ランチャーでタップ）
- * 1 = 自動（エージェント検証向け。既定 ON）
+ * 1 = 冷起動の1回だけ自動（既定）。帰宅→warm reboot 後は NVS 抑止で再自動しない。
+ *     手動で CUSTOM を開き直すことは可能（obake_autocustom）。
  */
 inline constexpr int kObakeAutoCustom = 1;
 
+/**
+ * Wi-Fi 経由のファーム版チェック／自動 OTA を止める。
+ * 1 = tenclass OTA ポーリング・CheckAndInstallFirmware・プロファイル OTA を無効（既定）
+ * 0 = 従来どおり（接続時 CheckNewVersion → 新版があれば Upgrade）
+ * Media httpd（:8765）や通常 Wi-Fi は影響しない。検証中の途中差し替えを防ぐ。
+ */
+inline constexpr int kDisableWifiOtaVersionCheck = 1;
+
 // =============================================================================
-// Media WebSocket（端末=クライアント → PC/homelab サーバ）
-// Windows hosts は PC ブラウザ専用。ESP は下記 LAN マップ（または LAN DNS）で解決する。
+// Media / Robot WebSocket
+// 既定は端末がサーバ（Next.js が直接接続）。0 にすると旧 PC クライアント経路。
 // =============================================================================
 
-/** ログ・URL 表示用ホスト名（接続先の論理名） */
+/**
+ * 1 = 端末が ws://<STA>:8765/ws/v1/robot を待ち受け（既定）
+ * 0 = 従来どおり PC の server.py へ外向き接続（フォールバック）
+ */
+inline constexpr int kMediaListenAsServer = 1;
+
+/** 端末サーバの待ち受け（kMediaListenAsServer=1。client_test.py と一致） */
+inline constexpr int kRobotWsPort = 8765;
+inline constexpr const char* kRobotWsPath = "/ws/v1/robot";
+/** mDNS ホスト（obake.local）。DHCP IP 変動の緩和 */
+inline constexpr const char* kRobotWsMdnsHost = "obake";
+/** Wi-Fi 接続後、httpd_start までの追加待ち（CUSTOM 直後の内部 DRAM 逼迫回避） */
+inline constexpr uint32_t kRobotWsPostWifiDelayMs = 6000;
+/** httpd_start 失敗時の最大再試行（無限リトライは listen FD 枯渇の原因） */
+inline constexpr int kRobotWsHttpdMaxRetry = 3;
+
+/** ログ・URL 表示用ホスト名（クライアント経路の論理名） */
 inline constexpr const char* kMediaWsHost = "obake.media.stackchan";
 /**
- * ESP 用 A レコード相当（ファーム内蔵マップ）。
+ * ESP 用 A レコード相当（ファーム内蔵マップ）。kMediaListenAsServer=0 のとき使う。
  * 空 "" なら OS DNS のみ。ルータ DNS が無い検証では PC の Wi-Fi IPv4 を入れる。
  * PC の IP が変わったらここと hosts / dns_responder を更新する。
  */
 inline constexpr const char* kMediaWsLanIp = "172.16.0.66";
-/** サーバ待ち受けポート（homelab/obake_media/server.py と一致） */
+/** フォールバック時の PC サーバ待ち受け（homelab/obake_media/server.py と一致） */
 inline constexpr int kMediaWsPort = 8030;
-/** WebSocket パス */
+/** フォールバック時の WebSocket パス */
 inline constexpr const char* kMediaWsPath = "/obake/media";
 
 /** JPEG 品質・送信間隔 */
@@ -84,6 +109,18 @@ inline constexpr uint32_t kMediaPcmIntervalMs = 200;
 inline constexpr uint32_t kMediaJpegStallMs = 8000;
 /** 再接続間隔 */
 inline constexpr uint32_t kMediaReconnectMs = 5000;
+
+// =============================================================================
+// 手（hand.set）= 首 yaw 左右。数値だけ変えて後から手で調整する
+// open/close の2パターンのみ。pitch は現状維持。
+// =============================================================================
+
+/** hand.set open=true のとき首 yaw（度。左負・右正。サーボ API と同じ） */
+inline constexpr int kHandOpenYawDeg = 45;
+/** hand.set open=false のとき首 yaw（度） */
+inline constexpr int kHandCloseYawDeg = 0;
+/** hand.set 時の yaw 移動速度（Motion moveWithSpeed。100〜1000） */
+inline constexpr int kHandYawSpeed = 150;
 
 // =============================================================================
 // ハード定数（配線・アドレス。普段は触らない）

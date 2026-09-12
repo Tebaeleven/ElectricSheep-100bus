@@ -8,6 +8,7 @@
 #include "custom_ota.h"
 
 #if CONFIG_SC_CUSTOM_LAYER
+#include "obake/obake_config.h"
 #include "obake/obake_runtime.h"
 #include "obake/obake_robot_ws.h"
 #endif
@@ -45,6 +46,7 @@
 #endif
 
 #include <hal/hal.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 #include <mcp_server.h>
 #include <mooncake_log.h>
@@ -135,7 +137,8 @@ void EnterCustomSession()
     GetHAL().setLaserEnabled(false);
     // UI ready が先に終わっていても HW を起動（OnXiaozhiUiReady は一度きりのため）
     stackchan::obake::RuntimeStart();
-    // Media WS は Xiaozhi/Wi-Fi 準備後のみ（ここで始めると再起動する）
+    // httpd / Media はここでは始めない（内部 DRAM 不足で httpd_start が落ちる）
+    // 開始は OnXiaozhiUiReady → RobotWsStart のみ
 #endif
 }
 
@@ -143,8 +146,15 @@ void LeaveCustomSession()
 {
     s_custom_session = false;
 #if CONFIG_SC_CUSTOM_LAYER
+    // ホーム／再起動前に httpd と HW を順序立てて止め、内部 DRAM 断片化・UAF を避ける
+    mclog::tagInfo(_tag, "leave custom: before stop internal={} spiram={}",
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
     stackchan::obake::RobotWsStop();
     stackchan::obake::RuntimeStop();
+    mclog::tagInfo(_tag, "leave custom: after stop internal={} spiram={}",
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
 #endif
 }
 
@@ -176,6 +186,7 @@ void OnXiaozhiUiReady()
     StartCustomRuntime();
     // CUSTOM 時のみおばけ顔（両目・ToF・口）を起動
     stackchan::obake::RuntimeStart();
+    // httpd はここから遅延起動（EnterCustomSession では呼ばない）
     stackchan::obake::RobotWsStart();
 #if CONFIG_SC_CUSTOM_ADDONS
     stackchan::addons::create_addon_panel(lv_screen_active());
@@ -254,7 +265,9 @@ void OnAgentProfileSync()
     using stackchan::agent_profile::ProfileId;
 
     const ProfileId profile = GetActiveProfile();
-    const bool run_ota      = profile != ProfileId::Cloud;
+    // Wi-Fi 版チェックは止め、プロファイル URL 書き込みだけ行う（途中 OTA 差し替え防止）
+    const bool run_ota =
+        !stackchan::obake::kDisableWifiOtaVersionCheck && profile != ProfileId::Cloud;
     if (!ApplyProfile(profile, run_ota)) {
         mclog::tagWarn(_tag, "agent profile sync failed (OTA check={})", run_ota);
     }

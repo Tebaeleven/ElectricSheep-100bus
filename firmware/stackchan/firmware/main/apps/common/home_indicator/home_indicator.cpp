@@ -144,6 +144,10 @@ public:
                 _bg_mask->setHidden(true);
             }
         }
+        // IP / セットアップの全面パネルより後ろに回らないよう、表示中は毎フレーム前面へ
+        if (!_is_hidden) {
+            _bg_mask->moveForeground();
+        }
     }
 
     void show()

@@ -8,6 +8,7 @@
 #include <mooncake.h>
 #include <mooncake_log.h>
 #include <sdkconfig.h>
+#include <stackchan/custom/obake/obake_autocustom.h>
 #include <stackchan/custom/obake/obake_config.h>
 #include <stackchan/stackchan.h>
 #include <cstdint>
@@ -79,18 +80,16 @@ void AppLauncher::create_launcher_view()
     };
 
 #if CONFIG_SC_CUSTOM_LAYER
-    // kObakeAutoCustom!=0 のときだけ CUSTOM を自動起動（0=手動タップ）
-    if (stackchan::obake::kObakeAutoCustom != 0) {
-        static bool s_obake_custom_autostart_done = false;
-        if (!s_obake_custom_autostart_done) {
-            s_obake_custom_autostart_done = true;
-            for (const auto& props : getAppProps()) {
-                if (props.info.name == "CUSTOM") {
-                    mclog::tagInfo(getAppInfo().name, "Obake autostart CUSTOM id={} (kObakeAutoCustom={})",
-                                   props.appID, stackchan::obake::kObakeAutoCustom);
-                    openApp(props.appID);
-                    break;
-                }
+    // 冷起動の1回のみ自動。帰宅後の warm reboot では NVS 抑止でスキップ
+    stackchan::obake::AutocustomOnBoot();
+    if (stackchan::obake::AutocustomShouldOpen()) {
+        for (const auto& props : getAppProps()) {
+            if (props.info.name == "CUSTOM") {
+                mclog::tagInfo(getAppInfo().name, "Obake autostart CUSTOM id={} (allowed)",
+                               props.appID);
+                stackchan::obake::AutocustomMarkOpened();
+                openApp(props.appID);
+                break;
             }
         }
     }

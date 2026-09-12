@@ -5,6 +5,7 @@
 #include "custom_ota.h"
 
 #include "custom_integration.h"
+#include "obake/obake_config.h"
 
 #include <hal/hal.h>
 #include <mooncake_log.h>
@@ -34,6 +35,14 @@ void SetFirmwareOtaUrl(std::string_view url)
 
 bool CheckAndInstallFirmware(std::function<void(std::string_view)> onLog)
 {
+    // 検証中は Wi-Fi OTA を拒否（途中ファーム差し替えを防ぐ）
+    if (stackchan::obake::kDisableWifiOtaVersionCheck) {
+        mclog::tagWarn(_tag, "firmware OTA refused (kDisableWifiOtaVersionCheck=1)");
+        if (onLog) {
+            onLog("Wi-Fi OTA disabled");
+        }
+        return false;
+    }
     if (!IsCustomSessionActive()) {
         mclog::tagWarn(_tag, "firmware OTA refused (not custom session)");
         if (onLog) {

@@ -1,12 +1,12 @@
 # Obake face（CUSTOM 専用）
 
-Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Media WS／API 指令のみ。
+Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Robot WS／API 指令のみ。
 
 | ファイル | 役割 |
 |----------|------|
-| `obake_config.h` | **人が変える数値**（先頭）＋`kObakeAutoCustom`＋ Media WS ホスト |
+| `obake_config.h` | **人が変える数値**（先頭）＋`kObakeAutoCustom`＋ Robot WS（サーバ既定／クライアント退避） |
 | `obake_runtime.*` | init / UI tick / hw タスク |
-| `obake_robot_ws.*` | Media WS **クライアント**（`obake.media.stackchan:8030/obake/media`） |
+| `obake_robot_ws.*` | 既定は端末 **WS サーバ** `ws://<IP>:8765/ws/v1/robot`。`kMediaListenAsServer=0` で PC クライアント経路 |
 | `obake_servo_api.*` | 首角度キュー（PreUpdate drain） |
 | `obake_pahub.*` | I2C port0 (GPIO2/1) + PaHub |
 | `obake_eyes.*` | CH0/1 OLED |
@@ -27,7 +27,7 @@ Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Medi
 
 1. `firmware/main/stackchan/custom/obake/obake_config.h` を開く
 2. 先頭の定数を変更（下表）
-3. `scripts/fast_build.ps1` または `firmware/` で `idf.py build` → `idf.py -p COMx flash`
+3. サブ PC で `scripts/fast_build.ps1` → `scripts/export_flash_bundle.ps1 -Zip`。メイン PC で bundle を `scripts/flash_bundle.ps1` または Flash GUI
 4. `kObakeAutoCustom=1` なら自動で CUSTOM。手動ならランチャーで **CUSTOM** を起動し、目・口・距離を確認
 
 ### よく触る定数
@@ -35,12 +35,13 @@ Port.A → PaHub の両目 OLED・ToF と、CoreS3 口 UI。首サーボは Medi
 | 変えたいこと | 定数 | 目安 |
 |--------------|------|------|
 | CUSTOM 自動起動 | `kObakeAutoCustom` | `0`=手動 / `1`=自動 |
-| Media 送り先 | `kMediaWsHost` / `kMediaWsLanIp` / `Port` / `Path` | 実際の TCP は `kMediaWsLanIp`（詳細は `homelab/obake_media/README.md`） |
+| 端末をサーバにする | `kMediaListenAsServer` | `1`=待ち受け（既定） / `0`=PC へクライアント |
+| サーバ待ち受け | `kRobotWsPort` / `kRobotWsPath` / `kRobotWsMdnsHost` | `8765` `/ws/v1/robot` `obake` → `obake.local` |
+| フォールバック送り先 | `kMediaWsHost` / `kMediaWsLanIp` / `Port` / `Path` | `kMediaListenAsServer=0` のときだけ使う |
 | JPEG 画質 | `kMediaJpegQuality` | 既定 `20`（上げる=高画質・重い） |
-| 映像送信間隔 | `kMediaJpegIntervalMs` | 既定 `400` ms |
-| Media 再接続間隔 | `kMediaReconnectMs` | 既定 `5000` ms |
-| JPEG 停滞再接続 | `kMediaJpegStallMs` | 既定 `8000` ms |
-| フレーム URL（正） | （PC）`http://127.0.0.1:8030/obake/latest.jpg` | `/obake/view` は latest.jpg へリダイレクト。状態は `/obake/status` |
+| サーバ時の映像 | `camera.capture` のときだけ JPEG | 連続上行はしない（DRAM/CPU） |
+| クライアント時の間隔 | `kMediaJpegIntervalMs` | `kMediaListenAsServer=0` のみ |
+| フォールバック latest.jpg | （PC）`http://127.0.0.1:8030/obake/latest.jpg` | サーバ既定時は `client_test.py` / 端末 WS |
 | 目を明るく／暗く | `kOledContrast` | 上げる=明（0–255）。既定 `0x5A` |
 | まばたきを遅く | `kBlinkOpenMinMs` / `kBlinkOpenSpanMs` を大きく | 開眼の待ち = Min + 乱数(Span) |
 | まばたきの閉眼を長く | `kBlinkClosedMinMs` / `kBlinkClosedSpanMs` | 閉眼時間 |

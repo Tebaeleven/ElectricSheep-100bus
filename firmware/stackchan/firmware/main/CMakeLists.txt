@@ -37,6 +37,8 @@ set(_stackchan_extra_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_runtime.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_servo_api.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_robot_ws.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_wifi_seed.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/obake_autocustom.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/stackchan/custom/obake/vl53l0x.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/apps/app_custom/app_custom.cpp"
 )
@@ -327,6 +329,8 @@ idf_component_register(SRCS ${SOURCES}
                         esp_pm
                         esp_psram
                         esp_netif
+                        esp_http_server
+                        mdns
                         esp_driver_gpio
                         esp_driver_uart
                         esp_driver_spi
