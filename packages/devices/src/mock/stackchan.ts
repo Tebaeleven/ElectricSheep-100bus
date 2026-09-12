@@ -7,6 +7,7 @@ import type {
   AudioChunk,
   DeviceResult,
   HandState,
+  HeadSet,
   ImagePayload,
   StackchanClient,
   StackchanInbound,
@@ -14,7 +15,9 @@ import type {
 import { createRequestId } from "../wire"
 
 export interface MockStackchanClient extends StackchanClient {
-  /** 現在の手の状態（テスト用） */
+  /** 直近に指示された首の角度（テスト用） */
+  readonly headAngles: HeadSet | undefined
+  /** @deprecated 現在の手の状態（旧契約のテスト用） */
   readonly handState: HandState
   /** 録音中かどうか（テスト用） */
   readonly recording: boolean
@@ -27,6 +30,7 @@ export interface MockStackchanClient extends StackchanClient {
 export function createMockStackchanClient(): MockStackchanClient {
   let connected = false
   let handState: HandState = "open"
+  let headAngles: HeadSet | undefined
   let recording = false
   let seq = 0
   let timer: ReturnType<typeof setInterval> | undefined
@@ -48,6 +52,9 @@ export function createMockStackchanClient(): MockStackchanClient {
     get connected() {
       return connected
     },
+    get headAngles() {
+      return headAngles
+    },
     get handState() {
       return handState
     },
@@ -64,6 +71,24 @@ export function createMockStackchanClient(): MockStackchanClient {
       connected = false
       console.info("[devices:mock] stackchan.close")
     },
+    async headSet(input: HeadSet): Promise<DeviceResult> {
+      const startedAt = Date.now()
+      headAngles = input
+      const requestId = createRequestId()
+      console.info(
+        `[devices:mock] stackchan.head.set yaw=${input.yaw} pitch=${input.pitch}`
+      )
+      emitEvent({ type: "ack", request_id: requestId, data: { ...input } })
+      return {
+        ok: true,
+        status: 200,
+        data: { requestId, ...input },
+        latencyMs: Date.now() - startedAt,
+      }
+    },
+    /**
+     * @deprecated 実機に手のサーボは無い。モックは旧契約の確認用に動作を残している
+     */
     async handSet(state: HandState): Promise<DeviceResult> {
       const startedAt = Date.now()
       handState = state

@@ -3,6 +3,7 @@ import type {
   AudioChunk,
   DeviceResult,
   HandState,
+  HeadSet,
   ImagePayload,
   StackchanClient,
   StackchanInbound,
@@ -373,11 +374,20 @@ export function createStackchanClient(
       })
     },
 
-    handSet(
-      state: HandState,
-      opts?: { timeoutMs?: number }
-    ): Promise<DeviceResult> {
-      return request("hand.set", { state }, "ack", opts?.timeoutMs)
+    headSet(input: HeadSet, opts?: { timeoutMs?: number }): Promise<DeviceResult> {
+      return request("head.set", input, "ack", opts?.timeoutMs)
+    },
+
+    /**
+     * @deprecated 現行ハード（Obake_device）に手のサーボは無い。
+     * 送信せずに unsupported を返す（首は headSet）
+     */
+    async handSet(_state: HandState): Promise<DeviceResult> {
+      return {
+        ok: false,
+        error: "unsupported: hand servo not present",
+        latencyMs: 0,
+      }
     },
 
     cameraCapture(opts?: {

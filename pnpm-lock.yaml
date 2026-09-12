@@ -246,6 +246,9 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@workspace/stackchan-bridge':
+        specifier: workspace:*
+        version: link:../stackchan-bridge
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -316,6 +319,37 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.20.2
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: ^9
+        version: 9.39.4(jiti@2.7.0)
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.13
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.0(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
+  packages/stackchan-bridge:
+    dependencies:
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.2
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -6491,7 +6525,7 @@ snapshots:
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/gen-mapping@0.4.0-beta.0':
@@ -6513,7 +6547,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@libsql/client@0.18.0':
     dependencies:

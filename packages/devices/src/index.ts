@@ -1,5 +1,6 @@
 import { createDesktopClient } from "./http/desktop"
 import { createRailClient } from "./http/rail"
+import { createStackchanBridgeClient } from "./http/stackchan-bridge"
 import {
   createMockDesktopClient,
   createMockRailClient,
@@ -10,6 +11,13 @@ import { createStackchanClient } from "./ws/stackchan"
 
 export {
   DEFAULT_TIMEOUT_MS,
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_DEFAULT,
+  HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
   HTTP_API_PREFIX,
   MOCK_AUDIO_CHUNK_BASE64,
   MOCK_AUDIO_CHUNK_INTERVAL_MS,
@@ -19,6 +27,9 @@ export {
   MOCK_STACKCHAN_PORT,
   RAIL_MAX_DURATION_MS,
   RAIL_MAX_DURATION_MS_DEFAULT,
+  STACKCHAN_BRIDGE_AUDIO_POLL_MS,
+  STACKCHAN_BRIDGE_PATHS,
+  STACKCHAN_BRIDGE_PORT_DEFAULT,
   STACKCHAN_WS_PATH,
 } from "./constants"
 
@@ -26,6 +37,7 @@ export {
   audioChunkPayloadSchema,
   desktopStatusSchema,
   handStateSchema,
+  headSetSchema,
   imagePayloadSchema,
   openUrlSchema,
   railAxisSchema,
@@ -63,6 +75,7 @@ export type {
   DeviceResult,
   Devices,
   HandState,
+  HeadSet,
   HttpDeviceOptions,
   ImagePayload,
   OpenUrl,
@@ -71,6 +84,8 @@ export type {
   RailDirection,
   RailMove,
   RailStatus,
+  StackchanBridgeOptions,
+  StackchanBridgeStatus,
   StackchanClient,
   StackchanEnvelope,
   StackchanInbound,
@@ -94,6 +109,8 @@ export type {
 export { createRailClient } from "./http/rail"
 export { createDesktopClient } from "./http/desktop"
 export { createStackchanClient } from "./ws/stackchan"
+export { createStackchanBridgeClient } from "./http/stackchan-bridge"
+export type { StackchanBridgeClient } from "./http/stackchan-bridge"
 
 /** env から動作モードを読む。未設定・不正値は mock */
 function resolveMode(env: NodeJS.ProcessEnv): DeviceMode {
@@ -120,6 +137,8 @@ export function createDevices(env: NodeJS.ProcessEnv): Devices {
   const railBaseUrl = env.RAIL_BASE_URL?.trim()
   const desktopBaseUrl = env.DESKTOP_BASE_URL?.trim()
   const stackchanUrl = env.STACKCHAN_WS_URL?.trim()
+  // B 方式（PC 側ブリッジ）を優先する。旧契約の WS は STACKCHAN_WS_URL のときだけ
+  const stackchanBridgeUrl = env.STACKCHAN_BRIDGE_URL?.trim()
 
   const rail =
     mode === "real" && railBaseUrl
@@ -132,7 +151,13 @@ export function createDevices(env: NodeJS.ProcessEnv): Devices {
       : createMockDesktopClient()
 
   const stackchan =
-    mode === "real" && stackchanUrl
+    mode === "real" && stackchanBridgeUrl
+      ? createStackchanBridgeClient({
+          baseUrl: stackchanBridgeUrl,
+          timeoutMs,
+          headers,
+        })
+      : mode === "real" && stackchanUrl
       ? createStackchanClient({
           url: stackchanUrl,
           timeoutMs,

@@ -292,7 +292,7 @@ interface InboundEnvelope {
 
 /**
  * スタックちゃんのモック WebSocket サーバー。
- * hand.set→ack / camera.capture→camera.frame / audio.start→audio.chunk 連続送信
+ * head.set / hand.set（旧契約）→ack / camera.capture→camera.frame / audio.start→audio.chunk 連続送信
  */
 export function startMockStackchanServer(
   port: number = MOCK_STACKCHAN_PORT
@@ -339,6 +339,19 @@ export function startMockStackchanServer(
           : "unknown"
 
       switch (msg.type) {
+        case "head.set": {
+          const data = (msg.data ?? {}) as { yaw?: unknown; pitch?: unknown }
+          if (typeof data.yaw !== "number" || typeof data.pitch !== "number") {
+            send({
+              type: "error",
+              request_id: requestId,
+              data: { code: "bad_angle", message: "yaw / pitch は数値です" },
+            })
+            return
+          }
+          send({ type: "ack", request_id: requestId, data })
+          return
+        }
         case "hand.set": {
           const state = (msg.data as { state?: unknown } | undefined)?.state
           if (state !== "open" && state !== "closed") {

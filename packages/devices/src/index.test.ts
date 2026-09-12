@@ -18,7 +18,11 @@ function isMockDesktop(desktop: object): boolean {
   return "openedUrls" in desktop
 }
 function isMockStackchan(stackchan: object): boolean {
-  return "handState" in stackchan
+  return "headAngles" in stackchan
+}
+/** ブリッジ（B 方式）クライアントは getStatus を持つ */
+function isBridgeStackchan(stackchan: object): boolean {
+  return "getStatus" in stackchan
 }
 
 describe("createDevices", () => {
@@ -62,6 +66,26 @@ describe("createDevices", () => {
     expect(isMockRail(devices.rail)).toBe(false)
     expect(isMockDesktop(devices.desktop)).toBe(true)
     expect(isMockStackchan(devices.stackchan)).toBe(true)
+  })
+
+  it("STACKCHAN_BRIDGE_URL があればブリッジ（B 方式）クライアントを使う", () => {
+    const devices = createDevices({
+      DEVICE_MODE: "real",
+      STACKCHAN_BRIDGE_URL: "http://127.0.0.1:8030",
+      // 旧契約の WS URL があってもブリッジを優先する
+      STACKCHAN_WS_URL: "ws://127.0.0.1:8793",
+    })
+    expect(isMockStackchan(devices.stackchan)).toBe(false)
+    expect(isBridgeStackchan(devices.stackchan)).toBe(true)
+  })
+
+  it("STACKCHAN_BRIDGE_URL が無く STACKCHAN_WS_URL だけなら旧契約 WS クライアント", () => {
+    const devices = createDevices({
+      DEVICE_MODE: "real",
+      STACKCHAN_WS_URL: "ws://127.0.0.1:8793",
+    })
+    expect(isMockStackchan(devices.stackchan)).toBe(false)
+    expect(isBridgeStackchan(devices.stackchan)).toBe(false)
   })
 
   it("DEVICE_AUTH_TOKEN は Authorization: Bearer として送られる", async () => {

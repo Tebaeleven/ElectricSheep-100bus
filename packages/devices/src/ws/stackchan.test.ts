@@ -71,11 +71,21 @@ describe("createStackchanClient", () => {
     expect(client.connected).toBe(false)
   })
 
-  it("未接続でも handSet が自動接続して ack を待つ", async () => {
+  it("未接続でも headSet が自動接続して ack を待つ", async () => {
     const client = createStackchanClient({ url: await startMock() })
-    const result = await client.handSet("closed")
+    const result = await client.headSet({ yaw: 20, pitch: 10 })
     expect(result.ok).toBe(true)
     expect(client.connected).toBe(true)
+    await client.close()
+  })
+
+  it("handSet は送信せず unsupported を返す（手のサーボが無い）", async () => {
+    const client = createStackchanClient({ url: await startMock() })
+    const result = await client.handSet("closed")
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe("unsupported: hand servo not present")
+    // 送信していないので接続もしない
+    expect(client.connected).toBe(false)
     await client.close()
   })
 
@@ -131,14 +141,14 @@ describe("createStackchanClient", () => {
   it("error 応答は ok:false になる", async () => {
     const client = createStackchanClient({ url: await startMock() })
     await client.connect()
-    // モックは未知の state を拒否するため、型を無視して不正値を送る
+    // モックは数値でない角度を拒否するため、型を無視して不正値を送る
     const result = await (
       client as unknown as {
-        handSet(state: string): Promise<{ ok: boolean; error?: string }>
+        headSet(input: unknown): Promise<{ ok: boolean; error?: string }>
       }
-    ).handSet("half-open")
+    ).headSet({ yaw: "left", pitch: 0 })
     expect(result.ok).toBe(false)
-    expect(result.error).toContain("state")
+    expect(result.error).toContain("yaw")
     await client.close()
   })
 
@@ -187,7 +197,7 @@ describe("createStackchanClient", () => {
   it("応答が無ければ timeout を返す", async () => {
     const { url } = await startCustomWs()
     const client = createStackchanClient({ url, timeoutMs: 150 })
-    const result = await client.handSet("open")
+    const result = await client.headSet({ yaw: 0, pitch: 0 })
     expect(result.ok).toBe(false)
     expect(result.error).toBe("timeout")
     await client.close()
@@ -219,7 +229,7 @@ describe("createStackchanClient", () => {
     await vi.waitFor(() => expect(client.connected).toBe(true), {
       timeout: 3000,
     })
-    expect((await client.handSet("open")).ok).toBe(true)
+    expect((await client.headSet({ yaw: 0, pitch: 0 })).ok).toBe(true)
 
     await client.close()
     expect(client.connected).toBe(false)

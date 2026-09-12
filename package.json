@@ -19,6 +19,8 @@
     "agent:studio": "pnpm --filter @workspace/agent dev",
     "robot:mock": "pnpm --filter @workspace/robot mock",
     "devices:mock": "pnpm --filter @workspace/devices mock",
+    "stackchan:bridge": "pnpm --filter @workspace/stackchan-bridge start",
+    "stackchan:mock-device": "pnpm --filter @workspace/stackchan-bridge mock-device",
     "wt": "bash scripts/wt-setup.sh",
     "ports:check": "node scripts/check-ports.mjs",
     "ports:free": "node scripts/check-ports.mjs free"

@@ -1,6 +1,14 @@
 import { z } from "zod"
 
-import { RAIL_MAX_DURATION_MS } from "./constants"
+import {
+  HEAD_PITCH_MAX_DEG,
+  HEAD_PITCH_MIN_DEG,
+  HEAD_SPEED_MAX,
+  HEAD_SPEED_MIN,
+  HEAD_YAW_MAX_DEG,
+  HEAD_YAW_MIN_DEG,
+  RAIL_MAX_DURATION_MS,
+} from "./constants"
 
 /** レールの軸 */
 export const railAxisSchema = z.enum(["x", "y", "z"])
@@ -61,7 +69,18 @@ export const railStatusSchema = z
 /** デスクトップ（Electron）の状態レスポンス */
 export const desktopStatusSchema = z.looseObject({ state: z.string() })
 
-/** スタックちゃんの手の状態 */
+/**
+ * スタックちゃんの首の角度（B 方式）。
+ * 範囲はファーム `obake_servo_api.cpp` の clamp（yaw ±128 / pitch 0..90 / speed 100..1000）に合わせる。
+ * speed 省略時はファーム既定の 150 が使われる
+ */
+export const headSetSchema = z.object({
+  yaw: z.number().min(HEAD_YAW_MIN_DEG).max(HEAD_YAW_MAX_DEG),
+  pitch: z.number().min(HEAD_PITCH_MIN_DEG).max(HEAD_PITCH_MAX_DEG),
+  speed: z.number().min(HEAD_SPEED_MIN).max(HEAD_SPEED_MAX).optional(),
+})
+
+/** @deprecated 現行ハードに手のサーボは無い（首 yaw/pitch のみ）。`headSetSchema` を使う */
 export const handStateSchema = z.enum(["open", "closed"])
 
 /** ブラウザで開く URL。安全要件により http/https のみ許可する */

@@ -14,7 +14,18 @@ describe("createMockStackchanClient", () => {
     expect(stackchan.connected).toBe(false)
   })
 
-  it("handSet は状態を保持し ack イベントを流す", async () => {
+  it("headSet は角度を保持し ack イベントを流す", async () => {
+    const stackchan = createMockStackchanClient()
+    const events: StackchanInbound[] = []
+    stackchan.onEvent((msg) => events.push(msg))
+
+    const result = await stackchan.headSet({ yaw: 30, pitch: 15, speed: 200 })
+    expect(result.ok).toBe(true)
+    expect(stackchan.headAngles).toEqual({ yaw: 30, pitch: 15, speed: 200 })
+    expect(events.at(-1)?.type).toBe("ack")
+  })
+
+  it("handSet は状態を保持し ack イベントを流す（旧契約）", async () => {
     const stackchan = createMockStackchanClient()
     const events: StackchanInbound[] = []
     const unsubscribe = stackchan.onEvent((msg) => events.push(msg))

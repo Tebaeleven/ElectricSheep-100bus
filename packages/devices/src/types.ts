@@ -4,6 +4,7 @@ import type {
   audioChunkPayloadSchema,
   desktopStatusSchema,
   handStateSchema,
+  headSetSchema,
   imagePayloadSchema,
   openUrlSchema,
   railAxisSchema,
@@ -34,7 +35,10 @@ export type RailStatus = z.infer<typeof railStatusSchema> & {
 export type DesktopStatus = z.infer<typeof desktopStatusSchema> & {
   state: string
 }
+/** @deprecated 現行ハードに手のサーボは無い。`HeadSet` を使う */
 export type HandState = z.infer<typeof handStateSchema>
+/** 首の角度（B 方式。yaw ±128 / pitch 0..90 / speed 100..1000） */
+export type HeadSet = z.infer<typeof headSetSchema>
 export type OpenUrl = z.infer<typeof openUrlSchema>
 export type ImagePayload = z.infer<typeof imagePayloadSchema>
 export type AudioChunkPayload = z.infer<typeof audioChunkPayloadSchema>
@@ -91,7 +95,18 @@ export interface StackchanClient {
   connect(): Promise<void>
   close(): Promise<void>
   readonly connected: boolean
-  /** ack を待つ */
+  /**
+   * 首を向ける（B 方式の本命）。
+   * ブリッジ経由なら `POST /obake/head`、旧契約 WS なら `head.set` を送る
+   */
+  headSet(
+    input: HeadSet,
+    opts?: { timeoutMs?: number }
+  ): Promise<DeviceResult>
+  /**
+   * @deprecated 現行ハード（Obake_device）に手のサーボは無い。
+   * 実機向けクライアントは `{ ok:false, error:"unsupported: hand servo not present" }` を返す
+   */
   handSet(
     state: HandState,
     opts?: { timeoutMs?: number }
@@ -112,6 +127,26 @@ export interface HttpDeviceOptions {
   baseUrl: string
   timeoutMs?: number
   headers?: Record<string, string>
+}
+
+/** ブリッジ（B 方式）の接続設定。baseUrl は http://host:port（/obake/* は SDK が付与） */
+export interface StackchanBridgeOptions {
+  baseUrl: string
+  timeoutMs?: number
+  headers?: Record<string, string>
+  /** onAudioChunk のポーリング間隔（ミリ秒・既定 500） */
+  audioPollMs?: number
+}
+
+/** ブリッジの `GET /obake/status` が返す状態（camelCase に変換済み） */
+export interface StackchanBridgeStatus {
+  connected: boolean
+  pcmRate: number
+  lastFrameAt: number | null
+  lastPcmAt: number | null
+  frames: number
+  bytes: number
+  [key: string]: unknown
 }
 
 /** スタックちゃんの接続設定。url は ws://host:port（/ws/v1/robot は SDK が付与） */
@@ -136,6 +171,8 @@ export type DeviceMode = "mock" | "real"
 
 /** Next → 機器のメッセージ種別 */
 export type StackchanOutboundType =
+  | "head.set"
+  /** @deprecated 手のサーボが無いため送らない */
   | "hand.set"
   | "audio.start"
   | "audio.stop"
@@ -159,6 +196,7 @@ export interface StackchanEnvelope<
 }
 
 export type StackchanOutbound =
+  | StackchanEnvelope<"head.set", HeadSet>
   | StackchanEnvelope<"hand.set", { state: HandState }>
   | StackchanEnvelope<"audio.start", Record<string, never>>
   | StackchanEnvelope<"audio.stop", Record<string, never>>

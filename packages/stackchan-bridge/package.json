@@ -1,37 +1,32 @@
 {
-  "name": "@workspace/devices",
+  "name": "@workspace/stackchan-bridge",
   "version": "0.0.0",
   "type": "module",
   "private": true,
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./schemas": "./src/schemas.ts",
-    "./types": "./src/types.ts",
-    "./wire": "./src/wire.ts",
-    "./constants": "./src/constants.ts",
-    "./mock": "./src/mock/index.ts",
-    "./mock-servers": "./src/mock-servers.ts"
+    "./server": "./src/server.ts",
+    "./protocol": "./src/protocol.ts"
   },
   "scripts": {
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "mock": "tsx src/mock-servers.ts"
+    "start": "tsx src/cli.ts",
+    "mock-device": "tsx src/mock-device.ts"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/ws": "8.18.1",
     "@workspace/eslint-config": "workspace:*",
-    "@workspace/stackchan-bridge": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9",
     "tsx": "catalog:",
     "typescript": "^5",
-    "vitest": "catalog:",
-    "ws": "8.21.3"
+    "vitest": "catalog:"
   }
 }

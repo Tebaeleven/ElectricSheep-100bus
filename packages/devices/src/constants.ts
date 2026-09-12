@@ -43,3 +43,31 @@ export const MOCK_AUDIO_CHUNK_BASE64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
 /** モックの音声チャンク送出間隔（ミリ秒） */
 export const MOCK_AUDIO_CHUNK_INTERVAL_MS = 100
+
+/**
+ * スタックちゃん B 方式（PC 側ブリッジ）の既定ポート。
+ * ファームの `kMediaWsPort` と同じ 8030（`packages/stackchan-bridge`）
+ */
+export const STACKCHAN_BRIDGE_PORT_DEFAULT = 8030
+
+/** ブリッジの HTTP パス（`STACKCHAN_BRIDGE_URL` の後ろに付ける） */
+export const STACKCHAN_BRIDGE_PATHS = {
+  status: "/obake/status",
+  latestJpeg: "/obake/latest.jpg",
+  latestJson: "/obake/latest.json",
+  audioRecent: "/obake/audio/recent",
+  head: "/obake/head",
+  events: "/obake/events",
+} as const
+
+/** ブリッジの音声ポーリング間隔（ミリ秒）。onAudioChunk はこの間隔で差分を配る */
+export const STACKCHAN_BRIDGE_AUDIO_POLL_MS = 500
+
+/** 首の可動範囲（ファーム `obake_servo_api.cpp` の clamp と同じ） */
+export const HEAD_YAW_MIN_DEG = -128
+export const HEAD_YAW_MAX_DEG = 128
+export const HEAD_PITCH_MIN_DEG = 0
+export const HEAD_PITCH_MAX_DEG = 90
+export const HEAD_SPEED_MIN = 100
+export const HEAD_SPEED_MAX = 1000
+export const HEAD_SPEED_DEFAULT = 150

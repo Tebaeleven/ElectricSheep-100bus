@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-import { handStateSchema, railAxisSchema, railDirectionSchema } from "./schemas"
+import {
+  handStateSchema,
+  headSetSchema,
+  railAxisSchema,
+  railDirectionSchema,
+} from "./schemas"
 import type {
   AudioChunk,
   AudioChunkPayload,
@@ -106,6 +111,12 @@ export function createRequestId(): string {
 /** Next → 機器のメッセージ（ワイヤ形式） */
 export const stackchanOutboundSchema = z.discriminatedUnion("type", [
   z.object({
+    type: z.literal("head.set"),
+    request_id: requestIdSchema,
+    data: headSetSchema,
+  }),
+  z.object({
+    // @deprecated 手のサーボが無いため実機へは送らない（旧契約のモック用に残す）
     type: z.literal("hand.set"),
     request_id: requestIdSchema,
     data: z.object({ state: handStateSchema }),
