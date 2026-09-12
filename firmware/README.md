@@ -58,7 +58,7 @@ ESP-IDF。手順は [`stackchan/README.md`](stackchan/README.md) と `stackchan/
 - レールは電源投入のたびに SoftAP `Rail-ESP32-<mac>` を起動する。AP パスワードは初回に生成して NVS に保存される。**USB シリアル 115200bps で `access` と改行**を送ると SSID / パスワードが取れる
 - AP 接続後の URL は `http://192.168.4.1`。Wi-Fi 設定済みなら `GET /api/v1/rail/status` の `ip` に出る LAN IP でも到達できる
 - 会場ネットワークの構成パターンと当日チェックリストは [`../docs/runbooks/network.md`](../docs/runbooks/network.md)
-- ポート割当（モック 8791 / 8792 / 8793 など）は [`../README.md`](../README.md) のポート表を参照
+- ポート割当（モック 8791 / 8792 / 8793 など）の正本は [`../docs/ports.md`](../docs/ports.md)
 
 ## 4. API 契約と SDK の差分
 
