@@ -8,7 +8,7 @@ packages/agent/src/mastra/
 ├─ agents/ghost.ts     # おばけロボットの Agent（instructions / model / memory / tools）
 ├─ storage.ts          # DATABASE_URL の有無で Postgres / LibSQL を分岐
 ├─ tools/robot.ts      # robotCommand / robotStatus
-└─ tools/devices.ts    # railMove / railStop / handSet / cameraCapture / desktopScreenshot / desktopOpenBrowser
+└─ tools/devices.ts    # railMove / railStop / headSet / cameraCapture / desktopScreenshot / desktopOpenBrowser
 ```
 
 ## Studio
@@ -79,7 +79,7 @@ export const robotCommand = createTool({
 
 **語彙の正本は `@workspace/robot` の `robotCommandSchema`。** LLM 向けにフラット化したスキーマは「入口の形」でしかなく、実際に送る値は必ず `toRobotCommand`（＝ `robotCommandSchema.parse`）を通す。ここで独自に zod を書くと Web / モックと語彙がずれる。
 
-エージェントが持つ tool を確認するには `await ghost.listTools()`（キーは `robotCommand` / `robotStatus` / `railMove` / `railStop` / `handSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser` の 8 件）。
+エージェントが持つ tool を確認するには `await ghost.listTools()`（キーは `robotCommand` / `robotStatus` / `railMove` / `railStop` / `headSet` / `cameraCapture` / `desktopScreenshot` / `desktopOpenBrowser` の 8 件）。
 
 ## 機器 devices tools（6 本）
 
@@ -89,7 +89,7 @@ export const robotCommand = createTool({
 |---|---|---|---|---|
 | `railMove` | `rail-move` | `{ axis: 'x'\|'y'\|'z', direction: 'plus'\|'minus', durationMs: int 1..RAIL_MAX_DURATION_MS }` | `deviceResultSchema` = `{ ok, status?, error?, latencyMs }` | `POST /api/v1/rail/move` |
 | `railStop` | `rail-stop` | `{}`（引数なし） | `deviceResultSchema` | `POST /api/v1/rail/stop` |
-| `handSet` | `hand-set` | `{ state: 'open'\|'closed' }` | `deviceResultSchema` | WS `hand.set` → `ack` |
+| `headSet` | `head-set` | `{ yaw: -90..90, pitch: -45..45, speed?: 0..100 }` | `deviceResultSchema` | bridge `POST /obake/head` → 機器へ `{"cmd":"set_head",...}` |
 | `cameraCapture` | `camera-capture` | `{}`（引数なし） | `imageResultSchema` = `{ ok, mimeType?, byteLength?, error?, latencyMs }` | WS `camera.capture` → `camera.frame` |
 | `desktopScreenshot` | `desktop-screenshot` | `{}`（引数なし） | `imageResultSchema` | `POST /api/v1/desktop/screenshot` |
 | `desktopOpenBrowser` | `desktop-open-browser` | `{ url: string }`（`openUrlSchema` で http/https のみ） | `deviceResultSchema` | `POST /api/v1/desktop/browser/open` |

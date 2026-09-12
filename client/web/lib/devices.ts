@@ -1,9 +1,10 @@
-import type { ZodType } from "zod"
+import { z, type ZodType } from "zod"
 import {
   createDevices,
   type AudioChunk,
   type DeviceResult,
   type Devices,
+  type StackchanClient,
 } from "@workspace/devices"
 
 /** 直近の音声チャンクを保持するリングバッファの容量 */
@@ -49,6 +50,50 @@ export function getDevices(): Devices {
 
   globalWithDevices[GLOBAL_KEY] = singleton
   return singleton
+}
+
+// --- 首（head.set）------------------------------------------------------
+//
+// 現行ハードに手のサーボは無く、動かせるのは首の yaw / pitch だけ。
+// 下り指令は bridge 経由で `{"cmd":"set_head","yaw","pitch","speed"}` になる。
+
+/** 首の可動範囲（度）。正本は @workspace/devices の headSetSchema */
+export const HEAD_YAW_MIN = -90
+export const HEAD_YAW_MAX = 90
+export const HEAD_PITCH_MIN = -45
+export const HEAD_PITCH_MAX = 45
+/** 速度。0=最遅 / 100=最速（ファームの既定値は 150 だが契約上は 0..100 で受ける） */
+export const HEAD_SPEED_MIN = 0
+export const HEAD_SPEED_MAX = 100
+
+/** `POST /api/devices/stackchan/head` のボディ */
+export const headSetRequestSchema = z.object({
+  yaw: z.number().min(HEAD_YAW_MIN).max(HEAD_YAW_MAX),
+  pitch: z.number().min(HEAD_PITCH_MIN).max(HEAD_PITCH_MAX),
+  speed: z.number().min(HEAD_SPEED_MIN).max(HEAD_SPEED_MAX).optional(),
+})
+
+export type HeadSetInput = z.infer<typeof headSetRequestSchema>
+
+// TODO(P5 統合): headSet は @workspace/devices に正式追加（P5-A 担当）。
+// 統合後はこの型と ?. 分岐を消し、stackchan.headSet(input) を直接呼ぶ。
+type StackchanWithHeadSet = StackchanClient & {
+  headSet?: (
+    input: HeadSetInput,
+    opts?: { timeoutMs?: number }
+  ) => Promise<DeviceResult>
+}
+
+/** 首を指定角度へ向ける */
+export async function setHead(input: HeadSetInput): Promise<DeviceResult> {
+  const stackchan = (await getStackchan()) as StackchanWithHeadSet
+  return (
+    (await stackchan.headSet?.(input)) ?? {
+      ok: false,
+      error: "headSet not available",
+      latencyMs: 0,
+    }
+  )
 }
 
 /** 直近の音声チャンクを新しい順で返す */

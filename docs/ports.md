@@ -17,6 +17,7 @@ pnpm ports:check
 | 3000 | `web` | app | Next.js（`client/web`。`/dev` は開発者ダッシュボード） | `pnpm dev` | `PORT` |
 | **3100** | `desktop_next` | app | **Next.js（`client/desktop` の Electron 表示用 UI）** | `pnpm --dir client/desktop run dev` | `DESKTOP_NEXT_PORT` |
 | 4111 | `studio` | app | Mastra Studio | `pnpm agent:studio` | — |
+| **8030** | `stackchan_bridge` | real | **スタックちゃん bridge**（機器が繋ぎに来る WS 受け口 + HTTP API。B 方式） | `pnpm stackchan:bridge` | `STACKCHAN_BRIDGE_PORT` |
 | 8787 | `robot_mock` | mock | ロボットモック（HTTP） | `pnpm robot:mock` | `ROBOT_MOCK_PORT` |
 | 8791 | `rail_mock` | mock | 機器モック: レール / ESP32（HTTP） | `pnpm devices:mock` | — |
 | 8792 | `desktop_mock` | mock | 機器モック: デスクトップ（HTTP） | `pnpm devices:mock` | — |
@@ -28,7 +29,11 @@ pnpm ports:check
 
 台帳に載せていない番号: `3847`（パッケージ版 Electron が内蔵 Next を動かすポート。`client/desktop/electron/packaged-desk.js`）、`8790`（任意の TrueForge ハーネス。`client/desktop/.env.example`）。
 
-**予約帯 8802-8809**: 将来のローカルブリッジ（ESP32 レール実機ブリッジ・スタックちゃん実機ブリッジ等）用に空けておく。モック帯 8791-8793 とは必ず分ける。
+**予約帯 8802-8809**: 将来のローカルブリッジ（ESP32 レール実機ブリッジ等）用に空けておく。モック帯 8791-8793 とは必ず分ける。スタックちゃんの bridge だけは例外で **8030**（メンバーの `firmware/stackchan/homelab/obake_media/server.py` と同じポートで、ファーム側に焼かれた接続先に合わせるため動かせない）。
+
+### スタックちゃんは 8030（B 方式）
+
+スタックちゃんは **機器側が WS クライアント**として PC の `ws://<PC の IP>:8030/obake/media` に繋ぎに来る（PC 側がサーバー）。`pnpm stackchan:bridge` がその受け口と HTTP API（`/obake/status`・`/obake/latest.jpg`・`/obake/audio/recent`・`POST /obake/head`）を同じ 8030 で提供する。Web からは `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` を見て `@workspace/devices` の bridge クライアントが使われる。旧契約（Next が WS クライアントとして 8793 のモックに繋ぐ）はモック `stackchan_mock` として残してある。
 
 ### 3000 → 3100 に変えた理由（`client/desktop` の Next）
 
@@ -58,9 +63,12 @@ pnpm ports:check
 | 組み合わせ | 可否 | 備考 |
 |---|---|---|
 | `pnpm dev`（3000）+ `pnpm devices:mock`（8791-8793） | ○ | 既定の開発構成 |
+| `pnpm dev`（3000）+ `pnpm stackchan:bridge`（8030） | ○ | スタックちゃん実機（B 方式）の構成。`STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` と `DEVICE_MODE=real` にする |
+| `pnpm stackchan:bridge`（8030）+ `pnpm devices:mock`（8791-8793） | ○ | ポート帯が別。`STACKCHAN_BRIDGE_URL` があればそちらが優先され、8793 のモックは使われない |
+| `pnpm stackchan:bridge` を 2 つ | × | 2 つ目が EADDRINUSE で落ちる。`pnpm ports:free stackchan_bridge` で確認 |
 | `pnpm devices:mock` + Electron 実機（8801） | **○（この変更で可）** | ポート帯が別。`DESKTOP_BASE_URL` をどちらに向けるかだけ決める |
 | `pnpm dev`（3000）+ `client/desktop` の Next（3100） | **○（この変更で可）** | 以前は両方 3000 を取り合って desktop が 3001 にずれていた |
-| web 3000 + desktop Next 3100 + Electron API 8801 + モック 8791-8793 | ○ | ハッカソン本番の全部入り構成。`pnpm ports:check` が全て OK になる |
+| web 3000 + desktop Next 3100 + Electron API 8801 + bridge 8030 + モック 8791-8793 | ○ | ハッカソン本番の全部入り構成。`pnpm ports:check` が全て OK になる |
 | `client/desktop` の Next を 2 つ | × | 2 つ目は 3100 が埋まっていて起動できない |
 | Electron 実機を 2 つ | × | 2 つ目は 8801 が埋まっているので Desktop API 無効で起動する |
 | `pnpm devices:mock` を 2 つ | × | 2 つ目が EADDRINUSE で落ちる。`pnpm ports:free rail_mock` で確認 |

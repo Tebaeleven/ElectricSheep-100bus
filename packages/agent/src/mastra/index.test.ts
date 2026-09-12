@@ -17,7 +17,7 @@ describe("mastra", () => {
       "cameraCapture",
       "desktopOpenBrowser",
       "desktopScreenshot",
-      "handSet",
+      "headSet",
       "railMove",
       "railStop",
       "robotCommand",

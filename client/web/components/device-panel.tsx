@@ -23,6 +23,24 @@ import { Input } from "@workspace/ui/components/input"
 /** レール移動の既定駆動時間（ミリ秒） */
 const DEFAULT_DURATION_MS = 500
 
+/** 首の可動範囲（度）と既定速度。正本は @workspace/devices の headSetSchema */
+const HEAD_YAW_MIN = -90
+const HEAD_YAW_MAX = 90
+const HEAD_PITCH_MIN = -45
+const HEAD_PITCH_MAX = 45
+const HEAD_SPEED_MAX = 100
+const DEFAULT_HEAD_SPEED = 50
+
+/** 首の向きのプリセット（5 ボタン） */
+const HEAD_PRESETS: { id: string; label: string; yaw: number; pitch: number }[] =
+  [
+    { id: "head-left", label: "⬅ 左", yaw: -30, pitch: 0 },
+    { id: "head-up", label: "⬆ 上", yaw: 0, pitch: 20 },
+    { id: "head-center", label: "⏺ 正面", yaw: 0, pitch: 0 },
+    { id: "head-down", label: "⬇ 下", yaw: 0, pitch: -20 },
+    { id: "head-right", label: "➡ 右", yaw: 30, pitch: 0 },
+  ]
+
 /** レール移動ボタンの並び（軸 × 方向） */
 const RAIL_AXES: { axis: RailAxis; label: string }[] = [
   { axis: "x", label: "X 軸" },
@@ -92,6 +110,10 @@ export function DevicePanel() {
 
   const [durationMs, setDurationMs] = useState(DEFAULT_DURATION_MS)
   const [railStatus, setRailStatus] = useState<unknown>(null)
+
+  const [headYaw, setHeadYaw] = useState(0)
+  const [headPitch, setHeadPitch] = useState(0)
+  const [headSpeed, setHeadSpeed] = useState(DEFAULT_HEAD_SPEED)
 
   const [cameraImage, setCameraImage] = useState<ImagePayload | null>(null)
   const [audioCount, setAudioCount] = useState(0)
@@ -165,6 +187,10 @@ export function DevicePanel() {
       headers: { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
+
+  /** 首を指定角度へ向ける（速度は入力欄の値を使う） */
+  const sendHead = (yaw: number, pitch: number) =>
+    post("/api/devices/stackchan/head", { yaw, pitch, speed: headSpeed })
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -277,7 +303,7 @@ export function DevicePanel() {
           <CardTitle className="flex items-center gap-2 text-base">
             🤖 スタックちゃん
           </CardTitle>
-          <CardDescription>手・カメラ・音声を操作します</CardDescription>
+          <CardDescription>首・カメラ・音声を操作します</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -291,30 +317,91 @@ export function DevicePanel() {
             {mode ? <Badge variant="outline">mode {mode}</Badge> : null}
           </div>
 
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-muted-foreground">
+              首の向き（yaw {HEAD_YAW_MIN}〜{HEAD_YAW_MAX} / pitch{" "}
+              {HEAD_PITCH_MIN}〜{HEAD_PITCH_MAX} 度）
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {HEAD_PRESETS.map((preset) => (
+                <Button
+                  key={preset.id}
+                  size="sm"
+                  variant="outline"
+                  disabled={pending !== null}
+                  onClick={() => {
+                    setHeadYaw(preset.yaw)
+                    setHeadPitch(preset.pitch)
+                    void run(preset.id, () => sendHead(preset.yaw, preset.pitch))
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="head-yaw"
+                  className="text-xs text-muted-foreground"
+                >
+                  yaw（左右）
+                </label>
+                <Input
+                  id="head-yaw"
+                  type="number"
+                  min={HEAD_YAW_MIN}
+                  max={HEAD_YAW_MAX}
+                  value={headYaw}
+                  onChange={(event) => setHeadYaw(Number(event.target.value))}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="head-pitch"
+                  className="text-xs text-muted-foreground"
+                >
+                  pitch（上下）
+                </label>
+                <Input
+                  id="head-pitch"
+                  type="number"
+                  min={HEAD_PITCH_MIN}
+                  max={HEAD_PITCH_MAX}
+                  value={headPitch}
+                  onChange={(event) => setHeadPitch(Number(event.target.value))}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="head-speed"
+                  className="text-xs text-muted-foreground"
+                >
+                  speed（0〜{HEAD_SPEED_MAX}）
+                </label>
+                <Input
+                  id="head-speed"
+                  type="number"
+                  min={0}
+                  max={HEAD_SPEED_MAX}
+                  value={headSpeed}
+                  onChange={(event) => setHeadSpeed(Number(event.target.value))}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="outline"
               disabled={pending !== null}
               onClick={() =>
-                void run("hand-open", () =>
-                  post("/api/devices/stackchan/hand", { state: "open" })
-                ).then(refreshStackchanStatus)
+                void run("head-set", () => sendHead(headYaw, headPitch))
               }
             >
-              ✋ 手を開く
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending !== null}
-              onClick={() =>
-                void run("hand-closed", () =>
-                  post("/api/devices/stackchan/hand", { state: "closed" })
-                ).then(refreshStackchanStatus)
-              }
-            >
-              ✊ 手を閉じる
+              🙂 この角度へ向ける
             </Button>
             <Button
               size="sm"
@@ -377,7 +464,7 @@ export function DevicePanel() {
                 Object.keys(outcomes)
                   .filter(
                     (key) =>
-                      key.startsWith("hand-") ||
+                      key.startsWith("head-") ||
                       key.startsWith("audio-") ||
                       key === "camera"
                   )
