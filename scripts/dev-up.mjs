@@ -38,6 +38,9 @@ const DESKTOP_DIR = resolve(REPO_ROOT, "client/desktop")
 /** 子プロセスの停止で SIGKILL に切り替えるまでの猶予 */
 const KILL_GRACE_MS = 3000
 
+/** ポートを持たないサービスを「起動した」とみなすまでの待ち時間 */
+const PROCESS_READY_GRACE_MS = 1500
+
 // ---------------------------------------------------------------- サービス定義
 
 /**
@@ -83,6 +86,32 @@ function serviceDefs(ledger) {
       accept: (body) => body.includes("commandCount"),
       command: ["pnpm", ["robot:mock"]],
       readyTimeoutMs: 30000,
+    },
+    stackchanBridge: {
+      tag: "bridge",
+      label: "スタックちゃん bridge（B 方式・機器の WS 受け口）",
+      mode: "spawn",
+      ports: ["stackchan_bridge"],
+      url: `http://127.0.0.1:${p("stackchan_bridge")}/obake/status`,
+      readyUrl: `http://127.0.0.1:${p("stackchan_bridge")}/obake/status`,
+      accept: (body) => body.includes("connected"),
+      command: ["pnpm", ["stackchan:bridge"]],
+      readyTimeoutMs: 30000,
+      hint: "8030 はファーム側の接続先に合わせた固定ポート（scripts/ports.json）",
+    },
+    stackchanMockDevice: {
+      tag: "mock-device",
+      label: "偽スタックちゃん（bridge に繋ぐ機器モック）",
+      mode: "spawn",
+      // ポートを持たない（bridge へ WS クライアントとして繋ぎに行くだけ）
+      ports: [],
+      url: "ポート無し（bridge に接続）",
+      // readyUrl が null のサービスはプロセスの生存で Ready とみなす
+      readyUrl: null,
+      accept: () => true,
+      command: ["pnpm", ["stackchan:mock-device"]],
+      readyTimeoutMs: 20000,
+      dependsOn: "stackchanBridge",
     },
     desktopNext: {
       tag: "desk-next",
@@ -153,25 +182,44 @@ function checkDesktopInstalled() {
 
 const WEB_URL = "http://localhost:3000"
 const DEV_URL = "http://localhost:3000/dev"
+/** Web に渡す bridge の URL（ポートはファーム側の接続先に合わせた固定値） */
+const BRIDGE_URL = "http://127.0.0.1:8030"
 
 /** 各プロファイルの構成。services は起動順 */
 const PROFILES = {
   mock: {
     description: "全部モック。実機なしで会話と /dev を触れる既定構成",
-    services: ["supabase", "devices", "robot", "web", "studio"],
+    services: [
+      "supabase",
+      "stackchanBridge",
+      "stackchanMockDevice",
+      "devices",
+      "robot",
+      "web",
+      "studio",
+    ],
+    // Web はプロセス内モックのまま。bridge と偽機器は /dev からカメラ画像・首制御を試すために起動する
     webEnv: { DEVICE_MODE: "mock" },
     open: [WEB_URL, DEV_URL],
   },
   real: {
     description: "Electron 実機（Ghost Companion）に繋ぐ構成",
-    services: ["supabase", "desktopNext", "electron", "web", "studio"],
-    webEnv: { DEVICE_MODE: "real", DESKTOP_BASE_URL: "http://127.0.0.1:8801" },
+    services: ["supabase", "stackchanBridge", "desktopNext", "electron", "web", "studio"],
+    webEnv: {
+      DEVICE_MODE: "real",
+      DESKTOP_BASE_URL: "http://127.0.0.1:8801",
+      STACKCHAN_BRIDGE_URL: BRIDGE_URL,
+    },
     open: [WEB_URL, DEV_URL],
   },
   demo: {
     description: "本番デモ用。real から Studio とモックを外し、チャット画面だけ開く",
-    services: ["supabase", "desktopNext", "electron", "web"],
-    webEnv: { DEVICE_MODE: "real", DESKTOP_BASE_URL: "http://127.0.0.1:8801" },
+    services: ["supabase", "stackchanBridge", "desktopNext", "electron", "web"],
+    webEnv: {
+      DEVICE_MODE: "real",
+      DESKTOP_BASE_URL: "http://127.0.0.1:8801",
+      STACKCHAN_BRIDGE_URL: BRIDGE_URL,
+    },
     open: [WEB_URL],
     noStudio: true,
   },
@@ -190,6 +238,8 @@ function parseArgs(argv) {
     profile: "mock",
     open: true,
     studio: true,
+    bridge: true,
+    mockDevice: false,
     dryRun: false,
     help: false,
   }
@@ -197,6 +247,8 @@ function parseArgs(argv) {
     if (arg === "--help" || arg === "-h") options.help = true
     else if (arg === "--no-open") options.open = false
     else if (arg === "--no-studio") options.studio = false
+    else if (arg === "--no-bridge") options.bridge = false
+    else if (arg === "--mock-device") options.mockDevice = true
     else if (arg === "--dry-run") options.dryRun = true
     else if (arg.startsWith("-")) {
       throw new Error(`不明なオプションです: ${arg}`)
@@ -226,6 +278,8 @@ function printHelp() {
 オプション:
   --no-open     起動後にブラウザを開かない
   --no-studio   Mastra Studio を起動しない
+  --no-bridge   スタックちゃん bridge（8030）と偽機器を起動しない
+  --mock-device 偽スタックちゃんも起動する（実機が無いとき。mock は既定で起動）
   --dry-run     起動計画だけ表示して終わる
   --help        このヘルプ
 
@@ -235,6 +289,26 @@ function printHelp() {
   * Ctrl+C でこのスクリプトが起動した子プロセスを全部止める。
     Supabase と Electron は止めないので、それらは \`pnpm down --all\` を使う
   * ポートの正本は scripts/ports.json。詳細は docs/runbooks/launch.md`)
+}
+
+/**
+ * プロファイルの services に --no-studio / --no-bridge / --mock-device を反映する。
+ * --mock-device は bridge を起動するプロファイルにだけ偽機器を差し込む（bridge の直後）。
+ */
+function resolveServiceKeys(profile, options, wantStudio) {
+  let keys = profile.services.filter((key) => key !== "studio" || wantStudio)
+  if (!options.bridge) {
+    return keys.filter(
+      (key) => key !== "stackchanBridge" && key !== "stackchanMockDevice"
+    )
+  }
+  const wantMockDevice = options.mockDevice && keys.includes("stackchanBridge")
+  if (wantMockDevice && !keys.includes("stackchanMockDevice")) {
+    keys = keys.flatMap((key) =>
+      key === "stackchanBridge" ? [key, "stackchanMockDevice"] : [key]
+    )
+  }
+  return keys
 }
 
 // ---------------------------------------------------------------- env
@@ -309,6 +383,8 @@ function inspectPorts() {
  * 動いていれば応答本文を返す（役割違いのプロセスなら null）。
  */
 async function alreadyRunning(service) {
+  // ポートを持たないサービス（偽スタックちゃん）は外から見分けられないので常に起動する
+  if (service.readyUrl === null) return null
   const result = await probe(service.readyUrl, 1500)
   if (!result.ok) return null
   return service.accept(result.body) ? result.body : null
@@ -437,7 +513,7 @@ async function main() {
   const defs = serviceDefs(ledger)
   const profile = PROFILES[options.profile]
   const wantStudio = options.studio && !profile.noStudio
-  const keys = profile.services.filter((key) => key !== "studio" || wantStudio)
+  const keys = resolveServiceKeys(profile, options, wantStudio)
 
   // 起動計画
   const plan = keys.map((key, index) => ({
@@ -454,12 +530,16 @@ async function main() {
       ["役割", "ポート", "起動コマンド"],
       plan.map(({ service }) => [
         service.label,
-        service.ports.map((name) => portOf(ledger, name)).join(" / "),
+        service.ports.length === 0
+          ? "—"
+          : service.ports.map((name) => portOf(ledger, name)).join(" / "),
         `${service.command[0]} ${service.command[1].join(" ")}`,
       ])
     )
   )
-  const webEnvText = Object.entries(profile.webEnv)
+  const profileWebEnv = { ...profile.webEnv }
+  if (!options.bridge) delete profileWebEnv.STACKCHAN_BRIDGE_URL
+  const webEnvText = Object.entries(profileWebEnv)
     .map(([key, value]) => `${key}=${value}`)
     .join(" ")
   console.log(
@@ -529,7 +609,7 @@ async function main() {
   process.on("SIGINT", () => void shutdown(0))
   process.on("SIGTERM", () => void shutdown(0))
 
-  const webEnv = { ...profile.webEnv, PORT: String(portOf(ledger, "web")) }
+  const webEnv = { ...profileWebEnv, PORT: String(portOf(ledger, "web")) }
   const started = []
 
   for (const { key, service, color } of plan) {
@@ -539,7 +619,7 @@ async function main() {
     }
     if (service.dependsOn) {
       const dependency = plan.find((item) => item.key === service.dependsOn)
-      if (dependency && !(await waitReady(dependency.service))) {
+      if (dependency && !(await waitReady(dependency.service, dependency.key))) {
         fail(`${dependency.service.tag} が Ready になりませんでした`)
         await shutdown(1)
         return 1
@@ -569,16 +649,17 @@ async function main() {
       summary.push([service.label, service.url, paint(COLOR.green, "再利用")])
       continue
     }
-    const ready = await waitReady(service)
+    const ready = await waitReady(service, key)
     if (!ready) {
-      fail(`${service.tag} が Ready になりませんでした（${service.readyUrl}）`)
+      fail(
+        `${service.tag} が Ready になりませんでした（${service.readyUrl ?? "プロセスが起動直後に終了しました"}）`
+      )
       if (service.hint) fail(service.hint)
       await shutdown(1)
       return 1
     }
     summary.push([service.label, service.url, paint(COLOR.green, "Ready")])
     info(`${service.tag} Ready`)
-    void key
   }
 
   console.log("")
@@ -603,7 +684,13 @@ async function main() {
 }
 
 /** readiness を待つ */
-async function waitReady(service) {
+async function waitReady(service, key) {
+  if (service.readyUrl === null) {
+    // ポートを持たないサービスは「起動直後に落ちていないこと」で Ready とみなす
+    await sleep(PROCESS_READY_GRACE_MS)
+    const entry = children.get(key)
+    return entry !== undefined && !entry.exited
+  }
   return waitUntil(
     async () => {
       const result = await probe(service.readyUrl, 2000)

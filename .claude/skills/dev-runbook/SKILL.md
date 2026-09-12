@@ -29,11 +29,12 @@ pnpm install
 pnpm --dir client/desktop install     # Electron を使うときだけ（ルート workspace 外）
 cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ。キーを入れる
 
-pnpm run up          # mock: Supabase + 機器モック 3 台 + ロボットモック + web 3000 + Studio 4111
+pnpm run up          # mock: Supabase + bridge 8030 + 偽スタックちゃん + 機器モック 3 台 + ロボットモック + web 3000 + Studio 4111
 pnpm run up real     # Electron 実機: Supabase + desktop の Next 3100 + Electron 8801 + web 3000（DEVICE_MODE=real）
 pnpm run up demo     # 本番デモ: real から Studio とモックを外し、http://localhost:3000 だけ開く
 pnpm run up web      # web 3000 だけ
-pnpm run up --dry-run   # 起動計画だけ表示（--no-open / --no-studio / --help もある）
+pnpm run up real --mock-device   # 実機が無い日に偽スタックちゃんも一緒に起動する
+pnpm run up --dry-run   # 起動計画だけ表示（--no-open / --no-studio / --no-bridge / --mock-device / --help もある）
 
 pnpm down            # 起動したプロセスを停止（このリポジトリのパス配下だけ）
 pnpm down --all      # Supabase（Docker）も停止
@@ -43,7 +44,8 @@ pnpm down --all      # Supabase（Docker）も停止
 - 起動前に使用ポートを確認し、**別プロセスが掴んでいたら起動せず exit 1**（同じ役割が動いていれば再利用）
 - readiness は HTTP で確認する（web は `/api/dev/env`、Electron は `/api/v1/desktop/status` 等）。全て Ready でサマリー表を出す
 - **Ctrl+C で自分が起動した子プロセスだけ停止**。Supabase と Electron は残るので `pnpm down --all`
-- `real` / `demo` は **`.env.local` を書き換えず**、`DEVICE_MODE=real` と `DESKTOP_BASE_URL=http://127.0.0.1:8801` を環境変数で渡すだけ
+- `real` / `demo` は **`.env.local` を書き換えず**、`DEVICE_MODE=real` / `DESKTOP_BASE_URL=http://127.0.0.1:8801` / `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` を環境変数で渡すだけ
+- **スタックちゃん bridge（8030）は全プロファイルで起動する**（`mock` は `/dev` 確認用に偽機器も。`--no-bridge` で両方外す）。偽機器はポートを持たないのでプロセス生存で Ready 判定し、`pnpm down` は `ps` から拾って止める
 - 個別に起動したいとき（`pnpm db:start` / `pnpm robot:mock` / `pnpm devices:mock` / `pnpm stackchan:bridge` / `pnpm stackchan:mock-device` / `pnpm dev` / `pnpm agent:studio`）は README を参照。**A レーン以外は `pnpm db:start` を直接叩かない**（`pnpm run up` の再利用判定で既存の Supabase をそのまま使う）
 
 ## 納品ゲート

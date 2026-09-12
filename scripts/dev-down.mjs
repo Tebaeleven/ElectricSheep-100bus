@@ -14,7 +14,7 @@
  *
  * Node 22 の標準機能のみで動く（依存パッケージなし）。
  */
-import { spawnSync } from "node:child_process"
+import { execFileSync, spawnSync } from "node:child_process"
 import { createInterface } from "node:readline/promises"
 import { resolve } from "node:path"
 import {
@@ -28,6 +28,13 @@ import {
   renderTable,
   sleep,
 } from "./lib/dev-common.mjs"
+
+/** 偽スタックちゃん（ポートを持たないので ps で拾う）のコマンドライン目印 */
+const MOCK_DEVICE_NEEDLE = "mock-device"
+/** ルートの package.json スクリプト名（pnpm ラッパーはこれで分かる） */
+const MOCK_DEVICE_SCRIPT = "stackchan:mock-device"
+/** 偽スタックちゃんのパッケージ名（コマンドラインか cwd のどちらかに出る） */
+const BRIDGE_PACKAGE_NEEDLE = "stackchan-bridge"
 
 /** SIGTERM のあと SIGKILL に切り替えるまでの猶予 */
 const KILL_GRACE_MS = 3000
@@ -60,6 +67,8 @@ function printHelp() {
 
 対象: scripts/ports.json の app / mock / real のポートを LISTEN していて、かつ
       コマンドラインか cwd が ${REPO_ROOT} 配下のプロセスだけ。
+      加えて、ポートを持たない偽スタックちゃん（packages/stackchan-bridge の
+      mock-device）も同じリポジトリ配下のものだけ停止する。
       他プロジェクトのプロセスには触らない。詳細は docs/runbooks/launch.md`)
 }
 
@@ -97,6 +106,55 @@ function collectTargets(ledger) {
     }
   }
   return { targets: [...targets.values()], foreign }
+}
+
+/** 実行ファイルが node か（`/bin/zsh -c ...` のようなシェルを除くため） */
+function isNodeCommand(commandLine) {
+  const executable = commandLine.split(" ")[0]
+  return executable === "node" || executable.endsWith("/node")
+}
+
+/**
+ * ポートを持たない常駐プロセス（偽スタックちゃん）を ps から拾う。
+ * **このリポジトリ配下のものだけ**（コマンドラインのフルパス、または cwd で判定）。
+ */
+function collectPortlessTargets(knownPids) {
+  let output = ""
+  try {
+    output = execFileSync("ps", ["-Ao", "pid=,command="], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+  } catch {
+    return []
+  }
+  const found = []
+  for (const line of output.split("\n")) {
+    const trimmed = line.trim()
+    const separator = trimmed.indexOf(" ")
+    if (separator <= 0) continue
+    const pid = Number(trimmed.slice(0, separator))
+    const commandLine = trimmed.slice(separator + 1)
+    if (!Number.isInteger(pid) || pid === process.pid) continue
+    if (knownPids.has(pid)) continue
+    if (!commandLine.includes(MOCK_DEVICE_NEEDLE)) continue
+    // 文字列を含むだけのシェル（`zsh -c ...`）を巻き込まないよう node 実行のみ対象にする
+    if (!isNodeCommand(commandLine)) continue
+    if (!belongsToRepo(pid, commandLine)) continue
+    // tsx の実体はコマンドラインにパッケージ名が出ないことがあるので cwd も見る
+    const fromPackage =
+      commandLine.includes(MOCK_DEVICE_SCRIPT) ||
+      commandLine.includes(BRIDGE_PACKAGE_NEEDLE) ||
+      cwdOf(pid).includes(BRIDGE_PACKAGE_NEEDLE)
+    if (!fromPackage) continue
+    found.push({
+      pid,
+      command: "node",
+      commandLine,
+      ports: ["（ポート無し）偽スタックちゃん"],
+    })
+  }
+  return found
 }
 
 /** プロセスが生きているか */
@@ -151,6 +209,7 @@ async function main() {
 
   const ledger = loadLedger()
   const { targets, foreign } = collectTargets(ledger)
+  targets.push(...collectPortlessTargets(new Set(targets.map((t) => t.pid))))
 
   for (const item of foreign) {
     warn(
