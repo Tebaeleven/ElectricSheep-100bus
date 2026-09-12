@@ -23,7 +23,7 @@ pnpm down --all        # Supabase（Docker）も止める
 
 | プロファイル | 起動するもの | Web の env 上書き | 起動後に開くページ |
 |---|---|---|---|
-| `mock`（既定） | Supabase → **スタックちゃん bridge 8030 → 偽スタックちゃん** → 機器モック 3 台（8791-8793）→ ロボットモック（8787）→ Web 3000 → Mastra Studio 4111 | `DEVICE_MODE=mock` | `/` と `/dev` |
+| `mock`（既定） | Supabase → **スタックちゃん bridge 8030 → 偽スタックちゃん** → 機器モック 4 台（8791-8794）→ ロボットモック（8787）→ Web 3000 → Mastra Studio 4111 | `DEVICE_MODE=mock` | `/` と `/dev` |
 | `real` | Supabase → **スタックちゃん bridge 8030** → Ghost Companion の Next 3100 → Electron（`electron:open`、Desktop API 8801）→ Web 3000 → Studio 4111 | `DEVICE_MODE=real` / `DESKTOP_BASE_URL=http://127.0.0.1:8801` / `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` | `/` と `/dev` |
 | `demo` | `real` から **Studio とモックを外した**構成（Supabase → bridge 8030 → Next 3100 → Electron → Web 3000） | `real` と同じ | `/` だけ |
 | `web` | Web 3000 のみ（Supabase は**起動していればそのまま**使う。起動はしない） | なし（`.env.local` のまま） | `/` と `/dev` |
@@ -35,7 +35,7 @@ pnpm down --all        # Supabase（Docker）も止める
 | `--no-open` | 起動後にブラウザを開かない |
 | `--no-studio` | Mastra Studio を起動しない（`demo` は元から起動しない） |
 | `--no-bridge` | スタックちゃん bridge（8030）と偽スタックちゃんを起動しない（`real` / `demo` では `STACKCHAN_BRIDGE_URL` の上書きも外れる） |
-| `--mock-device` | 偽スタックちゃんも起動する（`real` / `demo` で**実機が無いとき**の確認用。`mock` は既定で起動する） |
+| `--mock-device` | 偽スタックちゃん**と機器モック 4 台（8791-8794）**も起動する（`real` / `demo` で**実機が無いとき**の確認用。`mock` は既定で起動する）。`.env.local` に `STACKCHAN_HTTP_URL` が無ければ `http://127.0.0.1:8794` も渡す |
 | `--dry-run` | 起動計画（役割・**重要度**・ポート・コマンド・env 上書き）だけ表示して終わる |
 | `--strict` | 「任意」サービスの失敗でも全部止める（後述の重要度を全て「必須」にする） |
 | `--force-stale` | 残骸プロセスの検出を無視して起動する |
@@ -49,7 +49,7 @@ pnpm down --all        # Supabase（Docker）も止める
 | 重要度 | サービス | 失敗したときの挙動 |
 |---|---|---|
 | **必須** | Supabase / Web 3000 / Ghost Companion の Next 3100 / Electron 8801 / **`real`・`demo` の bridge 8030** | 赤字でエラーを出し、**このスクリプトが起動した子プロセスを全部止めて exit 1** |
-| **任意** | Mastra Studio 4111 / 機器モック（8791-8793）/ ロボットモック 8787 / 偽スタックちゃん / **`mock` の bridge 8030** | 赤字で警告し、**そのサービスだけ飛ばして起動を続ける**。サマリー表に `失敗（理由）` と出る。**終了コードは 0 のまま** |
+| **任意** | Mastra Studio 4111 / 機器モック（8791-8794）/ ロボットモック 8787 / 偽スタックちゃん / **`mock` の bridge 8030** | 赤字で警告し、**そのサービスだけ飛ばして起動を続ける**。サマリー表に `失敗（理由）` と出る。**終了コードは 0 のまま** |
 
 - 「任意」の判定は事前チェック・ポート衝突・起動コマンドの失敗・readiness 未達・依存サービスの失敗のすべてに効く。
   readiness 未達で中途半端に生き残った子プロセスは、そのサービスの分だけ SIGTERM で止める。
@@ -67,6 +67,12 @@ pnpm down --all        # Supabase（Docker）も止める
 `DEVICE_MODE=real` で `STACKCHAN_BRIDGE_URL` があると、`createDevices` は旧契約の `STACKCHAN_WS_URL` ではなく
 **bridge クライアント（B 方式）** を使う（[`devices.md`](devices.md) §4.3）。機器（M5Stack）は bridge の
 `ws://<PC の IP>:8030/obake/media` に自分から繋ぎに来る。
+
+手・LED が使う `STACKCHAN_HTTP_URL`（実機は機器上の 8765）は**上書きしない**ので、`.env.local` の値がそのまま使われる。
+例外は `--mock-device` で、`.env.local` に `STACKCHAN_HTTP_URL` が**無い（または空）ときだけ**モックの
+`http://127.0.0.1:8794` を渡し、同時に機器モック 4 台を起動する（実機が無い日に手・LED を試すため）。
+`.env.local` に値があればそちらが優先されるので、実機の IP を書いておけば `--mock-device` でも実機を見る。
+`mock` プロファイルは `DEVICE_MODE=mock`（プロセス内モック）なので上書きしない。
 
 ### スタックちゃん bridge と偽スタックちゃん
 
@@ -114,7 +120,7 @@ pnpm down --all        # Supabase（Docker）も止める
 |---|---|---|
 | Web 3000 | `http://127.0.0.1:3000/api/dev/env` | 本文に `deviceMode` が含まれる（**3000 に別の Next が居ても Ready にならない**） |
 | Mastra Studio 4111 | `http://127.0.0.1:4111/` | 応答すれば Ready |
-| 機器モック | `http://127.0.0.1:8791/api/v1/rail/status` | 本文に `state` / `position` |
+| 機器モック | `http://127.0.0.1:8791/api/v1/rail/status` と `http://127.0.0.1:8794/` | 前者の本文に `state` / `position`、後者の本文に `Obake`（**両方**通って Ready） |
 | ロボットモック | `http://127.0.0.1:8787/status` | 本文に `commandCount` |
 | スタックちゃん bridge | `http://127.0.0.1:8030/obake/status` | 本文に `connected` |
 | 偽スタックちゃん | （ポート無し） | 起動から 1.5 秒後にプロセスが生きていれば Ready |

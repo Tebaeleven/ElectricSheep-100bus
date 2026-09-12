@@ -71,12 +71,25 @@ function serviceDefs(ledger) {
     },
     devices: {
       tag: "devices",
-      label: "機器モック 3 台（レール / デスクトップ / スタックちゃん）",
+      label:
+        "機器モック 4 台（レール / デスクトップ / スタックちゃん WS / スタックちゃん HTTP）",
       mode: "spawn",
-      ports: ["rail_mock", "desktop_mock", "stackchan_mock"],
+      ports: [
+        "rail_mock",
+        "desktop_mock",
+        "stackchan_mock",
+        "stackchan_http_mock",
+      ],
       url: `http://127.0.0.1:${p("rail_mock")}`,
       readyUrl: `http://127.0.0.1:${p("rail_mock")}/api/v1/rail/status`,
       accept: (body) => body.includes("state") || body.includes("position"),
+      // スタックちゃん本体の HTTP モック（手・LED。実機 8765 の代わり）も Ready を見る
+      extraReady: [
+        {
+          url: `http://127.0.0.1:${p("stackchan_http_mock")}/`,
+          accept: (body) => body.includes("Obake"),
+        },
+      ],
       command: ["pnpm", ["devices:mock"]],
       readyTimeoutMs: 30000,
       // 失敗しても会話の本筋は動くので、止めずに続行する
@@ -297,7 +310,8 @@ function printHelp() {
   --no-open     起動後にブラウザを開かない
   --no-studio   Mastra Studio を起動しない
   --no-bridge   スタックちゃん bridge（8030）と偽機器を起動しない
-  --mock-device 偽スタックちゃんも起動する（実機が無いとき。mock は既定で起動）
+  --mock-device 偽スタックちゃんと機器モック 4 台（8791-8794）も起動する（実機が無いとき。
+                mock は既定で起動。real / demo では STACKCHAN_HTTP_URL も 8794 に向ける）
   --dry-run     起動計画だけ表示して終わる
   --strict      任意サービス（studio / mock 系）の失敗でも全部止める
   --force-stale 残骸プロセスの検出を無視して起動する
@@ -321,7 +335,7 @@ function printHelp() {
 
 /**
  * プロファイルの services に --no-studio / --no-bridge / --mock-device を反映する。
- * --mock-device は bridge を起動するプロファイルにだけ偽機器を差し込む（bridge の直後）。
+ * --mock-device は bridge を起動するプロファイルにだけ偽機器と機器モックを差し込む（bridge の直後）。
  */
 function resolveServiceKeys(profile, options, wantStudio) {
   let keys = profile.services.filter((key) => key !== "studio" || wantStudio)
@@ -331,9 +345,16 @@ function resolveServiceKeys(profile, options, wantStudio) {
     )
   }
   const wantMockDevice = options.mockDevice && keys.includes("stackchanBridge")
-  if (wantMockDevice && !keys.includes("stackchanMockDevice")) {
+  if (!wantMockDevice) return keys
+  if (!keys.includes("stackchanMockDevice")) {
     keys = keys.flatMap((key) =>
       key === "stackchanBridge" ? [key, "stackchanMockDevice"] : [key]
+    )
+  }
+  // 機器モック（8794 のスタックちゃん HTTP を含む）も立てて、実機が無くても手・LED を試せるようにする
+  if (!keys.includes("devices")) {
+    keys = keys.flatMap((key) =>
+      key === "stackchanMockDevice" ? [key, "devices"] : [key]
     )
   }
   return keys
@@ -359,6 +380,13 @@ function prepareEnvLocal() {
       `${COLOR.bold}GOOGLE_GENERATIVE_AI_API_KEY が未設定です${COLOR.reset}。会話（/api/chat）は失敗しますが、起動は続けます（https://aistudio.google.com/apikey）`
     )
   }
+}
+
+/** client/web/.env.local にそのキーが（空でない値で）書かれているか */
+function envLocalHas(key) {
+  if (!existsSync(ENV_LOCAL)) return false
+  const value = parseEnvFile(ENV_LOCAL)[key]
+  return value !== undefined && value !== ""
 }
 
 /** KEY=VALUE だけの素朴な解析（check-ports.mjs と同じ方針） */
@@ -413,9 +441,25 @@ function inspectPorts() {
 async function alreadyRunning(service) {
   // ポートを持たないサービス（偽スタックちゃん）は外から見分けられないので常に起動する
   if (service.readyUrl === null) return null
-  const result = await probe(service.readyUrl, 1500)
-  if (!result.ok) return null
-  return service.accept(result.body) ? result.body : null
+  let primaryBody = null
+  for (const check of readyChecks(service)) {
+    const result = await probe(check.url, 1500)
+    if (!result.ok || !check.accept(result.body)) return null
+    primaryBody ??= result.body
+  }
+  return primaryBody
+}
+
+/**
+ * サービスの readiness を見る HTTP チェック一覧。
+ * readyUrl（代表）に加えて extraReady があれば全部通って初めて Ready とする。
+ */
+function readyChecks(service) {
+  const checks =
+    service.readyUrl === null
+      ? []
+      : [{ url: service.readyUrl, accept: service.accept }]
+  return [...checks, ...(service.extraReady ?? [])]
 }
 
 /** 再利用しようとしている web が、プロファイルと同じ DEVICE_MODE で動いているか */
@@ -572,6 +616,16 @@ async function main() {
   )
   const profileWebEnv = { ...profile.webEnv }
   if (!options.bridge) delete profileWebEnv.STACKCHAN_BRIDGE_URL
+  // real / demo で --mock-device のときは、実機 HTTP（8765）の代わりにモック（8794）を見せる。
+  // .env.local に STACKCHAN_HTTP_URL があればユーザーの指定が正なので上書きしない。
+  // mock プロファイルは DEVICE_MODE=mock でプロセス内モックを使うため指定不要。
+  if (
+    keys.includes("devices") &&
+    profile.webEnv.DEVICE_MODE === "real" &&
+    !envLocalHas("STACKCHAN_HTTP_URL")
+  ) {
+    profileWebEnv.STACKCHAN_HTTP_URL = `http://127.0.0.1:${portOf(ledger, "stackchan_http_mock")}`
+  }
   const webEnvText = Object.entries(profileWebEnv)
     .map(([key, value]) => `${key}=${value}`)
     .join(" ")
@@ -835,10 +889,14 @@ async function waitReady(service, key) {
     const entry = children.get(key)
     return entry !== undefined && !entry.exited
   }
+  const checks = readyChecks(service)
   return waitUntil(
     async () => {
-      const result = await probe(service.readyUrl, 2000)
-      return result.ok && service.accept(result.body)
+      for (const check of checks) {
+        const result = await probe(check.url, 2000)
+        if (!result.ok || !check.accept(result.body)) return false
+      }
+      return true
     },
     { timeoutMs: service.readyTimeoutMs ?? 60000, intervalMs: 500 }
   )

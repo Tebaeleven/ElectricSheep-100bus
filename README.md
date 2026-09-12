@@ -43,7 +43,7 @@ ElectricSheep-100bus/
 ├─ packages/
 │  ├─ agent/                # @workspace/agent  Mastra インスタンス・ghost Agent・tools・storage
 │  ├─ robot/                # @workspace/robot  コマンド語彙(zod)・RobotClient・Mock・HTTP・モックサーバー
-│  ├─ devices/              # @workspace/devices 機器 API SDK（レール/スタックちゃん/デスクトップ・モック 3 台）
+│  ├─ devices/              # @workspace/devices 機器 API SDK（レール/スタックちゃん/デスクトップ・モック 4 台）
 │  ├─ db/                   # @workspace/db     Supabase 生成型・サーバー専用 client・robot_commands ログ
 │  ├─ ui/                   # @workspace/ui     shadcn 共有コンポーネント
 │  ├─ eslint-config/ , typescript-config/
@@ -103,14 +103,14 @@ secret key（`sb_secret_...`）を `SUPABASE_SECRET_KEY` に入れておく（�
 ```bash
 pnpm db:start       # ローカル Supabase（初回は Docker イメージの pull で数分）
 pnpm robot:mock     # ロボットモック 8787
-pnpm devices:mock   # 機器モック 3 台 8791 / 8792 / 8793（スタックちゃん 8793 は旧契約）
+pnpm devices:mock   # 機器モック 4 台 8791 / 8792 / 8793 / 8794（8793 の WS は旧契約、8794 は本体 HTTP = 実機 8765 の代わり）
 pnpm stackchan:bridge      # スタックちゃん B 方式の PC 側ブリッジ 8030（機器が繋ぎに来る）
 pnpm stackchan:mock-device # 実機の代わりに bridge へ繋ぐ偽スタックちゃん
 pnpm dev            # web 3000
 pnpm agent:studio   # Mastra Studio 4111
 ```
 
-`DEVICE_MODE=mock`（既定）は**プロセス内モック**なので `pnpm devices:mock` は不要。8791-8793 のモックサーバーまで
+`DEVICE_MODE=mock`（既定）は**プロセス内モック**なので `pnpm devices:mock` は不要。8791-8794 のモックサーバーまで
 含めて実 HTTP / WebSocket 経路を試すときは env を上書きして起動する（`pnpm run up real` は同じことを
 デスクトップだけ Electron 実機 8801 に向けて行う。`.env.local` は書き換えない）。
 
@@ -119,6 +119,7 @@ DEVICE_MODE=real \
 RAIL_BASE_URL=http://127.0.0.1:8791 \
 DESKTOP_BASE_URL=http://127.0.0.1:8792 \
 STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030 \
+STACKCHAN_HTTP_URL=http://127.0.0.1:8794 \
 PORT=3000 pnpm --filter web dev
 ```
 
@@ -142,7 +143,7 @@ Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` を�
 | `pnpm db:types` | 生成型を `packages/db/src/database.types.ts` に出力 |
 | `pnpm agent:studio` | Mastra Studio（http://localhost:4111） |
 | `pnpm robot:mock` | ロボットモックサーバー（既定 8787） |
-| `pnpm devices:mock` | 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793・旧契約） |
+| `pnpm devices:mock` | 機器モック 4 台（レール 8791 / デスクトップ 8792 / スタックちゃん WS 8793・旧契約 / スタックちゃん本体 HTTP 8794） |
 | `pnpm stackchan:bridge` | スタックちゃん B 方式の PC 側ブリッジ（8030。機器が WS で繋ぎに来る受け口 + HTTP API） |
 | `pnpm stackchan:mock-device` | 実機なしで bridge を動かす偽スタックちゃん（JPEG / PCM を送り `set_head` をログ） |
 | `pnpm ports:check` | ポート台帳と実際の LISTEN を突き合わせる（[`docs/ports.md`](docs/ports.md)） |
@@ -170,7 +171,8 @@ pnpm ports:free 8792      # そのポートを掴んでいる PID を表示（--
 | 4111 | Mastra Studio（`pnpm agent:studio`） |
 | 8787 | ロボットモックサーバー（`ROBOT_MOCK_PORT`） |
 | **8030** | スタックちゃん bridge（`pnpm stackchan:bridge`、`STACKCHAN_BRIDGE_PORT`）。ファームに焼かれた接続先なので動かせない |
-| 8791-8793 | 機器モック 3 台（`pnpm devices:mock`。レール / デスクトップ / スタックちゃん） |
+| 8791-8794 | 機器モック 4 台（`pnpm devices:mock`。レール / デスクトップ / スタックちゃん WS / スタックちゃん本体 HTTP） |
+| 8765 | スタックちゃん**実機上**の HTTP サーバー（手・LED。`STACKCHAN_HTTP_URL`）。PC のポートではないので `pnpm ports:check` の対象外 |
 | **8801** | Desktop API: Electron 実機（`client/desktop`、`DESKTOP_API_PORT`）。**使用中でもずらさず警告して API だけ無効**。8802 以降は将来のローカルブリッジ用に予約 |
 | 54321-54323 | Supabase（API / Postgres / Studio） |
 
@@ -193,7 +195,8 @@ pnpm ports:free 8792      # そのポートを掴んでいる PID を表示（--
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。機器 API の接続先。詳細は [`docs/runbooks/devices.md`](docs/runbooks/devices.md) |
 | `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32 レールの `http://host:port`（`/api/v1` は付けない） |
 | `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | デスクトップの `http://host:port`。モック = 8792 / Electron 実機 = 8801（[`docs/ports.md`](docs/ports.md)） |
-| `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`（`/ws/v1/robot` は付けない） |
+| `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`（`/ws/v1/robot` は付けない。旧契約） |
+| `STACKCHAN_HTTP_URL` | `http://127.0.0.1:8794` | スタックちゃん本体の HTTP（手・LED）。実機は `http://<機器の IP>:8765`、モックは 8794 |
 | `DEVICE_AUTH_TOKEN` | （空） | 設定時に全機器へ `Authorization: Bearer` を付与（方式未確定） |
 | `DEVICE_RAIL_MAX_DURATION_MS` | `3000` | `rail/move` の `durationMs` 上限（安全要件） |
 | `DEVICE_TIMEOUT_MS` | `5000` | 機器 HTTP / WS のタイムアウト |

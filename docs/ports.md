@@ -21,7 +21,9 @@ pnpm ports:check
 | 8787 | `robot_mock` | mock | ロボットモック（HTTP） | `pnpm robot:mock` | `ROBOT_MOCK_PORT` |
 | 8791 | `rail_mock` | mock | 機器モック: レール / ESP32（HTTP） | `pnpm devices:mock` | — |
 | 8792 | `desktop_mock` | mock | 機器モック: デスクトップ（HTTP） | `pnpm devices:mock` | — |
-| 8793 | `stackchan_mock` | mock | 機器モック: スタックちゃん（WebSocket） | `pnpm devices:mock` | — |
+| 8793 | `stackchan_mock` | mock | 機器モック: スタックちゃん（WebSocket・旧契約） | `pnpm devices:mock` | — |
+| **8794** | `stackchan_http_mock` | mock | **機器モック: スタックちゃん本体の HTTP**（手・LED。実機 8765 の代わり） | `pnpm devices:mock` | `STACKCHAN_HTTP_URL` |
+| 8765 | （台帳外・機器側） | real | **スタックちゃん実機上の HTTP サーバー（Obake）**。PC のポートではないので `ports:check` の対象外 | 機器のファーム | `STACKCHAN_HTTP_URL` |
 | **8801** | `desktop_real` | real | **Desktop API: Electron 実機**（Ghost Companion） | `pnpm --dir client/desktop run electron` | `DESKTOP_API_PORT` |
 | 54321 | `supabase_api` | infra | Supabase ローカル API | `pnpm db:start` | `SUPABASE_URL` |
 | 54322 | `supabase_db` | infra | Supabase Postgres | `pnpm db:start` | `DATABASE_URL` |
@@ -29,11 +31,13 @@ pnpm ports:check
 
 台帳に載せていない番号: `3847`（パッケージ版 Electron が内蔵 Next を動かすポート。`client/desktop/electron/packaged-desk.js`）、`8790`（任意の TrueForge ハーネス。`client/desktop/.env.example`）。
 
-**予約帯 8802-8809**: 将来のローカルブリッジ（ESP32 レール実機ブリッジ等）用に空けておく。モック帯 8791-8793 とは必ず分ける。スタックちゃんの bridge だけは例外で **8030**（メンバーの `firmware/stackchan/homelab/obake_media/server.py` と同じポートで、ファーム側に焼かれた接続先に合わせるため動かせない）。
+**予約帯 8802-8809**: 将来のローカルブリッジ（ESP32 レール実機ブリッジ等）用に空けておく。モック帯 8791-8794 とは必ず分ける。スタックちゃんの bridge だけは例外で **8030**（メンバーの `firmware/stackchan/homelab/obake_media/server.py` と同じポートで、ファーム側に焼かれた接続先に合わせるため動かせない）。
 
 ### スタックちゃんは 8030（B 方式）
 
 スタックちゃんは **機器側が WS クライアント**として PC の `ws://<PC の IP>:8030/obake/media` に繋ぎに来る（PC 側がサーバー）。`pnpm stackchan:bridge` がその受け口と HTTP API（`/obake/status`・`/obake/latest.jpg`・`/obake/audio/recent`・`POST /obake/head`）を同じ 8030 で提供する。Web からは `STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` を見て `@workspace/devices` の bridge クライアントが使われる。旧契約（Next が WS クライアントとして 8793 のモックに繋ぐ）はモック `stackchan_mock` として残してある。
+
+手・LED は bridge ではなく**機器上の HTTP サーバー（既定 8765・`GET /` が `<title>Obake</title>` を返す）**を直接叩く。向き先は `STACKCHAN_HTTP_URL` で、実機なら `http://<機器の IP>:8765`、実機が無いときは `pnpm devices:mock` の **8794**（`stackchan_http_mock`）に向ける。`pnpm run up real --mock-device` は `.env.local` に `STACKCHAN_HTTP_URL` が無ければ自動で 8794 を渡す。
 
 ### 3000 → 3100 に変えた理由（`client/desktop` の Next）
 
@@ -62,13 +66,14 @@ pnpm ports:check
 
 | 組み合わせ | 可否 | 備考 |
 |---|---|---|
-| `pnpm dev`（3000）+ `pnpm devices:mock`（8791-8793） | ○ | 既定の開発構成 |
+| `pnpm dev`（3000）+ `pnpm devices:mock`（8791-8794） | ○ | 既定の開発構成。モックは 4 台（レール / デスクトップ / スタックちゃん WS / スタックちゃん HTTP） |
 | `pnpm dev`（3000）+ `pnpm stackchan:bridge`（8030） | ○ | スタックちゃん実機（B 方式）の構成。`STACKCHAN_BRIDGE_URL=http://127.0.0.1:8030` と `DEVICE_MODE=real` にする |
-| `pnpm stackchan:bridge`（8030）+ `pnpm devices:mock`（8791-8793） | ○ | ポート帯が別。`STACKCHAN_BRIDGE_URL` があればそちらが優先され、8793 のモックは使われない |
+| `pnpm stackchan:bridge`（8030）+ `pnpm devices:mock`（8791-8794） | ○ | ポート帯が別。`STACKCHAN_BRIDGE_URL` があればそちらが優先され、8793 のモックは使われない。手・LED は `STACKCHAN_HTTP_URL`（8794 か実機 8765）を見る |
+| スタックちゃん実機（HTTP 8765）+ `pnpm devices:mock`（8794） | ○ | 別ホストのポートなので衝突しない。`STACKCHAN_HTTP_URL` をどちらに向けるかだけ決める |
 | `pnpm stackchan:bridge` を 2 つ | × | 2 つ目が EADDRINUSE で落ちる。`pnpm ports:free stackchan_bridge` で確認 |
 | `pnpm devices:mock` + Electron 実機（8801） | **○（この変更で可）** | ポート帯が別。`DESKTOP_BASE_URL` をどちらに向けるかだけ決める |
 | `pnpm dev`（3000）+ `client/desktop` の Next（3100） | **○（この変更で可）** | 以前は両方 3000 を取り合って desktop が 3001 にずれていた |
-| web 3000 + desktop Next 3100 + Electron API 8801 + bridge 8030 + モック 8791-8793 | ○ | ハッカソン本番の全部入り構成。`pnpm ports:check` が全て OK になる |
+| web 3000 + desktop Next 3100 + Electron API 8801 + bridge 8030 + モック 8791-8794 | ○ | ハッカソン本番の全部入り構成。`pnpm ports:check` が全て OK になる |
 | `client/desktop` の Next を 2 つ | × | 2 つ目は 3100 が埋まっていて起動できない |
 | Electron 実機を 2 つ | × | 2 つ目は 8801 が埋まっているので Desktop API 無効で起動する |
 | `pnpm devices:mock` を 2 つ | × | 2 つ目が EADDRINUSE で落ちる。`pnpm ports:free rail_mock` で確認 |

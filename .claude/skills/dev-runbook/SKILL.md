@@ -29,11 +29,11 @@ pnpm install
 pnpm --dir client/desktop install     # Electron を使うときだけ（ルート workspace 外）
 cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ。キーを入れる
 
-pnpm run up          # mock: Supabase + bridge 8030 + 偽スタックちゃん + 機器モック 3 台 + ロボットモック + web 3000 + Studio 4111
+pnpm run up          # mock: Supabase + bridge 8030 + 偽スタックちゃん + 機器モック 4 台（8791-8794）+ ロボットモック + web 3000 + Studio 4111
 pnpm run up real     # Electron 実機: Supabase + desktop の Next 3100 + Electron 8801 + web 3000（DEVICE_MODE=real）
 pnpm run up demo     # 本番デモ: real から Studio とモックを外し、http://localhost:3000 だけ開く
 pnpm run up web      # web 3000 だけ
-pnpm run up real --mock-device   # 実機が無い日に偽スタックちゃんも一緒に起動する
+pnpm run up real --mock-device   # 実機が無い日に偽スタックちゃん + 機器モック 4 台も起動し、STACKCHAN_HTTP_URL 未設定なら 8794 を渡す
 pnpm run up --dry-run   # 起動計画だけ表示（--no-open / --no-studio / --no-bridge / --mock-device / --help もある）
 
 pnpm down            # 起動したプロセスを停止（このリポジトリのパス配下だけ）
@@ -60,8 +60,8 @@ green にしてからコミット（日本語メッセージ）。**push / PR / 
 
 **起動前に `pnpm ports:check`**（台帳 `scripts/ports.json` と実際の LISTEN・`.env.local` を突き合わせ、衝突なら終了コード 1）。詳細は `docs/ports.md`。
 
-3000 web（`/dev` は開発者ダッシュボード）/ **3100 `client/desktop` の Next**（`DESKTOP_NEXT_PORT`。3000 を取り合わない）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / **8030 スタックちゃん bridge**（`pnpm stackchan:bridge`。機器が繋ぎに来る WS 受け口 + HTTP。実機なしの確認は `pnpm stackchan:mock-device`）/ 8791-8793 機器モック（`pnpm devices:mock`。8793 のスタックちゃんは旧契約）/ **8801 Electron 実機の Desktop API**（`DESKTOP_API_PORT`。8802 以降は将来のローカルブリッジ用に予約）。
-モック 8792 と実機 8801 は別帯なので同時起動してよい。Electron はポートが埋まっていても**自動でずらさず**警告して Desktop API だけ無効にする。
+3000 web（`/dev` は開発者ダッシュボード）/ **3100 `client/desktop` の Next**（`DESKTOP_NEXT_PORT`。3000 を取り合わない）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / **8030 スタックちゃん bridge**（`pnpm stackchan:bridge`。機器が繋ぎに来る WS 受け口 + HTTP。実機なしの確認は `pnpm stackchan:mock-device`）/ 8791-8794 機器モック 4 台（`pnpm devices:mock`。8793 のスタックちゃん WS は旧契約、**8794 は本体 HTTP = 手・LED。実機は機器上の 8765 で、向き先は `STACKCHAN_HTTP_URL`**）/ **8801 Electron 実機の Desktop API**（`DESKTOP_API_PORT`。8802 以降は将来のローカルブリッジ用に予約）。
+モック 8792 と実機 8801 は別帯なので同時起動してよい。モック 8794 と実機 8765 も別ホストなので衝突しない。Electron はポートが埋まっていても**自動でずらさず**警告して Desktop API だけ無効にする。
 並列レーンでは web は `PORT=3001..`、モックは `ROBOT_MOCK_PORT` でずらす（割当表は `docs/development.md`）。
 
 ## ファイル所有権
