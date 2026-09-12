@@ -77,6 +77,15 @@
       "kind": "mock",
       "expect": ["node", "tsx"]
     },
+    "stackchan_bridge": {
+      "port": 8030,
+      "label": "スタックちゃん bridge（WS 受け口 + HTTP API。B 方式）",
+      "owner": "packages/stackchan-bridge",
+      "cmd": "pnpm stackchan:bridge",
+      "kind": "real",
+      "env": "STACKCHAN_BRIDGE_PORT",
+      "expect": ["node", "tsx"]
+    },
     "desktop_next": {
       "port": 3100,
       "label": "Next.js（client/desktop の Electron 表示用 UI）",
@@ -97,12 +106,13 @@
     }
   },
   "reserved": {
-    "8802-8809": "将来のローカルブリッジ用に予約（ESP32 レール実機ブリッジ・スタックちゃん実機ブリッジ等）。モック帯 8791-8793 とは必ず分けること"
+    "8802-8809": "将来のローカルブリッジ用に予約（ESP32 レール実機ブリッジ等）。モック帯 8791-8793 とは必ず分けること。スタックちゃんの bridge だけは例外で 8030（ファーム側の接続先に合わせるため動かせない）"
   },
   "envUrls": {
     "DESKTOP_BASE_URL": { "mock": "desktop_mock", "real": "desktop_real" },
     "RAIL_BASE_URL": { "mock": "rail_mock", "real": null },
     "STACKCHAN_WS_URL": { "mock": "stackchan_mock", "real": null },
+    "STACKCHAN_BRIDGE_URL": { "mock": null, "real": "stackchan_bridge" },
     "ROBOT_BASE_URL": { "mock": "robot_mock", "real": null }
   }
 }

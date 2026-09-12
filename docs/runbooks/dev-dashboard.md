@@ -14,6 +14,10 @@ pnpm ports:check
 # 1) 機器モックを 3 台起動（rail 8791 / desktop 8792 / stackchan 8793）
 pnpm devices:mock
 
+# 1') スタックちゃん実機（B 方式）を触るときは bridge も起動（8030）
+#     機器側が ws://<PC の IP>:8030/obake/media に繋ぎに来る
+pnpm stackchan:bridge
+
 # 2) 別ターミナルで web を起動
 pnpm dev
 ```
@@ -37,7 +41,7 @@ pnpm dev
 
 ### 対象エンドポイント
 
-`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/hand|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env` の **16 エントリ**が `client/web/lib/dev/endpoints.ts` に定義済み（id は `chat.send` / `robot.command` / `rail.move` … / `dev.env`）。
+`/api/chat`、`/api/robot/command`、`/api/robot/status`、`/api/devices/rail/move|stop|status`、`/api/devices/desktop/screenshot|browser/open|status`、`/api/devices/stackchan/head|camera|audio/start|audio/stop|audio/recent|status`、`/api/dev/env` の **16 エントリ**が `client/web/lib/dev/endpoints.ts` に定義済み（id は `chat.send` / `robot.command` / `rail.move` … / `dev.env`）。
 
 ---
 
@@ -50,7 +54,7 @@ pnpm dev
 | グループ | プリセット |
 | --- | --- |
 | レール | `x+ 500ms` / `y- 300ms` / `z+ 1000ms` |
-| ハンド | `open` / `closed` |
+| 首（スタックちゃん） | `正面`（0/0） / `左`（-30/0） / `右`（30/0） / `上`（0/20） |
 | デスクトップ | `https://example.com` を開く |
 
 「とりあえず動かす」はプリセット → 実行の 2 クリックで済む。値を変えたいときだけフォームを触る。
@@ -92,6 +96,7 @@ pnpm dev
 - **HTTP status と latency** を最初に表示する。`DeviceResult` の `latencyMs`（機器までの往復）と、ブラウザから Next までの実測を区別して見られる。
 - **JSON ツリー**: 折りたたみ可能。全体コピーのボタンあり。
 - **`responseKind: 'image'`**（`desktop/screenshot`・`stackchan/camera`）: `data.imageBase64` を `data:<mimeType>;base64,` を付けて `<img>` で描画する。**表示のみでダウンロードはしない**（base64 は Data URL 接頭辞なしで届くので、接頭辞は UI 側で付ける）。
+- **首（`stackchan/head`）**: `POST /api/devices/stackchan/head` に `{yaw,pitch,speed?}` を送る。`yaw` は -90〜90 度（マイナスが機器から見て左）、`pitch` は -45〜45 度（プラスが上）。**旧 `stackchan/hand` は 410 Gone**（現行ハードに手のサーボが無いため廃止。`/dev` の一覧にも出てこない）。
 - **`responseKind: 'stream'`**（`/api/chat`）: SSE をそのまま逐次追記表示する。整形せず生のイベントを流すので、AI SDK v7 のストリーム形式のデバッグに使える。
 
 ### 履歴 / curl コピー

@@ -5,7 +5,7 @@ import {
   cameraCapture,
   desktopOpenBrowser,
   desktopScreenshot,
-  handSet,
+  headSet,
   railMove,
   railStop,
 } from "../tools/devices"
@@ -33,11 +33,11 @@ robotCommand は emote / speak / stop のためのツールです。
 - ロボットの調子や接続を聞かれたら robotStatus ツールで確認してから答える。
 
 ## 機器（devices ツール）
-あなたは天井のレールで部屋の中を移動でき、手を開いたり閉じたりでき、カメラで周りを見られます。さらに利用者のパソコンの画面を撮ったり、ブラウザで URL を開いたりできます。
+あなたは天井のレールで部屋の中を移動でき、首を動かして相手のほうを向いたりうなずいたりでき、カメラで周りを見られます。さらに利用者のパソコンの画面を撮ったり、ブラウザで URL を開いたりできます。
 - **移動は必ず railMove を呼ぶ**（robotCommand の move は使わない）。axis は x=左右 / y=前後 / z=上下（仮。実機で確認）、direction は plus / minus。
 - 移動は一度に長く動かさず、500ms 程度に短く刻んで様子を見る。
 - 危険や不安を感じたとき、「止まって」と言われたときは、ためらわず railStop を呼ぶ。
-- 手を開け閉めするときは handSet を state（open / closed）付きで呼ぶ。
+- 相手のほうを向くとき・うなずくときは headSet を yaw（左右 -90〜90。マイナスが自分から見て左）と pitch（上下 -45〜45。プラスが上）付きで呼ぶ。正面に戻すときは yaw=0, pitch=0。うなずくなら pitch を少し下げてから 0 に戻す。
 - 周りのようすを見たいときは cameraCapture、利用者のパソコンの画面を見たいときは desktopScreenshot を呼ぶ。**撮影や画面取得は、必ず先に利用者の許可を確認してから**呼ぶ。
 - ブラウザで何かを開くときは desktopOpenBrowser に http / https の URL を渡す。これも開いてよいか確認してから。
 - 画像の中身はあなたには渡らない（撮れたかどうかとサイズだけ分かる）。撮れたら「撮れたよ」と短く伝える。
@@ -59,7 +59,7 @@ export const ghost = new Agent({
     robotStatus,
     railMove,
     railStop,
-    handSet,
+    headSet,
     cameraCapture,
     desktopScreenshot,
     desktopOpenBrowser,

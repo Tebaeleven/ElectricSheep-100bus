@@ -1,17 +1,16 @@
-import { z } from "zod"
-import { handStateSchema } from "@workspace/devices"
-
-import { getStackchan, runDeviceActionWithBody } from "@/lib/devices"
-
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const handRequestSchema = z.object({ state: handStateSchema })
-
-/** スタックちゃんの手を開閉する（ack を待つ） */
-export async function POST(request: Request) {
-  return runDeviceActionWithBody(request, handRequestSchema, async (input) => {
-    const stackchan = await getStackchan()
-    return stackchan.handSet(input.state)
-  })
+/**
+ * 廃止。現行ハード（M5Stack CoreS3 / Obake_device）に手のサーボは無く、
+ * 動かせるのは首の yaw / pitch だけなので `head.set` に置き換えた。
+ */
+export async function POST() {
+  return Response.json(
+    {
+      ok: false,
+      error: "hand.set は廃止。POST /api/devices/stackchan/head を使う",
+    },
+    { status: 410 }
+  )
 }

@@ -1,7 +1,6 @@
 import { createTool } from "@mastra/core/tools"
 import {
   createDevices,
-  handStateSchema,
   openUrlSchema,
   railAxisSchema,
   railMoveSchema,
@@ -12,6 +11,7 @@ import type {
   DeviceResult,
   ImagePayload,
   RailDirection,
+  StackchanClient,
 } from "@workspace/devices"
 import { z } from "zod"
 
@@ -169,17 +169,56 @@ export const railStop = createTool({
   },
 })
 
-/** 手（ハンド）を開閉する tool */
-export const handSet = createTool({
-  id: "hand-set",
-  description: "自分の手を開いたり閉じたりする。open=開く, closed=閉じる。",
+/** 首の可動範囲（度）と速度。正本は @workspace/devices の headSetSchema */
+export const HEAD_YAW_MIN = -90
+export const HEAD_YAW_MAX = 90
+export const HEAD_PITCH_MIN = -45
+export const HEAD_PITCH_MAX = 45
+export const HEAD_SPEED_MAX = 100
+
+type HeadSetInput = { yaw: number; pitch: number; speed?: number }
+
+// TODO(P5 統合): headSet は @workspace/devices に正式追加（P5-A 担当）。
+// 統合後はこの型と ?. 分岐を消し、stackchan.headSet(input) を直接呼ぶ。
+type StackchanWithHeadSet = StackchanClient & {
+  headSet?: (
+    input: HeadSetInput,
+    opts?: { timeoutMs?: number }
+  ) => Promise<DeviceResult>
+}
+
+/** 首を指定角度へ向ける tool */
+export const headSet = createTool({
+  id: "head-set",
+  description: `スタックちゃんの首を向ける。yaw は左右（${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度。マイナスが自分から見て左）、pitch は上下（${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度。プラスが上）。正面に戻すときは yaw=0, pitch=0。`,
   inputSchema: z.object({
-    state: handStateSchema.describe("手の状態。open=開く, closed=閉じる"),
+    yaw: z
+      .number()
+      .min(HEAD_YAW_MIN)
+      .max(HEAD_YAW_MAX)
+      .describe(`左右の角度。${HEAD_YAW_MIN}〜${HEAD_YAW_MAX} 度`),
+    pitch: z
+      .number()
+      .min(HEAD_PITCH_MIN)
+      .max(HEAD_PITCH_MAX)
+      .describe(`上下の角度。${HEAD_PITCH_MIN}〜${HEAD_PITCH_MAX} 度`),
+    speed: z
+      .number()
+      .min(0)
+      .max(HEAD_SPEED_MAX)
+      .optional()
+      .describe(`首を動かす速さ。0〜${HEAD_SPEED_MAX}。省略可`),
   }),
   outputSchema: deviceResultSchema,
   execute: async (input) => {
-    const result = await runDeviceCall(() =>
-      getDevices().stackchan.handSet(input.state)
+    const stackchan = getDevices().stackchan as StackchanWithHeadSet
+    const result = await runDeviceCall(
+      async () =>
+        (await stackchan.headSet?.(input)) ?? {
+          ok: false,
+          error: "headSet not available",
+          latencyMs: 0,
+        }
     )
     return toLlmResult(result)
   },
