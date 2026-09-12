@@ -41,10 +41,8 @@ DevCache s_devs[4] = {};
 constexpr int kPahubProbeTries = 8;
 constexpr uint32_t kPahubSettleMs = 100;
 constexpr uint32_t kPahubProbeGapMs = 40;
-/** CoreS3 AW9523（内部 I2C）。P0_1 = BUS_OUT_EN（Port.A プルアップ） */
-constexpr uint8_t kAw9523Addr = 0x58;
-constexpr uint8_t kAw9523RegOutP0 = 0x02;
-constexpr uint8_t kAw9523OutP0PortA = 0b00000111;  // stackchan.cc Aw9523 初期値と同じ
+/** CoreS3 AW9523 P0 期待値（ログ用。実書き込みは board_ensure_port_a_bus_out） */
+constexpr uint8_t kAw9523OutP0PortA = 0b00000111;
 
 i2c_master_dev_handle_t get_dev(uint8_t addr)
 {
@@ -97,32 +95,17 @@ void reset_port_a_pins()
 
 /**
  * Arduino M5.begin 相当: AW9523 で Port.A の BUS_OUT_EN を再度 HIGH にする。
- * 電源サイクル後や ResetAw88298 後に SCL が浮かないと PaHub が見えない。
+ * ボード起動時に 0x58 は既に add 済みなので、ここで二重 add_device すると必ず失敗する。
+ * → 既存 Aw9523 ハンドル経由（hal_bridge::board_ensure_port_a_bus_out）のみ使う。
  */
 bool ensure_port_a_bus_out()
 {
-    i2c_master_bus_handle_t internal = hal_bridge::board_get_i2c_bus();
-    if (!internal) {
-        ESP_LOGW(TAG, "internal I2C missing — cannot set AW9523 BUS_OUT");
+    if (!hal_bridge::board_ensure_port_a_bus_out()) {
+        ESP_LOGW(TAG, "AW9523 BUS_OUT via board failed");
+        s_status_tag = "pwr";
         return false;
     }
-    i2c_device_config_t cfg = {};
-    cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-    cfg.device_address = kAw9523Addr;
-    cfg.scl_speed_hz = 400000;
-    i2c_master_dev_handle_t dev = nullptr;
-    if (i2c_master_bus_add_device(internal, &cfg, &dev) != ESP_OK) {
-        ESP_LOGW(TAG, "AW9523 add_device failed");
-        return false;
-    }
-    const uint8_t buf[2] = {kAw9523RegOutP0, kAw9523OutP0PortA};
-    const esp_err_t err = i2c_master_transmit(dev, buf, sizeof(buf), pdMS_TO_TICKS(100));
-    i2c_master_bus_rm_device(dev);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "AW9523 BUS_OUT write failed: %s", esp_err_to_name(err));
-        return false;
-    }
-    ESP_LOGI(TAG, "AW9523 P0=0x%02X (BUS_OUT_EN on)", kAw9523OutP0PortA);
+    ESP_LOGI(TAG, "AW9523 P0=0x%02X (BUS_OUT_EN on, existing handle)", kAw9523OutP0PortA);
     return true;
 }
 
@@ -165,7 +148,8 @@ bool create_port_a_bus(uint32_t scl_hz)
         s_status_tag = "pwr";
         // 電源アサート失敗でもバス作成は試し、失敗理由を probe 側で見える化する
     }
-    vTaskDelay(pdMS_TO_TICKS(20));
+    // プルアップ安定待ち（.ino の M5.begin 直後相当）
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     s_scl_hz = scl_hz;
     i2c_master_bus_config_t bus_cfg = {};

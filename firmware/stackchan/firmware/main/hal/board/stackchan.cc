@@ -211,6 +211,12 @@ public:
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
+    /** Port.A プルアップ（P0_1=BUS_OUT_EN）。Obake PaHub 用に既存ハンドルで再アサート */
+    void EnsurePortABusOut()
+    {
+        WriteReg(0x02, 0b00000111);  // 起動時と同じ P0（二重 add_device せず）
+    }
+
     void ResetIli9342()
     {
         ESP_LOGI(TAG, "Reset IlI9342");
@@ -654,6 +660,14 @@ public:
     {
         return i2c_bus_;
     }
+
+    /** Obake: Port.A BUS_OUT_EN を既存 AW9523 ハンドルで再点灯 */
+    void EnsurePortABusOut()
+    {
+        if (aw9523_ != nullptr) {
+            aw9523_->EnsurePortABusOut();
+        }
+    }
 };
 
 DECLARE_BOARD(M5StackCoreS3Board);
@@ -662,6 +676,13 @@ i2c_master_bus_handle_t hal_bridge::board_get_i2c_bus()
 {
     auto& board = (M5StackCoreS3Board&)Board::GetInstance();
     return board.GetI2cBus();
+}
+
+bool hal_bridge::board_ensure_port_a_bus_out()
+{
+    auto& board = (M5StackCoreS3Board&)Board::GetInstance();
+    board.EnsurePortABusOut();
+    return true;
 }
 
 StackChanCamera* hal_bridge::board_get_camera()

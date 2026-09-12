@@ -54,6 +54,8 @@ XiaozhiConfig_t get_xiaozhi_config();
 void set_xiaozhi_config(const XiaozhiConfig_t& config);
 
 i2c_master_bus_handle_t board_get_i2c_bus();
+/** Port.A の BUS_OUT_EN（AW9523 P0_1）を既存ハンドルで再アサート。二重 add_device しない */
+bool board_ensure_port_a_bus_out();
 StackChanCamera* board_get_camera();
 int board_get_battery_level();
 bool board_is_battery_charging();

@@ -14,6 +14,7 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <hal/board/hal_bridge.h>
 #include <string.h>
 
 namespace stackchan::obake {
@@ -210,10 +211,23 @@ bool EyesInit()
 {
     s_left_ok = false;
     s_right_ok = false;
+    pick_look();
+    pick_mouth();
+    s_eyes_open = true;
+    const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000ULL);
+    // 口 ∪/∩ は OLED 無しでも LCD 用に必ず回す
+    s_blink_at = now + kBlinkFirstDelayMs;
+    s_look_at = now + rand_span_ms(kLookMinMs, kLookSpanMs);
+    s_mouth_at = now + rand_span_ms(kMouthFlipMinMs, kMouthFlipSpanMs);
+
     if (!PahubOk()) {
+        ESP_LOGW(TAG, "EyesInit: PaHub not ok — mouth anim only");
         return false;
     }
     PahubLock();
+    // チャネル切替前に BUS_OUT を再アサート（.ino は M5.begin で常時 ON）
+    (void)hal_bridge::board_ensure_port_a_bus_out();
+    vTaskDelay(pdMS_TO_TICKS(20));
     if (PahubSelect(kChLeft)) {
         s_left_addr = find_oled_addr();
         s_left_ok = (s_left_addr != 0) && oled_init(s_left_addr);
@@ -224,14 +238,9 @@ bool EyesInit()
         s_right_ok = (s_right_addr != 0) && oled_init(s_right_addr);
         ESP_LOGI(TAG, "CH1 oled 0x%02X %s", s_right_addr, s_right_ok ? "ok" : "fail");
     }
-    pick_look();
-    pick_mouth();
-    s_eyes_open = true;
-    show_eyes(true);
-    const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000ULL);
-    s_blink_at = now + kBlinkFirstDelayMs;
-    s_look_at = now + rand_span_ms(kLookMinMs, kLookSpanMs);
-    s_mouth_at = now + rand_span_ms(kMouthFlipMinMs, kMouthFlipSpanMs);
+    if (s_left_ok || s_right_ok) {
+        show_eyes(true);
+    }
     PahubUnlock();
     return s_left_ok || s_right_ok;
 }
@@ -259,19 +268,20 @@ bool EyesMouthSmile()
 
 void EyesTick(uint32_t now_ms)
 {
-    if (!s_left_ok && !s_right_ok) {
-        return;
-    }
     bool dirty = false;
-    // 口切替は I2C 不要（atomic だけ）。閉眼中は目の ∪/∩ も口に合わせるので dirty
-    if (now_ms >= s_mouth_at) {
+    // 口切替は I2C 不要（atomic）。OLED 無しでも LCD MouthUi が追従する
+    if (s_mouth_at != 0 && now_ms >= s_mouth_at) {
         pick_mouth();
         s_mouth_at = now_ms + rand_span_ms(kMouthFlipMinMs, kMouthFlipSpanMs);
-        if (!s_eyes_open) {
+        if (!s_eyes_open && (s_left_ok || s_right_ok)) {
             dirty = true;
         }
     }
 
+    if (!s_left_ok && !s_right_ok) {
+        return;
+    }
+    // きょろきょろ（開眼中のみ）
     if (now_ms >= s_look_at && s_eyes_open) {
         pick_look();
         dirty = true;

@@ -9,6 +9,7 @@
 #include <mooncake_log.h>
 #include <nvs_flash.h>
 #include <stackchan/custom/custom_integration.h>
+#include <stackchan/custom/obake/obake_autocustom.h>
 #include <stackchan/custom/obake/obake_wifi_seed.h>
 #include <esp_heap_caps.h>
 
@@ -199,6 +200,8 @@ static void _stackchan_update_task(void* param)
             mclog::tagInfo(_tag, "home leave: internal={} spiram={} — stop custom then warm reboot",
                            static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
                            static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+            // warm reboot 後にランチャーが CUSTOM を再自動しないよう NVS 抑止（電源投入まで）
+            stackchan::obake::AutocustomSuppressUntilColdBoot();
             stackchan::custom::LeaveCustomSession();
             GetHAL().requestWarmReboot(0);
         }

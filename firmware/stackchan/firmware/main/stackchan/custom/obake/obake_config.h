@@ -51,9 +51,10 @@ inline constexpr uint32_t kMouthHideRetryMs = 500;
 // =============================================================================
 
 /**
- * 起動後に CUSTOM を自動オープンするか。
+ * 電源投入（冷起動）後に CUSTOM を自動オープンするか。
  * 0 = 手動（ランチャーでタップ）
- * 1 = 自動（エージェント検証向け。既定 ON）
+ * 1 = 冷起動の1回だけ自動（既定）。帰宅→warm reboot 後は NVS 抑止で再自動しない。
+ *     手動で CUSTOM を開き直すことは可能（obake_autocustom）。
  */
 inline constexpr int kObakeAutoCustom = 1;
 

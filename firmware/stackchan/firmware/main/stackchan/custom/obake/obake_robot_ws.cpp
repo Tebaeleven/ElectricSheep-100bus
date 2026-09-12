@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -381,68 +382,138 @@ std::atomic<bool> s_mdns_ok{false};
 /** httpd ハンドラ内で JPEG エンコードしない（SPIRAM タスク側へ延期して固まり・OOM を避ける） */
 std::atomic<int> s_capture_pending_fd{-1};
 
-/** ウェイク相当の緑 LED（stackchan_display LISTENING と同じ経路） */
-void ControlLedOn()
+/** ブラウザ／POST からの LED・手指令。httpd タスクでは I2C/サーボせずキューのみ */
+enum class ControlCmd : uint8_t {
+    LedOn,
+    LedOff,
+    HandOpen,
+    HandClose,
+};
+
+std::mutex s_ctrl_mu;
+std::deque<ControlCmd> s_ctrl_queue;
+
+void ControlRequestEnqueue(ControlCmd cmd)
 {
-    GetHAL().setRgbColor(0, 0, 50, 0);
-    GetHAL().refreshRgb();
-    ESP_LOGI(TAG, "control led_on (wake-style RGB index0 green)");
+    std::lock_guard<std::mutex> lock(s_ctrl_mu);
+    // 同種の連続指令は最新だけ残す（連打で遅延蓄積しない）
+    while (!s_ctrl_queue.empty() && s_ctrl_queue.back() == cmd) {
+        s_ctrl_queue.pop_back();
+    }
+    s_ctrl_queue.push_back(cmd);
 }
 
-/** hand.set と同じ: open/close → 首 yaw（度数は obake_config.h） */
-void ControlHandSet(bool open)
+/** PreUpdate: LED は HAL、手は ServoRequest へ（その後 ServoApiDrain） */
+void ControlApiDrain()
 {
-    int cur_yaw = 0;
-    int cur_pitch = 0;
-    ServoGetHeadAngles(cur_yaw, cur_pitch);
-    const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
-    ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
-    ESP_LOGI(TAG, "control hand open=%d -> yaw=%d (pitch keep %d)", open ? 1 : 0, yaw, cur_pitch);
+    std::deque<ControlCmd> local;
+    {
+        std::lock_guard<std::mutex> lock(s_ctrl_mu);
+        local.swap(s_ctrl_queue);
+    }
+    for (const ControlCmd cmd : local) {
+        switch (cmd) {
+            case ControlCmd::LedOn:
+                // ウェイク LISTENING と同じ緑（index0）
+                GetHAL().setRgbColor(0, 0, 50, 0);
+                GetHAL().refreshRgb();
+                ESP_LOGI(TAG, "control drain led_on");
+                break;
+            case ControlCmd::LedOff:
+                // STANDBY と同じ消灯
+                GetHAL().setRgbColor(0, 0, 0, 0);
+                GetHAL().refreshRgb();
+                ESP_LOGI(TAG, "control drain led_off");
+                break;
+            case ControlCmd::HandOpen:
+            case ControlCmd::HandClose: {
+                // pitch 維持はドレイン側で読む（httpd から Motion に触らない）
+                int cur_yaw = 0;
+                int cur_pitch = 0;
+                ServoGetHeadAngles(cur_yaw, cur_pitch);
+                const bool open = (cmd == ControlCmd::HandOpen);
+                const int yaw = open ? kHandOpenYawDeg : kHandCloseYawDeg;
+                ServoRequestSetHeadAngles(yaw, cur_pitch, kHandYawSpeed);
+                ESP_LOGI(TAG, "control drain hand open=%d yaw=%d pitch=%d", open ? 1 : 0, yaw, cur_pitch);
+                break;
+            }
+        }
+    }
 }
 
-/** ブラウザ用の最小 HTML（ボタン3つだけ）。見た目は問わない */
+/** ブラウザ用の最小 HTML（4ボタン）。見た目は問わない */
 static const char kControlHtml[] =
     "<!DOCTYPE html><html><head><meta charset=utf-8>"
     "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
     "<title>Obake</title></head><body>"
     "<h1>Obake</h1>"
-    "<p><button onclick=\"p('/obake/led_on')\">光る</button></p>"
-    "<p><button onclick=\"p('/obake/hand_open')\">開く</button></p>"
-    "<p><button onclick=\"p('/obake/hand_close')\">閉じる</button></p>"
+    "<p><button onclick=\"p(this,'/obake/led_on')\">光る</button></p>"
+    "<p><button onclick=\"p(this,'/obake/led_off')\">消す</button></p>"
+    "<p><button onclick=\"p(this,'/obake/hand_open')\">開く</button></p>"
+    "<p><button onclick=\"p(this,'/obake/hand_close')\">閉じる</button></p>"
     "<pre id=o></pre>"
-    "<script>async function p(u){try{const r=await fetch(u,{method:'POST'});"
-    "document.getElementById('o').textContent=u+' '+r.status+' '+await r.text()}"
-    "catch(e){document.getElementById('o').textContent=String(e)}}</script>"
+    "<script>"
+    "async function p(btn,u){"
+    "const o=document.getElementById('o');"
+    "btn.disabled=true;"
+    "try{"
+    "for(let i=0;i<2;i++){"
+    "try{"
+    "const r=await fetch(u,{method:'POST',cache:'no-store'});"
+    "const t=await r.text();"
+    "o.textContent=u+' '+r.status+' '+t;"
+    "if(r.ok)return;"
+    "}catch(e){o.textContent=String(e);if(i)return;}"
+    "}"
+    "}finally{btn.disabled=false;}"
+    "}"
+    "</script>"
     "</body></html>";
 
-esp_err_t SendOkText(httpd_req_t* req, const char* body)
+/** 常に JSON で ok/error を返す（フロントの判定を簡単にする） */
+esp_err_t SendJsonResult(httpd_req_t* req, bool ok, const char* action, const char* err = nullptr)
 {
-    httpd_resp_set_type(req, "text/plain; charset=utf-8");
-    return httpd_resp_send(req, body, HTTPD_RESP_USE_STRLEN);
+    char buf[160];
+    if (ok) {
+        snprintf(buf, sizeof(buf), "{\"ok\":true,\"action\":\"%s\"}", action);
+    } else {
+        snprintf(buf, sizeof(buf), "{\"ok\":false,\"action\":\"%s\",\"error\":\"%s\"}", action,
+                 err != nullptr ? err : "failed");
+    }
+    httpd_resp_set_type(req, "application/json; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);
 }
 
 esp_err_t ControlPageHandler(httpd_req_t* req)
 {
     httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
     return httpd_resp_send(req, kControlHtml, HTTPD_RESP_USE_STRLEN);
 }
 
 esp_err_t LedOnHandler(httpd_req_t* req)
 {
-    ControlLedOn();
-    return SendOkText(req, "led_on");
+    ControlRequestEnqueue(ControlCmd::LedOn);
+    return SendJsonResult(req, true, "led_on");
+}
+
+esp_err_t LedOffHandler(httpd_req_t* req)
+{
+    ControlRequestEnqueue(ControlCmd::LedOff);
+    return SendJsonResult(req, true, "led_off");
 }
 
 esp_err_t HandOpenHandler(httpd_req_t* req)
 {
-    ControlHandSet(true);
-    return SendOkText(req, "hand_open");
+    ControlRequestEnqueue(ControlCmd::HandOpen);
+    return SendJsonResult(req, true, "hand_open");
 }
 
 esp_err_t HandCloseHandler(httpd_req_t* req)
 {
-    ControlHandSet(false);
-    return SendOkText(req, "hand_close");
+    ControlRequestEnqueue(ControlCmd::HandClose);
+    return SendJsonResult(req, true, "hand_close");
 }
 
 void LogStaIp()
@@ -622,9 +693,9 @@ void HandleRobotJson(httpd_req_t* req, int fd, const char* data, size_t len)
     const char* type = doc["type"] | "";
     if (strcmp(type, "hand.set") == 0) {
         // グリッパ無し: open/close を首 yaw 左右にマップ（定数は obake_config.h）
-        // 先に ack してセッションを落とさない。サーボはキュー経由なので busy でも落ちない
+        // 先に ack。実処理は PreUpdate の ControlApiDrain（httpd から Motion/I2C しない）
         SendAck(req, "hand.set");
-        ControlHandSet(doc["open"] | false);
+        ControlRequestEnqueue((doc["open"] | false) ? ControlCmd::HandOpen : ControlCmd::HandClose);
         return;
     }
     if (strcmp(type, "camera.capture") == 0) {
@@ -731,10 +802,11 @@ bool StartHttpdOnce()
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = static_cast<uint16_t>(kRobotWsPort);
-    config.max_open_sockets = 4;
-    // WS + 制御ページ(/, /control) + POST×3
-    config.max_uri_handlers = 8;
-    config.backlog_conn = 1;
+    // WS + ブラウザ keep-alive + 連打 POST で 4 だと枯渇しやすい
+    config.max_open_sockets = 7;
+    // WS + GET / /control + POST led_on/off hand_open/close
+    config.max_uri_handlers = 10;
+    config.backlog_conn = 2;
     config.lru_purge_enable = true;
     // 内部 DRAM の httpd タスクを避け、SPIRAM 上の小さめスタックで動かす
     config.stack_size = 6144;
@@ -792,6 +864,15 @@ bool StartHttpdOnce()
         .handle_ws_control_frames = false,
         .supported_subprotocol = nullptr,
     };
+    static const httpd_uri_t kLedOffUri = {
+        .uri = "/obake/led_off",
+        .method = HTTP_POST,
+        .handler = LedOffHandler,
+        .user_ctx = nullptr,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
     static const httpd_uri_t kHandOpenUri = {
         .uri = "/obake/hand_open",
         .method = HTTP_POST,
@@ -811,7 +892,8 @@ bool StartHttpdOnce()
         .supported_subprotocol = nullptr,
     };
 
-    const httpd_uri_t* uris[] = {&kWsUri, &kRootUri, &kControlUri, &kLedOnUri, &kHandOpenUri, &kHandCloseUri};
+    const httpd_uri_t* uris[] = {&kWsUri,     &kRootUri,     &kControlUri, &kLedOnUri,
+                                 &kLedOffUri, &kHandOpenUri, &kHandCloseUri};
     for (const httpd_uri_t* u : uris) {
         err = httpd_register_uri_handler(hd, u);
         if (err != ESP_OK) {
@@ -958,6 +1040,8 @@ void RobotWsStop()
 
 void RobotWsOnPreUpdate()
 {
+    // LED/手は httpd からキュー済み。先に Control → 続けてサーボ適用
+    ControlApiDrain();
     ServoApiDrain();
 }
 

@@ -1,5 +1,5 @@
 ---
-description: Obake は Stack-chan ベース。管理は Obake_device のみ。更新ごとに commit & push。
+description: Obake は Stack-chan ベース。正本は ElectricSheep develop/firmware/stackchan。
 alwaysApply: true
 ---
 
@@ -9,11 +9,11 @@ alwaysApply: true
 
 ## 管理（必須）
 
-- **正本フォルダ / リポは `Obake_device` のみ**（https://github.com/kazu-1234/Obake_device ）
-- 中で分ける: `firmware/`＝本番 ESP-IDF、`arduino/obake_pahub_bringup/`＝ハード確認のみ
-- **このフォルダを更新したら、作業単位ごとに必ず `git commit` と `git push origin main`**
-- 別リポ（旧 StackChan-Obake / `Documents\Arduino\Stackchan`）を正本にしない
-- `version_history.txt`・秘密情報は push しない
+- **正本（push 先）**: [ElectricSheep-100bus](https://github.com/Tebaeleven/ElectricSheep-100bus) の **`develop`** → [`firmware/stackchan/`](https://github.com/Tebaeleven/ElectricSheep-100bus/tree/develop/firmware/stackchan)
+- **作業クローン**: `C:\Users\kazuh\Documents\Arduino\ElectricSheep-100bus\firmware\stackchan\`
+- **コミット／push**: 原則この monorepo の `firmware/stackchan` 差分だけを **develop 向け PR**。main 直 push・force 禁止
+- **`Obake_device`（private）**: 任意のローカル鏡・高速試作用。**チーム向け push はしない**（止めてよい）。秘密・`version_history.txt` は出さない
+- 旧 `Documents\Arduino\Stackchan` は正本にしない
 - **メイン PC = 実機・書き込み。サブ PC = ビルド。** `firmware/build` は git 外。サブは `scripts/export_flash_bundle.ps1`、メインは bundle を GUI か `scripts/flash_bundle.ps1`
 
 CUSTOM セッションで **口・左右の目・ToF 距離** を必須表示（`firmware/main/stackchan/custom/obake/`）。通常 AI.AGENT は従来どおり。書く前は Flash バックアップ。
@@ -27,6 +27,7 @@ Port.A → PaHub v2.1（0x70）: CH0 左目 / CH1 右目 / CH2 ToF U010。目は
 - 会話: 当面 Xiaozhi。あとで独自に差し替えるので境界を残す
 - 呼びかけ: 「おばけちゃん」（必須）。ウェイク LED は Stack-chan のまま
 - CoreS3 液晶: **口**（CUSTOM）
+- **CUSTOM 自動起動**: 冷起動（電源投入）の1回のみ。帰宅→warm reboot 後は NVS 抑止（手動で CUSTOM 再開可）
 - 移動: 別マイコン。CoreS3 は「来て」「20 cm 維持」を送る。通信は未定（Wi-Fi or BLE）。スタブを先に置く
 - サーボ（足・首）: **サーバ／API 指令のみ可動**（自動は modifyLock）。Media は **端末 WS サーバ**（`:8765/ws/v1/robot`、`obake.local`）。`kMediaListenAsServer=0` で旧 PC クライアント（`:8030`）
 - 吹き出し: CUSTOM では出さない。下スワイプホームは従来どおり
