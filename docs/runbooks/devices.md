@@ -66,7 +66,7 @@ flowchart LR
 | --- | --- | --- |
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。`mock` は全機器をプロセス内モックにする。`real` でも URL 未設定の機器はモックのまま |
 | `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32（レール）の `http://host:port`。**`/api/v1` は付けない**（SDK が付与） |
-| `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | Electron（デスクトップ）の `http://host:port`。同上 |
+| `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | デスクトップの `http://host:port`。同上。**モックは 8792・Electron 実機は 8801**（[`docs/ports.md`](../ports.md)） |
 | `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`。**`/ws/v1/robot` は付けない**（SDK が付与） |
 | `DEVICE_AUTH_TOKEN` | 空 | 認証方式は未確定。設定されていれば全機器に `Authorization: Bearer <token>` を付与する |
 | `DEVICE_RAIL_MAX_DURATION_MS` | `3000` | `rail/move` の `durationMs` 上限（安全要件）。`railMoveSchema` の `max()` に効くので、**変更したら dev を再起動**する |
@@ -87,6 +87,7 @@ DEVICE_MODE=mock
 
 # 実機に向けるときはここを機器チームから聞いた IP:ポートに書き換える
 RAIL_BASE_URL=http://127.0.0.1:8791
+# モックサーバーなら 8792、Electron 実機なら 8801
 DESKTOP_BASE_URL=http://127.0.0.1:8792
 STACKCHAN_WS_URL=ws://127.0.0.1:8793
 
@@ -143,6 +144,7 @@ DEVICE_RAIL_MAX_DURATION_MS=3000
 
 ```bash
 # 3 台同時起動（rail 8791 / desktop 8792 / stackchan 8793）
+# 起動前に pnpm ports:check で衝突がないか確認できる（docs/ports.md）
 pnpm devices:mock
 ```
 
@@ -198,7 +200,7 @@ curl -sS http://127.0.0.1:8791/api/v1/rail/status
 
 書き込み手順・SSID 運用・差分表の全体は [`firmware/README.md`](../../firmware/README.md)。
 
-### 4.2 デスクトップ（Electron・8792）
+### 4.2 デスクトップ（モック・8792 / Electron 実機は 8801）
 
 ```bash
 # スクリーンショット（POST・ボディなし）→ base64（Data URL 接頭辞なし）
@@ -400,7 +402,7 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 回答が得られたら `docs/specs/robot-api-requirements.md` の「未確定事項」と本書を更新する。
 
 - [ ] **IP アドレス**: ESP32 / スタックちゃん / Electron のそれぞれの IP は？ DHCP か固定か（DHCP なら mDNS 名 `xxx.local` はあるか）
-- [ ] **ポート番号**: 各機器の待ち受けポートは？（HTTP 2 台と WS 1 台。SDK 既定はモックの 8791/8792/8793）
+- [ ] **ポート番号**: 各機器の待ち受けポートは？（HTTP 2 台と WS 1 台。SDK 既定はモックの 8791/8792/8793。実機ブリッジは 8801 以降＝[`docs/ports.md`](../ports.md)）
 - [ ] **認証方式**: 認証はあるか。あるなら `Authorization: Bearer <token>` でよいか、別ヘッダ・クエリ・mTLS か。トークンの配布方法と有効期限は？
 - [ ] **軸方向**: `axis` の `x` / `y` / `z` はそれぞれ物理的にどの向きか。`direction: 1` はどちら向きか（右/左、前/後、上/下）。原点・可動範囲・リミットスイッチの有無は？
 - [ ] **速度**: 速度は固定か指定できるか。`duration_ms` 500 で実際に何 cm 動くか。安全な上限（現在の既定 3000ms）は妥当か
@@ -417,7 +419,7 @@ UI では AI SDK の `tool-railMove` 等の part を拾って「ロボットが�
 
 ### 接続拒否（`ECONNREFUSED` / `fetch failed`）
 
-- モック運用のつもりなら、モックサーバーが起動しているか（`pnpm devices:mock`）。**`DEVICE_MODE=mock` はプロセス内モックなのでモックサーバーには届かない**（届かせたいなら `DEVICE_MODE=real` + URL をモックに向ける）。`lsof -i :8791 -i :8792 -i :8793` で待ち受けを確認。
+- モック運用のつもりなら、モックサーバーが起動しているか（`pnpm devices:mock`）。**`DEVICE_MODE=mock` はプロセス内モックなのでモックサーバーには届かない**（届かせたいなら `DEVICE_MODE=real` + URL をモックに向ける）。`pnpm ports:check` で待ち受けを確認。
 - `RAIL_BASE_URL` に **`/api/v1` を付けていないか**。付けると `/api/v1/api/v1/rail/move` になって 404 になる。ベース URL は `http://host:port` まで。
 - `DEVICE_MODE=real` にしたのに URL が空 → その機器は**モックのまま**動く（これは仕様）。ログの `[devices] ... モックを使用します` を確認。
 - 実機の IP が変わった（DHCP）。§8 の IP を再確認。

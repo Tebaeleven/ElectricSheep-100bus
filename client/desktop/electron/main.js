@@ -25,11 +25,17 @@ function originOf(raw) {
   return null;
 }
 
+/**
+ * Next（client/desktop）の待ち受けポート。client/web の 3000 と衝突しないよう 3100 固定。
+ * 台帳は scripts/ports.json（desktop_next）。
+ */
+const DESK_PORT = Number(process.env.DESKTOP_NEXT_PORT) || 3100;
+
 function deskBase() {
   return (
     originOf(process.env.GHOST_COMPANION_URL) ||
     originOf(process.env.PETASSIST_URL) ||
-    "http://127.0.0.1:3000"
+    `http://127.0.0.1:${DESK_PORT}`
   );
 }
 
@@ -49,17 +55,15 @@ async function originAlive(origin) {
 }
 
 async function resolveDeskBase(preferred) {
+  // ポートを探して回らない（3000 は client/web の Web アプリなので、
+  // 掴んでしまうと別アプリを Electron に表示する事故になる）
   const guessed = [
     preferred,
     process.env.GHOST_COMPANION_URL,
     process.env.PETASSIST_URL,
     BASE,
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
+    `http://127.0.0.1:${DESK_PORT}`,
+    `http://localhost:${DESK_PORT}`,
   ]
     .map((raw) => (raw ? originOf(raw) : null))
     .filter(Boolean);

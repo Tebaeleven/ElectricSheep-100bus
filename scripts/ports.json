@@ -1,0 +1,108 @@
+{
+  "$comment": "ポート台帳の正本。ここを直したら docs/ports.md・README.md・各 runbook も合わせる。kind: app=アプリ本体 / infra=Docker 等の基盤 / mock=モック機器 / real=実機ブリッジ。expect は lsof が返すプロセス名（COMMAND 列）の部分一致候補。",
+  "ports": {
+    "web": {
+      "port": 3000,
+      "label": "Next.js（開発サーバー / /dev ダッシュボード）",
+      "owner": "client/web",
+      "cmd": "pnpm dev",
+      "kind": "app",
+      "env": "PORT",
+      "expect": ["node", "next"]
+    },
+    "studio": {
+      "port": 4111,
+      "label": "Mastra Studio",
+      "owner": "packages/agent",
+      "cmd": "pnpm agent:studio",
+      "kind": "app",
+      "expect": ["node", "mastra"]
+    },
+    "supabase_api": {
+      "port": 54321,
+      "label": "Supabase ローカル API（Kong）",
+      "owner": "server/supabase",
+      "cmd": "pnpm db:start",
+      "kind": "infra",
+      "env": "SUPABASE_URL",
+      "expect": ["com.docke", "docker", "Docker"]
+    },
+    "supabase_db": {
+      "port": 54322,
+      "label": "Supabase Postgres（DATABASE_URL の接続先）",
+      "owner": "server/supabase",
+      "cmd": "pnpm db:start",
+      "kind": "infra",
+      "env": "DATABASE_URL",
+      "expect": ["com.docke", "docker", "Docker"]
+    },
+    "supabase_studio": {
+      "port": 54323,
+      "label": "Supabase Studio",
+      "owner": "server/supabase",
+      "cmd": "pnpm db:start",
+      "kind": "infra",
+      "expect": ["com.docke", "docker", "Docker"]
+    },
+    "robot_mock": {
+      "port": 8787,
+      "label": "ロボットモックサーバー（HTTP）",
+      "owner": "packages/robot",
+      "cmd": "pnpm robot:mock",
+      "kind": "mock",
+      "env": "ROBOT_MOCK_PORT",
+      "expect": ["node", "tsx"]
+    },
+    "rail_mock": {
+      "port": 8791,
+      "label": "機器モック: レール / ESP32（HTTP）",
+      "owner": "packages/devices",
+      "cmd": "pnpm devices:mock",
+      "kind": "mock",
+      "expect": ["node", "tsx"]
+    },
+    "desktop_mock": {
+      "port": 8792,
+      "label": "機器モック: デスクトップ（HTTP）",
+      "owner": "packages/devices",
+      "cmd": "pnpm devices:mock",
+      "kind": "mock",
+      "expect": ["node", "tsx"]
+    },
+    "stackchan_mock": {
+      "port": 8793,
+      "label": "機器モック: スタックちゃん（WebSocket）",
+      "owner": "packages/devices",
+      "cmd": "pnpm devices:mock",
+      "kind": "mock",
+      "expect": ["node", "tsx"]
+    },
+    "desktop_next": {
+      "port": 3100,
+      "label": "Next.js（client/desktop の Electron 表示用 UI）",
+      "owner": "client/desktop",
+      "cmd": "pnpm --dir client/desktop run dev",
+      "kind": "app",
+      "env": "DESKTOP_NEXT_PORT",
+      "expect": ["node", "next"]
+    },
+    "desktop_real": {
+      "port": 8801,
+      "label": "Desktop API: Electron 実機（Ghost Companion）",
+      "owner": "client/desktop",
+      "cmd": "pnpm --dir client/desktop run electron",
+      "kind": "real",
+      "env": "DESKTOP_API_PORT",
+      "expect": ["Electron", "node"]
+    }
+  },
+  "reserved": {
+    "8802-8809": "将来のローカルブリッジ用に予約（ESP32 レール実機ブリッジ・スタックちゃん実機ブリッジ等）。モック帯 8791-8793 とは必ず分けること"
+  },
+  "envUrls": {
+    "DESKTOP_BASE_URL": { "mock": "desktop_mock", "real": "desktop_real" },
+    "RAIL_BASE_URL": { "mock": "rail_mock", "real": null },
+    "STACKCHAN_WS_URL": { "mock": "stackchan_mock", "real": null },
+    "ROBOT_BASE_URL": { "mock": "robot_mock", "real": null }
+  }
+}

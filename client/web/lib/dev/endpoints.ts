@@ -1,5 +1,8 @@
 import { z } from "zod"
 
+// ポート台帳（scripts/ports.json）が正本。ここでは表示用に読み込むだけ
+import portsLedger from "../../../../scripts/ports.json"
+
 /** 機器グループ。左ペインの見出しに使う */
 export type DevEndpointGroup =
   | "chat"
@@ -35,6 +38,27 @@ export interface DevEndpoint {
   /** GET でクエリ文字列に載せる場合 true */
   inputAsQuery?: boolean
 }
+
+/** 台帳 1 件分（表示に使う項目だけ） */
+export interface ExpectedPort {
+  name: string
+  port: number
+  label: string
+  kind: string
+  /** ポートを上書きできる env 名。無ければ null */
+  env: string | null
+}
+
+/** ポート台帳（scripts/ports.json）をポート昇順にしたもの。/dev の env パネルで使う */
+export const EXPECTED_PORTS: ExpectedPort[] = Object.entries(portsLedger.ports)
+  .map(([name, entry]) => ({
+    name,
+    port: entry.port,
+    label: entry.label,
+    kind: entry.kind,
+    env: "env" in entry ? (entry.env as string) : null,
+  }))
+  .sort((a, b) => a.port - b.port)
 
 /** レール駆動時間の上限（ms）。要件定義の安全上限に合わせる */
 export const RAIL_MAX_DURATION_MS = 3000

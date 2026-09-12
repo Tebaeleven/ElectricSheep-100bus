@@ -8,6 +8,9 @@
 ## 1. 起動
 
 ```bash
+# 0) ポートの衝突確認（docs/ports.md）
+pnpm ports:check
+
 # 1) 機器モックを 3 台起動（rail 8791 / desktop 8792 / stackchan 8793）
 pnpm devices:mock
 
@@ -137,6 +140,7 @@ UI コンポーネント側は触らなくてよい。
 
 - `/dev` と `/api/dev/env` には**認証が無い**。開けば誰でも機器を動かせる。
 - **`localhost` からのみ使う**。`next dev` を `--hostname 0.0.0.0` で公開したり、トンネル（ngrok / Cloudflare Tunnel 等）で外に出したりしない。
+- ヘッダー下段に**台帳（`scripts/ports.json`）由来の「期待ポート」**を表示する。実際の LISTEN 状態まで見たいときは `pnpm ports:check`（[`docs/ports.md`](../ports.md)）。
 - 展示・デモ中は `/dev` を開いたタブを来場者の手が届く画面に出さない。誤操作で機器が動く。
 - `GET /api/dev/env` は**秘密でない env のみ**返す。`DEVICE_AUTH_TOKEN` や `GOOGLE_GENERATIVE_AI_API_KEY` のようなキー類は値を返さず **「設定済み / 未設定」の真偽値だけ**返す。ここに値を足さないこと。
 - 本番相当のデプロイを行う場合は、`/dev` と `/api/dev/*` を**ビルドから外すかミドルウェアで 404 にする**（当面ローカル運用のみなので未対応）。
@@ -145,6 +149,11 @@ UI コンポーネント側は触らなくてよい。
 
 ```json
 {
+  "ports": [
+    { "name": "web", "port": 3000, "label": "Next.js（開発サーバー / /dev ダッシュボード）", "kind": "app", "env": "PORT" },
+    { "name": "desktop_mock", "port": 8792, "label": "機器モック: デスクトップ（HTTP）", "kind": "mock", "env": null },
+    { "name": "desktop_real", "port": 8801, "label": "Desktop API: Electron 実機（Ghost Companion）", "kind": "real", "env": "DESKTOP_API_PORT" }
+  ],
   "deviceMode": "mock",
   "railBaseUrl": "http://127.0.0.1:8791",
   "desktopBaseUrl": "http://127.0.0.1:8792",

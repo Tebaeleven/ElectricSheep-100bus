@@ -12,10 +12,11 @@
 const { createServer } = require("http");
 const { app, shell, systemPreferences } = require("electron");
 
-/** 既定ポート。モック機器（@workspace/devices）と同じ番号に合わせている */
-const DEFAULT_PORT = 8792;
-/** EADDRINUSE のときにポートを +1 しながら試す回数 */
-const PORT_RETRY = 10;
+/**
+ * 既定ポート。モック機器（@workspace/devices の 8791-8793）と帯を分けるため 8801。
+ * 台帳は scripts/ports.json（desktop_real）。8802 以降は将来のローカルブリッジ用に予約。
+ */
+const DEFAULT_PORT = 8801;
 /** リクエスト本文の上限（ブラウザ起動の URL しか受けないので十分小さく） */
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -23,6 +24,10 @@ const API_PREFIX = "/api/v1/desktop";
 
 function log(message) {
   console.log(`[desktop-api] ${message}`);
+}
+
+function logError(message) {
+  console.error(`[desktop-api] ${message}`);
 }
 
 function sendJson(res, status, payload) {
@@ -95,9 +100,11 @@ function readJsonBody(req) {
 
 /**
  * サーバーを起動する。
+ * ポートが使用中でも**ポートを +1 せず**、警告を出して API だけ無効にする
+ * （黙ってずれると DESKTOP_BASE_URL と食い違うため）。アプリの起動は続ける。
  * @param {object} deps
  * @param {() => Promise<Buffer>} deps.capturePng 主ディスプレイの PNG を返す関数
- * @returns {Promise<{ port: number, close: () => void }>}
+ * @returns {Promise<{ port: number | null, close: () => void }>}
  */
 async function startDesktopApiServer({ capturePng }) {
   const startedAt = Date.now();
@@ -168,8 +175,21 @@ async function startDesktopApiServer({ capturePng }) {
     })();
   });
 
-  const basePort = Number(process.env.DESKTOP_API_PORT) || DEFAULT_PORT;
-  const port = await listenWithRetry(server, basePort);
+  const port = Number(process.env.DESKTOP_API_PORT) || DEFAULT_PORT;
+  try {
+    await listenOnce(server, port);
+  } catch (err) {
+    server.close();
+    if (err && err.code === "EADDRINUSE") {
+      logError(
+        `ポート ${port} が使用中です。pnpm ports:check で確認してください（Desktop API は無効のまま起動します）`
+      );
+    } else {
+      logError(`ポート ${port} を待ち受けできませんでした: ${err?.message ?? err}`);
+    }
+    notifyPortBusy(port);
+    return { port: null, close: () => {} };
+  }
   log(`listening on http://127.0.0.1:${port}${API_PREFIX} (screen=${screenPermission()})`);
 
   return {
@@ -180,31 +200,36 @@ async function startDesktopApiServer({ capturePng }) {
   };
 }
 
-/** EADDRINUSE なら +1 しながら空きポートを探す */
-function listenWithRetry(server, basePort) {
+/** 127.0.0.1 の指定ポートで 1 回だけ待ち受ける。失敗はそのまま reject する */
+function listenOnce(server, port) {
   return new Promise((resolve, reject) => {
-    let port = basePort;
-    let attempts = 0;
-
     const onError = (err) => {
-      if (err.code === "EADDRINUSE" && attempts < PORT_RETRY) {
-        attempts += 1;
-        port += 1;
-        log(`port ${port - 1} is busy → retry on ${port}`);
-        server.listen(port, "127.0.0.1");
-        return;
-      }
-      server.off("error", onError);
+      server.off("listening", onListening);
       reject(err);
     };
-
-    server.on("error", onError);
-    server.once("listening", () => {
+    const onListening = () => {
       server.off("error", onError);
-      resolve(server.address().port);
-    });
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
     server.listen(port, "127.0.0.1");
   });
+}
+
+/** 開いているウィンドウがあれば画面内にも警告を出す（無ければログのみ） */
+function notifyPortBusy(port) {
+  try {
+    const { BrowserWindow } = require("electron");
+    const message = `Desktop API のポート ${port} が使用中です。pnpm ports:check で確認してください。`;
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send("desktop-api:port-busy", { port, message });
+      }
+    }
+  } catch {
+    // ウィンドウがまだ無い / IPC が使えない場合はログだけで十分
+  }
 }
 
 module.exports = { startDesktopApiServer, DEFAULT_PORT };

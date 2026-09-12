@@ -115,6 +115,7 @@ Supabase を起動したくない場合は `.env.local` の `DATABASE_URL` を�
 | `pnpm agent:studio` | Mastra Studio（http://localhost:4111） |
 | `pnpm robot:mock` | ロボットモックサーバー（既定 8787） |
 | `pnpm devices:mock` | 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793） |
+| `pnpm ports:check` | ポート台帳と実際の LISTEN を突き合わせる（[`docs/ports.md`](docs/ports.md)） |
 | `pnpm wt setup <task> [base]` | 並列開発用の worktree を作る |
 
 shadcn コンポーネントの追加は **`client/web` を指して**実行する（生成先は `packages/ui/src/components`）。
@@ -125,20 +126,24 @@ pnpm dlx shadcn@latest add button -c client/web
 
 ## ポート
 
+割当の**正本は [`scripts/ports.json`](scripts/ports.json)**、人間向けの説明は [`docs/ports.md`](docs/ports.md)。起動前に確認できる。
+
+```bash
+pnpm ports:check          # 台帳と実際の LISTEN を突き合わせる（衝突なら終了コード 1）
+pnpm ports:free 8792      # そのポートを掴んでいる PID を表示（--kill で停止）
+```
+
 | ポート | 用途 |
 |---|---|
-| 3000 | Next.js（`client/web`） |
+| 3000 | Next.js（`client/web`。`/dev` は開発者ダッシュボード） |
+| 3100 | Next.js（`client/desktop` の Electron 表示用 UI、`DESKTOP_NEXT_PORT`） |
 | 4111 | Mastra Studio（`pnpm agent:studio`） |
-| 54321 | Supabase API |
-| 54322 | Supabase Postgres（`DATABASE_URL` の接続先） |
-| 54323 | Supabase Studio |
 | 8787 | ロボットモックサーバー（`ROBOT_MOCK_PORT`） |
-| 8791 | 機器モック: レール / ESP32（`pnpm devices:mock`） |
-| 8792 | 機器モック: デスクトップ / Electron（同上） |
-| 8793 | 機器モック: スタックちゃん / WebSocket（同上） |
-| 8792 | Desktop API: Electron 実機（`client/desktop`、`DESKTOP_API_PORT`。使用中なら +1） |
+| 8791-8793 | 機器モック 3 台（`pnpm devices:mock`。レール / デスクトップ / スタックちゃん） |
+| **8801** | Desktop API: Electron 実機（`client/desktop`、`DESKTOP_API_PORT`）。**使用中でもずらさず警告して API だけ無効**。8802 以降は将来のローカルブリッジ用に予約 |
+| 54321-54323 | Supabase（API / Postgres / Studio） |
 
-並列開発時のポート割当は [`docs/development.md`](docs/development.md) を参照。
+モック（8792）と Electron 実機（8801）、`client/web`（3000）と `client/desktop` の Next（3100）はそれぞれ帯が分かれているので**同時に起動できる**。並列開発時のポートずらしは [`docs/development.md`](docs/development.md) を参照。
 
 ## 環境変数
 
@@ -156,7 +161,7 @@ pnpm dlx shadcn@latest add button -c client/web
 | `SUPABASE_SECRET_KEY` | （空） | サーバー専用キー（`sb_secret_...`）。`pnpm exec supabase --workdir server status -o env \| grep SECRET_KEY` で取得。未設定なら `robot_commands` ログをスキップ |
 | `DEVICE_MODE` | `mock` | `mock` \| `real`。機器 API の接続先。詳細は [`docs/runbooks/devices.md`](docs/runbooks/devices.md) |
 | `RAIL_BASE_URL` | `http://127.0.0.1:8791` | ESP32 レールの `http://host:port`（`/api/v1` は付けない） |
-| `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | Electron デスクトップの `http://host:port` |
+| `DESKTOP_BASE_URL` | `http://127.0.0.1:8792` | デスクトップの `http://host:port`。モック = 8792 / Electron 実機 = 8801（[`docs/ports.md`](docs/ports.md)） |
 | `STACKCHAN_WS_URL` | `ws://127.0.0.1:8793` | スタックちゃんの `ws://host:port`（`/ws/v1/robot` は付けない） |
 | `DEVICE_AUTH_TOKEN` | （空） | 設定時に全機器へ `Authorization: Bearer` を付与（方式未確定） |
 | `DEVICE_RAIL_MAX_DURATION_MS` | `3000` | `rail/move` の `durationMs` 上限（安全要件） |

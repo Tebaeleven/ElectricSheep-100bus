@@ -27,6 +27,13 @@ export const MOCK_RAIL_PORT = 8791
 export const MOCK_DESKTOP_PORT = 8792
 export const MOCK_STACKCHAN_PORT = 8793
 
+/**
+ * Electron 実機（client/desktop）の Desktop API 既定ポート。
+ * モック帯 8791-8793 と分けるため 8801。台帳は scripts/ports.json（desktop_real）。
+ * DEVICE_MODE=real で実機に繋ぐときは DESKTOP_BASE_URL=http://127.0.0.1:8801 にする。
+ */
+export const REAL_DESKTOP_PORT_DEFAULT = 8801
+
 /** モックが返す 1x1 透明 PNG（Data URL 接頭辞なしの base64） */
 export const MOCK_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="

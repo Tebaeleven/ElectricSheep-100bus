@@ -19,7 +19,9 @@
     "agent:studio": "pnpm --filter @workspace/agent dev",
     "robot:mock": "pnpm --filter @workspace/robot mock",
     "devices:mock": "pnpm --filter @workspace/devices mock",
-    "wt": "bash scripts/wt-setup.sh"
+    "wt": "bash scripts/wt-setup.sh",
+    "ports:check": "node scripts/check-ports.mjs",
+    "ports:free": "node scripts/check-ports.mjs free"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

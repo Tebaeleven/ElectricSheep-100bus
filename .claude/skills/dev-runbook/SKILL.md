@@ -26,6 +26,7 @@ pnpm install
 cp client/web/.env.example client/web/.env.local   # 正本はこれ 1 つ
 pnpm db:start      # Supabase（Docker 必須）。不要なら DATABASE_URL を空にして in-memory
 pnpm robot:mock    # ロボットモック 8787
+pnpm ports:check   # 起動前にポートの衝突を確認（詳細は docs/ports.md）
 pnpm devices:mock  # 機器モック 3 台（レール 8791 / デスクトップ 8792 / スタックちゃん 8793）
 pnpm dev           # web 3000。全 API を手で叩ける開発者ダッシュボードは http://localhost:3000/dev
 pnpm agent:studio  # Mastra Studio 4111（任意）
@@ -41,7 +42,10 @@ green にしてからコミット（日本語メッセージ）。**push / PR / 
 
 ## ポート
 
-3000 web（`/dev` は開発者ダッシュボード）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / 8791-8793 機器モック（`pnpm devices:mock`）。
+**起動前に `pnpm ports:check`**（台帳 `scripts/ports.json` と実際の LISTEN・`.env.local` を突き合わせ、衝突なら終了コード 1）。詳細は `docs/ports.md`。
+
+3000 web（`/dev` は開発者ダッシュボード）/ **3100 `client/desktop` の Next**（`DESKTOP_NEXT_PORT`。3000 を取り合わない）/ 4111 Mastra Studio / 54321-54323 Supabase（API・DB・Studio）/ 8787 ロボットモック / 8791-8793 機器モック（`pnpm devices:mock`）/ **8801 Electron 実機の Desktop API**（`DESKTOP_API_PORT`。8802 以降は将来のローカルブリッジ用に予約）。
+モック 8792 と実機 8801 は別帯なので同時起動してよい。Electron はポートが埋まっていても**自動でずらさず**警告して Desktop API だけ無効にする。
 並列レーンでは web は `PORT=3001..`、モックは `ROBOT_MOCK_PORT` でずらす（割当表は `docs/development.md`）。
 
 ## ファイル所有権

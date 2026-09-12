@@ -15,7 +15,9 @@ import {
 
 import {
   EMERGENCY_STOP_STEPS,
+  EXPECTED_PORTS,
   STATUS_POLL_TARGETS,
+  type ExpectedPort,
 } from "@/lib/dev/endpoints"
 import { probeStatus } from "@/lib/dev/run"
 
@@ -31,6 +33,7 @@ interface DevEnvResponse {
   robotBaseUrl?: string | null
   ghostModel?: string | null
   secrets?: Record<string, boolean>
+  ports?: ExpectedPort[]
 }
 
 type ProbeState = "loading" | "ok" | "ng" | "missing"
@@ -177,6 +180,15 @@ export function DevHeader() {
               </span>
             ))
           : null}
+      </div>
+
+      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
+        <span className="font-sans">期待ポート（scripts/ports.json）:</span>
+        {(env?.ports ?? EXPECTED_PORTS).map((entry) => (
+          <span key={entry.name} title={entry.label}>
+            {entry.name}={entry.port}
+          </span>
+        ))}
       </div>
 
       {stopLog.length > 0 ? (
